@@ -37,7 +37,7 @@
     "node": ">=22"
   },
   "dependencies": {
-    "archiver": "^7.0.1",
+    "archiver": "^8.0.0",
     "better-sqlite3": "^12.11.1",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
