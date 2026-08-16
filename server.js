@@ -2565,7 +2565,16 @@ app.post('/api/palworld/mods/preview', palworldModUpload.single('package'), limi
   } catch (error) {
     try {
       const staged = stagedUploadPath(req.file, palworldModImportsDir());
-      if (staged) fs.unlinkSync(staged);
+      if (staged) {
+        // Inline resolve + startsWith barrier at the cleanup sink
+        // (js/path-injection); stagedUploadPath already proved containment,
+        // this restates it on the sink's own taint path.
+        const uploadsRoot = path.resolve(palworldModImportsDir());
+        const stagedResolved = path.resolve(staged);
+        if (stagedResolved === uploadsRoot || stagedResolved.startsWith(uploadsRoot + path.sep)) {
+          fs.unlinkSync(stagedResolved);
+        }
+      }
     } catch (_) { /* swept later */ }
     sendPalworldModError(res, error);
   }
@@ -2913,7 +2922,16 @@ app.post('/api/portability/palworld/import/preview', requireAdmin, palworldProfi
   } finally {
     try {
       const staged = stagedUploadPath(req.file, palworldProfileUploadsDir());
-      if (staged) fs.rmSync(staged, { force: true });
+      if (staged) {
+        // Inline resolve + startsWith barrier at the cleanup sink
+        // (js/path-injection); stagedUploadPath already proved containment,
+        // this restates it on the sink's own taint path.
+        const uploadsRoot = path.resolve(palworldProfileUploadsDir());
+        const stagedResolved = path.resolve(staged);
+        if (stagedResolved === uploadsRoot || stagedResolved.startsWith(uploadsRoot + path.sep)) {
+          fs.rmSync(stagedResolved, { force: true });
+        }
+      }
     } catch (_) { /* swept on restart */ }
   }
 });
@@ -6305,7 +6323,12 @@ app.get('/api/system', async (req, res) => {
 // path that would escape the root (path traversal guard).
 function safeResolve(root, rel) {
   const base = path.resolve(root);
-  const target = path.resolve(base, '.' + path.sep + (rel || '').replace(/^[\\/]+/, ''));
+  // CodeQL's js/path-injection barrier keys on the FIRST argument of
+  // path.resolve (or the last argument of a path.join nested as its first
+  // argument). The tainted relative path must therefore enter through
+  // path.join - a resolve(base, taintedSuffix) shape is logically correct
+  // but invisible to the query, leaving every downstream fs sink flagged.
+  const target = path.resolve(path.join(base, '.' + path.sep + (rel || '').replace(/^[\\/]+/, '')));
   const rootWithSep = base.endsWith(path.sep) ? base : base + path.sep;
   if (target !== base && !target.startsWith(rootWithSep)) return null;
   return target;
@@ -6342,16 +6365,17 @@ app.get('/api/files', limitFilesRead, (req, res) => {
   if (!abs) return res.status(400).json({ error: tErr(req.user, 'errors.invalidPath') });
   // Inline resolve + startsWith barrier at the fs sinks (js/path-injection).
   // safeResolveNoFollow already proved containment; this restates the same
-  // rule in the shape CodeQL recognizes immediately before the sink.
+  // rule in the shape CodeQL recognizes on the sink's own taint path, using a
+  // fresh path.resolve output as the guarded value.
   const filesRoot = path.resolve(m.dir());
-  const filesRootWithSep = filesRoot.endsWith(path.sep) ? filesRoot : filesRoot + path.sep;
-  if (abs !== filesRoot && !abs.startsWith(filesRootWithSep)) return res.status(400).json({ error: tErr(req.user, 'errors.invalidPath') });
+  const absResolved = path.resolve(abs);
+  if (absResolved !== filesRoot && !absResolved.startsWith(filesRoot + path.sep)) return res.status(400).json({ error: tErr(req.user, 'errors.invalidPath') });
   try {
-    const entries = fs.readdirSync(abs, { withFileTypes: true });
+    const entries = fs.readdirSync(absResolved, { withFileTypes: true });
     const out = entries.map((e) => {
       let size = 0, mtime = 0;
-      const child = path.join(abs, e.name);
-      if (child === filesRoot || child.startsWith(filesRootWithSep)) {
+      const child = path.join(absResolved, e.name);
+      if (child === filesRoot || child.startsWith(filesRoot + path.sep)) {
         try { const st = fs.statSync(child); size = st.size; mtime = st.mtimeMs; } catch (_) {}
       }
       return { name: e.name, dir: e.isDirectory(), size, mtime, editable: e.isFile() && isTextFile(e.name) };
@@ -6368,14 +6392,14 @@ app.get('/api/files/read', limitFilesRead, (req, res) => {
   const abs = safeResolveNoFollow(m.dir(), req.query.path || '');
   if (!abs) return res.status(400).json({ error: tErr(req.user, 'errors.invalidPath') });
   const filesRoot = path.resolve(m.dir());
-  const filesRootWithSep = filesRoot.endsWith(path.sep) ? filesRoot : filesRoot + path.sep;
-  if (abs !== filesRoot && !abs.startsWith(filesRootWithSep)) return res.status(400).json({ error: tErr(req.user, 'errors.invalidPath') });
+  const absResolved = path.resolve(abs);
+  if (absResolved !== filesRoot && !absResolved.startsWith(filesRoot + path.sep)) return res.status(400).json({ error: tErr(req.user, 'errors.invalidPath') });
   try {
-    const st = fs.statSync(abs);
+    const st = fs.statSync(absResolved);
     if (st.isDirectory()) return res.status(400).json({ error: tErr(req.user, 'errors.isAFolder') });
     if (st.size > MAX_EDIT_BYTES) return res.status(413).json({ error: tErr(req.user, 'errors.fileTooLarge') });
-    if (!isTextFile(path.basename(abs))) return res.status(415).json({ error: tErr(req.user, 'errors.notATextFile') });
-    res.json({ content: fs.readFileSync(abs, 'utf8') });
+    if (!isTextFile(path.basename(absResolved))) return res.status(415).json({ error: tErr(req.user, 'errors.notATextFile') });
+    res.json({ content: fs.readFileSync(absResolved, 'utf8') });
   } catch (err) {
     httpError(res, req, err, 400);
   }
@@ -6389,14 +6413,14 @@ app.put('/api/files/write', limitFilesWrite, (req, res) => {
   const content = req.body && req.body.content;
   if (typeof content !== 'string') return res.status(400).json({ error: tErr(req.user, 'errors.missingContent') });
   try {
-    if (m.desc().type === 'palworld' && path.resolve(abs) === path.resolve(palworldSettings.configPath(m.dir()))) {
+    const filesRoot = path.resolve(m.dir());
+    const absResolved = path.resolve(abs);
+    if (absResolved !== filesRoot && !absResolved.startsWith(filesRoot + path.sep)) return res.status(400).json({ error: tErr(req.user, 'errors.invalidPath') });
+    if (m.desc().type === 'palworld' && absResolved === path.resolve(palworldSettings.configPath(m.dir()))) {
       const guarded = palworldSettings.validateProtectedRaw(content, m.desc());
       if (!guarded.ok) return res.status(409).json({ error: guarded.error, code: 'protected_palworld_setting' });
     }
-    const filesRoot = path.resolve(m.dir());
-    const filesRootWithSep = filesRoot.endsWith(path.sep) ? filesRoot : filesRoot + path.sep;
-    if (abs !== filesRoot && !abs.startsWith(filesRootWithSep)) return res.status(400).json({ error: tErr(req.user, 'errors.invalidPath') });
-    fs.writeFileSync(abs, content, 'utf8');
+    fs.writeFileSync(absResolved, content, 'utf8');
     res.json({ ok: true });
   } catch (err) {
     httpError(res, req, err, 500);
@@ -6411,10 +6435,10 @@ app.post('/api/files/mkdir', limitFilesWrite, (req, res) => {
   const abs = safeResolveNoFollow(m.dir(), path.join(req.body.path || '', name));
   if (!abs) return res.status(400).json({ error: tErr(req.user, 'errors.invalidPath') });
   const filesRoot = path.resolve(m.dir());
-  const filesRootWithSep = filesRoot.endsWith(path.sep) ? filesRoot : filesRoot + path.sep;
-  if (abs !== filesRoot && !abs.startsWith(filesRootWithSep)) return res.status(400).json({ error: tErr(req.user, 'errors.invalidPath') });
+  const absResolved = path.resolve(abs);
+  if (absResolved !== filesRoot && !absResolved.startsWith(filesRoot + path.sep)) return res.status(400).json({ error: tErr(req.user, 'errors.invalidPath') });
   try {
-    fs.mkdirSync(abs, { recursive: true });
+    fs.mkdirSync(absResolved, { recursive: true });
     res.json({ ok: true });
   } catch (err) {
     httpError(res, req, err, 500);
@@ -6433,16 +6457,15 @@ app.post('/api/files/rename', limitFilesWrite, (req, res) => {
   // never land on a symlink pointing out of the sandbox.
   const toRel = pathSafety.relation(to, m.dir());
   if (toRel !== 'same' && toRel !== 'inside') return res.status(400).json({ error: tErr(req.user, 'errors.invalidPath') });
-  // The destination is built from a user-supplied name; restate containment
+  // The source and destination are both user-influenced; restate containment
   // in the resolve + startsWith shape at the rename sink (js/path-injection).
   const filesRoot = path.resolve(m.dir());
-  const filesRootWithSep = filesRoot.endsWith(path.sep) ? filesRoot : filesRoot + path.sep;
-  if ((from !== filesRoot && !from.startsWith(filesRootWithSep)) ||
-      (to !== filesRoot && !to.startsWith(filesRootWithSep))) {
-    return res.status(400).json({ error: tErr(req.user, 'errors.invalidPath') });
-  }
+  const fromResolved = path.resolve(from);
+  const toResolved = path.resolve(to);
+  if (fromResolved !== filesRoot && !fromResolved.startsWith(filesRoot + path.sep)) return res.status(400).json({ error: tErr(req.user, 'errors.invalidPath') });
+  if (toResolved !== filesRoot && !toResolved.startsWith(filesRoot + path.sep)) return res.status(400).json({ error: tErr(req.user, 'errors.invalidPath') });
   try {
-    fs.renameSync(from, to);
+    fs.renameSync(fromResolved, toResolved);
     res.json({ ok: true });
   } catch (err) {
     httpError(res, req, err, 500);
@@ -6455,10 +6478,10 @@ app.delete('/api/files', limitFilesWrite, (req, res) => {
   const abs = safeResolveNoFollow(m.dir(), req.query.path || '');
   if (!abs || abs === path.resolve(m.dir())) return res.status(400).json({ error: tErr(req.user, 'errors.invalidPath') });
   const filesRoot = path.resolve(m.dir());
-  const filesRootWithSep = filesRoot.endsWith(path.sep) ? filesRoot : filesRoot + path.sep;
-  if (abs !== filesRoot && !abs.startsWith(filesRootWithSep)) return res.status(400).json({ error: tErr(req.user, 'errors.invalidPath') });
+  const absResolved = path.resolve(abs);
+  if (absResolved !== filesRoot && !absResolved.startsWith(filesRoot + path.sep)) return res.status(400).json({ error: tErr(req.user, 'errors.invalidPath') });
   try {
-    fs.rmSync(abs, { recursive: true, force: true });
+    fs.rmSync(absResolved, { recursive: true, force: true });
     res.json({ ok: true });
   } catch (err) {
     httpError(res, req, err, 500);
@@ -6471,11 +6494,11 @@ app.get('/api/files/download', limitFilesRead, (req, res) => {
   const abs = safeResolveNoFollow(m.dir(), req.query.path || '');
   if (!abs) return res.status(400).json({ error: tErr(req.user, 'errors.invalidPath') });
   const filesRoot = path.resolve(m.dir());
-  const filesRootWithSep = filesRoot.endsWith(path.sep) ? filesRoot : filesRoot + path.sep;
-  if (abs !== filesRoot && !abs.startsWith(filesRootWithSep)) return res.status(400).json({ error: tErr(req.user, 'errors.invalidPath') });
+  const absResolved = path.resolve(abs);
+  if (absResolved !== filesRoot && !absResolved.startsWith(filesRoot + path.sep)) return res.status(400).json({ error: tErr(req.user, 'errors.invalidPath') });
   try {
-    if (fs.statSync(abs).isDirectory()) return res.status(400).json({ error: tErr(req.user, 'errors.cannotDownloadFolder') });
-    res.download(abs, path.basename(abs));
+    if (fs.statSync(absResolved).isDirectory()) return res.status(400).json({ error: tErr(req.user, 'errors.cannotDownloadFolder') });
+    res.download(absResolved, path.basename(absResolved));
   } catch (err) {
     res.status(404).json({ error: tErr(req.user, 'errors.fileDoesNotExist') });
   }
@@ -6488,8 +6511,11 @@ const fileUpload = multer({
       if (!m || !m.dir()) return cb(new Error('No active server.'));
       const dest = safeResolveNoFollow(m.dir(), req.query.path || '');
       if (!dest) return cb(new Error('Invalid path'));
-      try { fs.mkdirSync(dest, { recursive: true }); } catch (_) {}
-      cb(null, dest);
+      const uploadsRoot = path.resolve(m.dir());
+      const destResolved = path.resolve(dest);
+      if (destResolved !== uploadsRoot && !destResolved.startsWith(uploadsRoot + path.sep)) return cb(new Error('Invalid path'));
+      try { fs.mkdirSync(destResolved, { recursive: true }); } catch (_) {}
+      cb(null, destResolved);
     },
     filename: (req, file, cb) => cb(null, path.basename(file.originalname)),
   }),
