@@ -1,7 +1,7 @@
 'use strict';
 
 /*
- * Relay HTTP service (plan Task 4).
+ * Relay HTTP service.
  *
  * Exposes exactly two routes:
  *   POST /v1/reports — validated, redacted report submission.
@@ -187,8 +187,8 @@ function createRelayApp(deps = {}) {
  *   - GitHub client from env (fails closed when RELAY_GITHUB_TOKEN is
  *     missing — the relay refuses to start without a credential)
  *   - queue worker polling on an unref'd interval
- * Binds 127.0.0.1 only; the outbound tunnel (Cloudflare) is the only public
- * exposure (see deploy/pi docs in the plan).
+ * Binds 127.0.0.1 only; public exposure is provided by a separately managed
+ * edge layer.
  */
 function createRelayServer(opts = {}) {
   const dataDir = opts.dataDir || process.env.RELAY_DATA_DIR || path.join(__dirname, 'data');

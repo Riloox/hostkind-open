@@ -1,7 +1,7 @@
 'use strict';
 
 /*
- * Strict report validation for the standalone relay (plan Task 2).
+ * Strict report validation for the standalone relay.
  *
  * Pure module: no I/O, no network, no secrets. Validation errors are
  * field-name + reason only — the submitted value is NEVER echoed, so a

@@ -1,7 +1,7 @@
 'use strict';
 
 /*
- * Standalone GitHub Issues client for the relay (plan Tasks 3/8).
+ * Standalone GitHub Issues client for the relay.
  *
  * Native fetch only, with injectable fetch/baseUrl for tests — no live
  * network in the test suite. The credential is server-side only: the token

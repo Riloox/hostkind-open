@@ -13,9 +13,8 @@ server-side GitHub credential.
 2. **Queue integrity** — user-submitted reports, idempotency, durability.
 3. **Operator trust** — the relay must never embarrass the operator: no
    secret leakage, no arbitrary GitHub API calls billed to the credential.
-4. **Host** — a Raspberry Pi on a home network. Physical/OS compromise is
-   out of scope here (covered by `deploy/pi/` hardening), but the relay must
-   not make it easier.
+4. **Host** — the machine running the relay. Physical/OS compromise is out
+   of scope here, but the relay must not make host compromise easier.
 
 ## Adversaries
 
@@ -115,15 +114,14 @@ a second issue.
 
 ## Out of scope / residual risks
 
-- **Host/OS compromise** on the Pi defeats everything app-level; mitigated
-  by the `deploy/pi/` hardening plan (dedicated user, systemd sandboxing,
-  UFW, key-only SSH, root-only secrets file).
-- **Credential rotation** is operator discipline (plan Task 8); the relay
-  cannot prevent a leaked token from being used once it is out.
+- **Host/OS compromise** defeats everything app-level; operators must apply
+  least privilege, network controls, restricted administrative access, and
+  root-only protection for credential files.
+- **Credential rotation** is operator discipline; the relay cannot prevent a
+  leaked token from being used once it is out.
 - **In-memory rate limits reset on restart**; a determined attacker can
   rotate IPs or wait. Edge limiting and, if abuse appears, instance
-  registration / CAPTCHA are the follow-ups (plan "Recommended first
-  release").
+  registration / CAPTCHA are possible follow-ups for a future release.
 - **Email/IP redaction is pattern-based**: unusual encodings (base64,
   unicode homoglyphs) can slip through. Reports are public content; the
   reporter is told to avoid posting credentials.

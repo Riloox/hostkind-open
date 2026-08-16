@@ -1,7 +1,7 @@
 'use strict';
 
 /*
- * In-memory fixed-window rate limiter for the relay (plan Task 4).
+ * In-memory fixed-window rate limiter for the relay.
  *
  * Used for per-IP submission limits and the global daily budget. Buckets are
  * pruned lazily on each hit so memory stays bounded. The limiter is

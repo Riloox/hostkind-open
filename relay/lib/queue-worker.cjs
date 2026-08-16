@@ -1,7 +1,7 @@
 'use strict';
 
 /*
- * Queue worker for the standalone relay (plan Task 3).
+ * Queue worker for the standalone relay.
  *
  * Bridges the durable SQLite queue and the GitHub client: claims pending
  * rows, creates issues (reconciling by idempotency marker on retries first),

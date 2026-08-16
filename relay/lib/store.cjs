@@ -1,7 +1,7 @@
 'use strict';
 
 /*
- * Durable SQLite queue for the standalone relay (plan Task 3).
+ * Durable SQLite queue for the standalone relay.
  *
  * The relay persists a validated + redacted report BEFORE any network call:
  * enqueue() writes the row synchronously, and only then may the queue worker

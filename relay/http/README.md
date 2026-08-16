@@ -1,7 +1,6 @@
 # Relay HTTP service (`relay/http/`)
 
-Plan Task 4 — narrow HTTP surface for the upstream bug-report relay.
-See `../../.hermes/plans/2026-08-15_124205-upstream-bug-report-relay-pi.md`.
+Narrow HTTP surface for the upstream bug-report relay.
 
 ## Endpoints
 
@@ -86,8 +85,9 @@ const { app } = createRelayServer({
 ```
 
 `createRelayServer()` throws when `enqueue` is missing — the relay fails
-closed. Bind the server to `127.0.0.1` only (deployment task: systemd +
-Cloudflare Tunnel). No credential is ever requested or stored by this module.
+closed. Bind the server to `127.0.0.1` only and place public exposure behind
+a separately managed edge layer. No credential is ever requested or stored by
+this module.
 
 ## Tests
 

@@ -1,8 +1,7 @@
 'use strict';
 
 /*
- * Fixed-window rate limiter for the relay HTTP service
- * (plan Task 4 — .hermes/plans/2026-08-15_124205-upstream-bug-report-relay-pi.md).
+ * Fixed-window rate limiter for the relay HTTP service.
  *
  * Deliberately dependency-free and synchronous: the relay must fail closed
  * under load and the limiter itself must never be an async race source.

@@ -1,7 +1,7 @@
 'use strict';
 
 /*
- * Report redaction for the standalone relay (plan Task 2).
+ * Report redaction for the standalone relay.
  *
  * Every submitted report is treated as PUBLIC content once it reaches the
  * upstream issue tracker. This module is the single source of truth for what

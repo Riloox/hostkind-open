@@ -1,7 +1,7 @@
 'use strict';
 
 /*
- * Relay HTTP service (plan Task 4 — .hermes/plans/2026-08-15_124205-upstream-bug-report-relay-pi.md).
+ * Relay HTTP service.
  *
  * Narrow public surface for the upstream bug-report relay:
  *

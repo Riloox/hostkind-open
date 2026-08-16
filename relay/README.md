@@ -4,13 +4,10 @@ A small, standalone relay service that accepts validated bug-report payloads
 from Fleetdeck instances and creates issues in a **fixed** upstream GitHub
 repository (`Riloox/fleetdeck-open`) using a server-side credential.
 
-The relay is deliberately separate from the Fleetdeck panel: it runs on its
-own host (e.g. a Raspberry Pi), owns its own SQLite queue, and is the only
-thing published through an outbound tunnel. See `THREAT-MODEL.md` for the
-adversary model this design defends against, and the plan
-`.hermes/plans/2026-08-15_124205-upstream-bug-report-relay-pi.md` for the
-full deployment architecture (systemd, UFW, Cloudflare Tunnel, credential
-rotation).
+The relay is deliberately separate from the Fleetdeck panel: it runs as an
+independent service, owns its own SQLite queue, and is exposed only through a
+separately managed edge layer. See `THREAT-MODEL.md` for the adversary model
+this design defends against.
 
 ## Scope of this directory
 
