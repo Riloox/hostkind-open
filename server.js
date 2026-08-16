@@ -271,7 +271,26 @@ function genId() {
 const SERVER_NAME_MAX_LENGTH = 30;
 
 function slugify(s) {
-  return String(s || 'server').replace(/[^A-Za-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'server';
+  const source = String(s || 'server');
+  let value = '';
+  let unsafeRun = false;
+  for (let i = 0; i < source.length; i += 1) {
+    const code = source.charCodeAt(i);
+    const allowed = (code >= 65 && code <= 90) || (code >= 97 && code <= 122)
+      || (code >= 48 && code <= 57) || code === 95 || code === 45;
+    if (allowed) {
+      value += source[i];
+      unsafeRun = false;
+    } else if (!unsafeRun) {
+      value += '-';
+      unsafeRun = true;
+    }
+  }
+  let start = 0;
+  while (start < value.length && value[start] === '-') start += 1;
+  let end = value.length;
+  while (end > start && value[end - 1] === '-') end -= 1;
+  return value.slice(start, end).slice(0, 40) || 'server';
 }
 
 // --- user passwords (scrypt, salted; stored as "salt:hash") ---

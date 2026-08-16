@@ -216,10 +216,31 @@ test('a failed public probe never claims the router is misconfigured', async () 
   const result = await connectivity.testEndpoint({
     host: 'example.invalid',
     port: 8211,
+    lookupImpl: async () => [{ address: '93.184.216.34', family: 4 }],
     probeTcpImpl: async () => ({ state: 'closed', detail: 'ECONNREFUSED' }),
   });
   assert.strictEqual(result.result, 'closed');
   assert.ok(/does not prove/i.test(result.interpretation));
+  let resolvedHost = null;
+  await connectivity.testEndpoint({
+    host: 'public.example',
+    port: 8211,
+    lookupImpl: async () => [{ address: '93.184.216.34', family: 4 }],
+    probeTcpImpl: async (_port, options) => {
+      resolvedHost = options.host;
+      return { state: 'closed', detail: 'ECONNREFUSED' };
+    },
+  });
+  assert.strictEqual(resolvedHost, '93.184.216.34');
+  await assert.rejects(
+    async () => connectivity.testEndpoint({
+      host: 'public.example',
+      port: 8211,
+      lookupImpl: async () => [{ address: '10.0.0.8', family: 4 }],
+      probeTcpImpl: async () => ({ state: 'listening' }),
+    }),
+    (error) => error.code === 'invalid_host',
+  );
   await assert.rejects(async () => connectivity.testEndpoint({ host: 'bad host!', port: 1 }), (error) => error.code === 'invalid_host');
 });
 
