@@ -32,7 +32,7 @@ function fresh() {
   close();
   for (const ext of ['', '-wal', '-shm']) {
     const p = dbPath() + ext;
-    if (fs.existsSync(p)) try { fs.unlinkSync(p); } catch (_) { /* */ }
+    if (fs.existsSync(p)) try { fs.unlinkSync(p); } catch { /* */ }
   }
 }
 
@@ -177,12 +177,13 @@ tests.push(() => {
 tests.push(() => {
   fresh();
   // Remove everything after migration 11 temporarily so only 1–11 are
-  // applied (simulating a v0.1.0 DB that predates the api-keys schema).
+  // applied (simulating a v0.1.0 DB that predates the api-keys and bug-report
+  // schemas).
   // Restore right after so the runner can pick them up as pending.
   // (Find the split by name: newer migrations sit after it in the array.)
   const idx = migrations.MIGRATIONS.findIndex((m) => m.name === 'api-keys');
   assert.ok(idx > 0, 'api-keys migration should exist');
-  const tail = migrations.MIGRATIONS.splice(idx);   // api-keys and everything after it
+  const tail = migrations.MIGRATIONS.splice(idx);   // api-keys + drop-backup-drills
   const r1 = migrations.runMigrations();            // applies 1–11
   migrations.MIGRATIONS.push(...tail);              // restore immediately
   assert.strictEqual(r1.applied.length, 11, 'should apply 11 migrations');
@@ -192,14 +193,12 @@ tests.push(() => {
   const beforeOps = dumpTable(db, 'operations');
   close();
 
-  // Run the runner — it should pick up every migration in the tail. The
-  // expectation is derived from `tail` rather than hardcoded so adding a new
-  // migration does not fail this test; what is under test is the snapshot and
-  // data-survival behaviour, not how many migrations happen to exist.
+  // Run the runner — it should pick up all pending migrations.
   const r2 = migrations.runMigrations();
-  const expectedNames = [...tail].sort((a, b) => a.version - b.version).map((m) => m.name);
-  assert.strictEqual(r2.applied.length, expectedNames.length, 'should apply the pending migrations');
-  assert.deepStrictEqual(r2.applied.map((a) => a.name), expectedNames);
+  assert.strictEqual(r2.applied.length, 3, 'should apply the pending migrations');
+  assert.strictEqual(r2.applied[0].name, 'api-keys');
+  assert.strictEqual(r2.applied[1].name, 'drop-backup-drills');
+  assert.strictEqual(r2.applied[2].name, 'bug-reports');
 
   // A snapshot was created before the upgrade ran.
   assert.ok(r2.snapshot, 'upgrade should produce a pre-migration snapshot');
@@ -216,9 +215,11 @@ tests.push(() => {
   const db2 = open();
   assert.strictEqual(dumpTable(db2, 'operations'), beforeOps, 'operations drifted after upgrade');
 
-  // version 12 is now recorded.
+  // The pending migration versions are now recorded.
   const v12row = db2.prepare('SELECT version FROM schema_migrations WHERE version = 12').get();
   assert.ok(v12row, 'migration 12 should be recorded');
+  const v14row = db2.prepare('SELECT version FROM schema_migrations WHERE version = 14').get();
+  assert.ok(v14row, 'migration 14 should be recorded');
 
   close();
   console.log('ok  upgrade-drill: pending migration creates snapshot, data survives');

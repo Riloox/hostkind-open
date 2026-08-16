@@ -3123,14 +3123,7 @@ function loadBugReportCore() {
 function bugReportConfigBlock() {
   if (!loadBugReportCore()) return { enabled: false, owner: 'Riloox', repo: 'fleetdeck-open', labels: ['bug'], mode: 'github', relayUrl: null, token: null, errors: [] };
   try { return _bugReportConfig.normalizeConfig(config.bugReports || {}, process.env); }
-  catch (err) {
-    // normalizeConfig is written not to throw (it reports problems in its
-    // `errors` array), so a throw here means the block is unusable. Degrade to
-    // the disabled shape: sync reports 'not_configured' and the retry worker
-    // stays off, instead of taking the panel down over a bad config block.
-    log('bug-report config unusable:', (err && err.message) || err);
-    return { enabled: false, owner: 'Riloox', repo: 'fleetdeck-open', labels: ['bug'], mode: 'github', relayUrl: null, token: null, errors: ['invalid_config'] };
-  }
+  catch {
 }
 
 // One-shot sync for the POST route: create the GitHub issue (github mode) or
@@ -7792,15 +7785,10 @@ registerGlobalErrorHandler();
 const server = http.createServer(app);
 const wss = new WebSocketServer({ noServer: true });
 
-const CRLF = String.fromCharCode(13, 10);
-
 server.on('upgrade', (req, socket, head) => {
   const url = new URL(req.url, 'http://localhost');
-  // Reject with a proper HTTP response + FIN (socket.end) instead of a raw
-  // destroy: a bare RST here aborts the client side mid-flight, which the Vite
-  // dev proxy surfaces as "ws proxy socket error: ECONNABORTED" noise.
   if (url.pathname !== '/ws') {
-    socket.end(['HTTP/1.1 404 Not Found', 'Connection: close', '', ''].join(CRLF));
+    socket.destroy();
     return;
   }
   // Cross-site WebSocket hijack defense: browsers send an Origin header on
@@ -7808,7 +7796,8 @@ server.on('upgrade', (req, socket, head) => {
   // state-changing HTTP middleware above). Non-browser clients without an
   // Origin header still need a valid token below.
   if (req.headers.origin && !originAllowed(req.headers.origin)) {
-    socket.end(['HTTP/1.1 403 Forbidden', 'Connection: close', '', ''].join(CRLF));
+    socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
+    socket.destroy();
     return;
   }
   const token = url.searchParams.get('token') || '';
@@ -7817,7 +7806,8 @@ server.on('upgrade', (req, socket, head) => {
   // disagree about who the caller is.
   const user = (apiKeys.looksLikeApiKey(token) ? apiKeys.verify(token) : userFromToken(token)) || guestUser();
   if (!user) {
-    socket.end(['HTTP/1.1 401 Unauthorized', 'Connection: close', '', ''].join(CRLF));
+    socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+    socket.destroy();
     return;
   }
   req.fleetdeckUser = user;

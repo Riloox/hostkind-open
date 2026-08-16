@@ -35,13 +35,13 @@ export function useWebSocket({ onLine, onHistory, onStatus, onStats, onServer, o
       wsRef.current = ws;
 
       ws.onopen = () => {
-        if (!mountedRef.current || wsRef.current !== ws) return;
+        if (!mountedRef.current) return;
         callbacksRef.current.onConnChange?.('ok');
         if (activeServerId) ws.send(JSON.stringify({ type: 'selectServer', serverId: activeServerId }));
       };
 
       ws.onmessage = (ev) => {
-        if (!mountedRef.current || wsRef.current !== ws) return;
+        if (!mountedRef.current) return;
         let msg;
         try { msg = JSON.parse(ev.data); } catch (_) { return; }
 
@@ -71,10 +71,7 @@ export function useWebSocket({ onLine, onHistory, onStatus, onStats, onServer, o
       };
 
       ws.onclose = () => {
-        // Ignore stale sockets: StrictMode's dev-only mount/cleanup/mount cycle
-        // can fire the old socket's close after the new socket took over, and
-        // reconnecting from the stale handler used to orphan the live socket.
-        if (!mountedRef.current || wsRef.current !== ws) return;
+        if (!mountedRef.current) return;
         callbacksRef.current.onConnChange?.('bad');
         if (token || authDisabled) {
           reconnectTimer.current = setTimeout(connect, 2000);
@@ -87,18 +84,9 @@ export function useWebSocket({ onLine, onHistory, onStatus, onStats, onServer, o
     return () => {
       mountedRef.current = false;
       clearTimeout(reconnectTimer.current);
-      const ws = wsRef.current;
-      wsRef.current = null;
-      if (!ws) return;
-      if (ws.readyState === WebSocket.CONNECTING) {
-        // Never hard-abort a socket mid-handshake. React StrictMode (dev) runs
-        // this cleanup and immediately re-runs the effect, and aborting the
-        // half-open connection made the Vite proxy log "ws proxy socket error:
-        // ECONNABORTED" on every dev boot. Wait for the handshake to finish,
-        // then close cleanly; the guards above make the stale socket a no-op.
-        ws.addEventListener('open', () => ws.close(1000, 'unmount'), { once: true });
-      } else if (ws.readyState === WebSocket.OPEN) {
-        ws.close(1000, 'unmount');
+      if (wsRef.current) {
+        try { wsRef.current.close(); } catch (_) {}
+        wsRef.current = null;
       }
     };
   }, [token, authDisabled]); // eslint-disable-line react-hooks/exhaustive-deps
