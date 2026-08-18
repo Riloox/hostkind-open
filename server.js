@@ -3206,6 +3206,9 @@ async function syncBugReportNow(report) {
   if (!cfg.enabled) {
     // Not configured: the report stays pending locally. This is different
     // from an outage, so the UI must not claim the relay/GitHub is down.
+    // Since local-only sync is the open edition's default, the summary also
+    // carries a direct link to the configured repo's issue chooser so the
+    // user can still reach the public tracker.
     return {
       state: 'pending',
       issueNumber: null,
@@ -3213,6 +3216,7 @@ async function syncBugReportNow(report) {
       reason: 'not_configured',
       message: 'Bug-report sync is not configured. The report is saved locally and will sync after an administrator enables it.',
       error: 'sync_disabled: bug-report integration is not configured',
+      trackerUrl: _bugReportConfig.buildTrackerUrl(cfg.owner, cfg.repo),
     };
   }
   if (cfg.mode === 'upstream-relay') {
@@ -3221,6 +3225,7 @@ async function syncBugReportNow(report) {
     return _bugReportConfig.syncReportToRelay(report, {
       relayUrl: cfg.relayUrl,
       timeoutMs: _bugReportConfig.RELAY_TIMEOUT_MS,
+      trackerUrl: _bugReportConfig.buildTrackerUrl(cfg.owner, cfg.repo),
       markSynced: (id, meta) => _bugReportsStore.markSynced(id, meta),
       markFailed: (id, meta) => _bugReportsStore.markFailed(id, meta),
     });
@@ -3235,6 +3240,7 @@ async function syncBugReportNow(report) {
       reason: 'not_configured',
       message: 'GitHub issue sync is not configured. The report is saved locally and will sync after an administrator enables it.',
       error: 'sync_disabled: GitHub integration is not configured',
+      trackerUrl: _bugReportConfig.buildTrackerUrl(cfg.owner, cfg.repo),
     };
   }
   const client = _githubIssues.createGitHubClient({ token: cfg.token, owner: cfg.owner, repo: cfg.repo, labels: cfg.labels });

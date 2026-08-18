@@ -1361,7 +1361,8 @@
         "submit": "Submit report",
         "success": "Report submitted - thank you!",
         "pending": "GitHub is unreachable right now. Your report is saved locally and will be retried automatically.",
-        "notConfigured": "GitHub issue sync is not configured. Your report is saved locally and will sync after an administrator enables it.",
+        "notConfigured": "Issue reporting is not configured on this server. Your report is saved locally.",
+        "openTracker": "Open the Fleetdeck issue tracker directly",
         "hide": "Hide report button",
         "show": "Show report button"
       },
@@ -4128,7 +4129,8 @@
         "submit": "Enviar informe",
         "success": "Informe enviado: ¡gracias!",
         "pending": "GitHub no está disponible ahora mismo. Tu informe está guardado localmente y se reintentará automáticamente.",
-        "notConfigured": "La sincronización con GitHub no está configurada. Tu informe se guarda localmente y se sincronizará cuando un administrador la active.",
+        "notConfigured": "El envío de incidencias no está configurado en este servidor. Tu informe se guarda localmente.",
+        "openTracker": "Abrí directamente el rastreador de incidencias de Fleetdeck",
         "hide": "Ocultar el botón de informe",
         "show": "Mostrar el botón de informe"
       },

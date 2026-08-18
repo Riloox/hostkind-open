@@ -420,6 +420,31 @@ tests.push({ name: 'sync crash (rejected promise) never fails the request after 
   assert.ok(body.sync.error, 'the failure reason should be present for retry diagnostics');
 }});
 
+tests.push({ name: 'not_configured sync response carries the trackerUrl fallback link', fn: async (h) => {
+  h.state.user = freshUser();
+  syncBehavior = async () => ({ state: 'pending', reason: 'not_configured', trackerUrl: 'https://github.com/Riloox/fleetdeck-open/issues/new/choose', issueUrl: null, issueNumber: null, error: null, message: 'Bug-report sync is not configured.' });
+  const res = await fetch(`${h.base}/api/bug-reports`, {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(validBody({ title: 'No relay configured' })),
+  });
+  assert.strictEqual(res.status, 201);
+  const body = await res.json();
+  assert.strictEqual(body.sync.state, 'pending');
+  assert.strictEqual(body.sync.reason, 'not_configured');
+  assert.strictEqual(body.sync.trackerUrl, 'https://github.com/Riloox/fleetdeck-open/issues/new/choose');
+  assert.ok(!JSON.stringify(body).includes('token'), 'no secret-shaped text in the response');
+}});
+
+tests.push({ name: 'sync response omits trackerUrl when the summary has none', fn: async (h) => {
+  h.state.user = freshUser();
+  syncBehavior = async () => ({ state: 'pending', reason: 'not_configured', issueUrl: null, issueNumber: null, error: null });
+  const res = await fetch(`${h.base}/api/bug-reports`, {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(validBody({ title: 'No tracker link' })),
+  });
+  assert.strictEqual(res.status, 201);
+  const body = await res.json();
+  assert.strictEqual(body.sync.trackerUrl, null);
+}});
+
 tests.push({ name: 'no token (or secret-shaped key) appears in any POST response', fn: async (h) => {
   h.state.user = freshUser();
   syncBehavior = async () => ({ state: 'failed', error: `token ${FAKE_TOKEN} leaked?`, issueUrl: null, issueNumber: null });

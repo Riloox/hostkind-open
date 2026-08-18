@@ -329,6 +329,24 @@ tests.push({ name: 'missing relayUrl -> pending not_configured, fetch never call
   assert.strictEqual(calls.length, 0);
   assert.strictEqual(spies.calls.failed.length, 0);
   assert.strictEqual(spies.calls.synced.length, 0);
+  assert.strictEqual(summary.trackerUrl, null, 'no trackerUrl when the caller did not supply one');
+}});
+
+tests.push({ name: 'missing relayUrl summary carries the caller-supplied trackerUrl', fn: async () => {
+  const { fetch, calls } = makeFetchQueue();
+  const spies = makeSpies();
+  const summary = await syncReportToRelay(sampleRow(), {
+    relayUrl: '',
+    fetch,
+    trackerUrl: 'https://github.com/Riloox/fleetdeck-open/issues/new/choose',
+    ...spies,
+  });
+  assert.strictEqual(summary.state, 'pending');
+  assert.strictEqual(summary.reason, 'not_configured');
+  assert.strictEqual(summary.trackerUrl, 'https://github.com/Riloox/fleetdeck-open/issues/new/choose', 'user-facing fallback link must survive to the UI');
+  assert.strictEqual(calls.length, 0, 'no relay contact when unconfigured');
+  assert.strictEqual(spies.calls.failed.length, 0);
+  assert.strictEqual(spies.calls.synced.length, 0);
 }});
 
 tests.push({ name: 'syncReportToRelay never throws even when store seams throw', fn: async () => {
