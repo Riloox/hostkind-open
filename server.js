@@ -197,7 +197,23 @@ const CONFIG_PATH = process.env.FLEETDECK_CONFIG
   ? path.resolve(process.env.FLEETDECK_CONFIG)
   : path.join(__dirname, 'config.json');
 
+// A fresh checkout has no config.json: the private edition commits one, but
+// the open edition git-ignores it (secrets, machine paths) and the packaged
+// release ships none. The example doubles as a bootstrap template, so a
+// missing config is materialised instead of crashing the boot - the same
+// thing a first-time operator would do by hand. ensureSafeJwtSecret() below
+// then rotates the placeholder secret before the panel signs anything.
+const CONFIG_TEMPLATE_PATH = path.join(__dirname, 'config.example.json');
+
 function loadConfig() {
+  if (!fs.existsSync(CONFIG_PATH)) {
+    // Plain console.log, not log(): config is not assigned yet and log()
+    // reads config.appName. Likewise, write the file directly instead of
+    // via saveConfig(): the `config` binding is still in its temporal dead
+    // zone while this initializer runs.
+    console.log(`[Fleetdeck] no config at ${CONFIG_PATH}; creating one from the shipped template. Nothing is configured yet - use the setup wizard or edit the file.`);
+    fs.writeFileSync(CONFIG_PATH, JSON.stringify(JSON.parse(fs.readFileSync(CONFIG_TEMPLATE_PATH, 'utf8')), null, 2), 'utf8');
+  }
   const raw = fs.readFileSync(CONFIG_PATH, 'utf8');
   return JSON.parse(raw);
 }
