@@ -48,17 +48,21 @@ jobs:
           exit 1
       - name: ZAP baseline scan (passive)
         run: |
+          # The runner's workspace dir is owned by the runner user, while ZAP
+          # runs in the container as uid 1000 - without this the report write
+          # dies with AccessDeniedException and no artifact is produced.
+          mkdir -p "${{ github.workspace }}/zap-out"
+          chmod a+rwx "${{ github.workspace }}/zap-out"
           docker run --network host \
             -v "${{ github.workspace }}/zap-out:/zap/wrk" \
             ghcr.io/zaproxy/zaproxy:stable \
             zap-baseline.py -t "${{ inputs.target_url || 'http://127.0.0.1:2121' }}" \
-                        -r zap-report.html \
-                        -I
-                      ls -la "${{ github.workspace }}/zap-out/" || true
+            -r zap-report.html \
+            -I
         # Informational scan: `-I` means WARN-NEW alerts are recorded in the
         # HTML report but do not fail the step (zap-baseline exits 2 on any
-        # WARN-NEW by default, and 3 on report generation failures). Remove
-        # `-I` or use `-m 1` if you want the scan itself to fail.
+        # WARN-NEW by default). Remove `-I` or use `-m 1` if you want the
+        # scan itself to fail.
       - name: Upload ZAP report
         if: always()
         uses: actions/upload-artifact@v5
