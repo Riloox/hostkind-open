@@ -30,6 +30,7 @@ const zlib = require('zlib');
 
 const express = require('express');
 const helmet = require('helmet');
+const { rateLimit } = require('express-rate-limit');
 const { WebSocketServer } = require('ws');
 const multer = require('multer');
 const pidusage = require('pidusage');
@@ -1355,6 +1356,12 @@ async function adoptOrphans() {
 
 const app = express();
 app.use(express.json({ limit: '24mb' }));
+app.use('/api', rateLimit({
+  windowMs: 60 * 1000,
+  limit: 600,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+}));
 
 // ---------------------------------------------------------------------------
 // HTTP security headers + cross-origin defense
@@ -4005,14 +4012,24 @@ function listDrives() {
   return roots;
 }
 
-app.get('/api/fs', (req, res) => {
-  const p = (req.query.path || '').trim();
+app.get('/api/fs', requireAdmin, (req, res) => {
+  const requestedPath = req.query.path;
+  if (requestedPath !== undefined && typeof requestedPath !== 'string') {
+    return res.status(400).json({ error: tErr(req.user, 'errors.invalidPath') });
+  }
+  const p = (requestedPath || '').trim();
   try {
     if (!p) {
       return res.json({ path: '', parent: null, drives: listDrives(), dirs: [], jars: [], sep: path.sep });
     }
     const abs = path.resolve(p);
-    const entries = fs.readdirSync(abs, { withFileTypes: true });
+    const allowedRoot = listDrives()
+      .map((root) => path.resolve(root))
+      .find((root) => abs === root || abs.startsWith(root.endsWith(path.sep) ? root : root + path.sep));
+    if (!allowedRoot) return res.status(400).json({ error: tErr(req.user, 'errors.invalidPath') });
+    let entries;
+    if (abs.startsWith(allowedRoot)) entries = fs.readdirSync(abs, { withFileTypes: true });
+    else return res.status(400).json({ error: tErr(req.user, 'errors.invalidPath') });
     const dirs = [];
     const jars = [];
     for (const e of entries) {
@@ -6432,7 +6449,7 @@ const fileUpload = multer({
 });
 
 app.post('/api/files/upload', fileUpload.array('files'), (req, res) => {
-  res.json({ ok: true, count: (req.files || []).length });
+  res.json({ ok: true, count: Array.isArray(req.files) ? req.files.length : 0 });
 }, (err, req, res, next) => {
   httpError(res, req, err, 400);
 });
@@ -7758,7 +7775,12 @@ function escapeHtml(value) {
 // SPA fallback: any non-API GET that didn't match a real static file returns
 // the app shell, so client-side routes (e.g. /console, /users) keep working on
 // direct navigation and on refresh. API and resource paths are left alone.
-app.get('*', (req, res, next) => {
+app.get('*', rateLimit({
+  windowMs: 60 * 1000,
+  limit: 600,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+}), (req, res, next) => {
   if (req.path.startsWith('/api/') || req.path === '/api') return next();
   if (req.path.startsWith('/resources/')) return next();
   const index = path.join(__dirname, 'public', 'index.html');
