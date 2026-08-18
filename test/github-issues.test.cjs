@@ -200,9 +200,9 @@ tests.push(async () => {
     jsonResponse(201, { number: 3, html_url: 'https://github.com/Riloox/fleetdeck-open/issues/3' }),
   ]);
   const client = clientWithFetch(fetch, { labels: ['custom-label'], repo: 'example-repo', owner: 'example-owner' });
-    await client.createIssue({ title: 'T', body: 'b' });
-    const { url, init } = calls[0];
-    assert.ok(url.endsWith('/repos/example-owner/example-repo/issues'), `unexpected url ${url}`);
+  await client.createIssue({ title: 'T', body: 'b' });
+  const { url, init } = calls[0];
+  assert.ok(url.endsWith('/repos/example-owner/example-repo/issues'), `unexpected url ${url}`);
   assert.deepStrictEqual(JSON.parse(init.body).labels, ['custom-label']);
   console.log('ok  github-issues createIssue: custom labels and repo');
 });
