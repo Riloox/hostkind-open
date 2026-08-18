@@ -1,7 +1,7 @@
 'use strict';
 
 /*
- * Upgrade-drill test (GAP-ANALYSIS §7, step 3 — upgrade half).
+ * Upgrade-drill test .
  *
  * Proves that a v0.1.0-era database (migrations 1–12 applied) upgrades
  * cleanly when the v0.2 migration runner boots over it.  Hermetically

@@ -27,7 +27,7 @@ fleetdeck-<version>.zip
 ├── resources/                static assets the panel serves
 ├── config.example.json       template config, never your config
 ├── package.json              + package-lock.json (for npm ci)
-├── LICENSE, COMMERCIAL-LICENSE.md, THIRD_PARTY_NOTICES.md
+├── LICENSE, THIRD_PARTY_NOTICES.md
 ├── README.md, CHANGELOG.md
 ├── SHA256SUMS                sha256 of every shipped file
 └── version.json              release metadata (name, version, builtAt)

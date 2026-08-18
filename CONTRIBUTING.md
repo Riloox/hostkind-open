@@ -2,7 +2,7 @@
 
 Thanks for considering a contribution. Fleetdeck is dual-licensed: the code is
 `AGPL-3.0-only` (see `LICENSE`), and a separate commercial license exists for
-hosting providers and OEM redistribution (see `COMMERCIAL-LICENSE.md`). By
+hosting providers and OEM redistribution . By
 contributing you keep the project clean enough to keep that promise — in practice
 that means three things: sign your work (DCO), test what a user can see, and never
 introduce unlicensed assets.
