@@ -52,7 +52,7 @@ jobs:
           -v "${{ github.workspace }}/zap-out:/zap/wrk"
           ghcr.io/zaproxy/zaproxy:stable
           zap-baseline.py -t "${{ inputs.target_url || 'http://127.0.0.1:2121' }}"
-          -r /zap/wrk/zap-report.html
+                    -r zap-report.html
         # Informational by default (baseline exits 0 even with alerts). Gate
         # the scheduled run with `-m 1` or `--fail-on-warnings` if you want
         # the scan itself to fail.
