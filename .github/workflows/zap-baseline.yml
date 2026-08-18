@@ -47,18 +47,21 @@ jobs:
           echo "app did not come up within 90s" >&2
           exit 1
       - name: ZAP baseline scan (passive)
-        run: >-
-          docker run --network host
-          -v "${{ github.workspace }}/zap-out:/zap/wrk"
-          ghcr.io/zaproxy/zaproxy:stable
-          zap-baseline.py -t "${{ inputs.target_url || 'http://127.0.0.1:2121' }}"
-                    -r zap-report.html
-        # Informational by default (baseline exits 0 even with alerts). Gate
-        # the scheduled run with `-m 1` or `--fail-on-warnings` if you want
-        # the scan itself to fail.
+        run: |
+          docker run --network host \
+            -v "${{ github.workspace }}/zap-out:/zap/wrk" \
+            ghcr.io/zaproxy/zaproxy:stable \
+            zap-baseline.py -t "${{ inputs.target_url || 'http://127.0.0.1:2121' }}" \
+            -r zap-report.html \
+            -I
+        # Informational scan: `-I` means WARN-NEW alerts are recorded in the
+        # HTML report but do not fail the step (zap-baseline exits 2 on any
+        # WARN-NEW by default, and 3 on report generation failures). Remove
+        # `-I` or use `-m 1` if you want the scan itself to fail.
       - name: Upload ZAP report
         if: always()
         uses: actions/upload-artifact@v5
         with:
           name: zap-report
           path: zap-out/
+          retention-days: 14
