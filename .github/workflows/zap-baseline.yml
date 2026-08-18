@@ -52,8 +52,9 @@ jobs:
             -v "${{ github.workspace }}/zap-out:/zap/wrk" \
             ghcr.io/zaproxy/zaproxy:stable \
             zap-baseline.py -t "${{ inputs.target_url || 'http://127.0.0.1:2121' }}" \
-            -r zap-report.html \
-            -I
+                        -r zap-report.html \
+                        -I
+                      ls -la "${{ github.workspace }}/zap-out/" || true
         # Informational scan: `-I` means WARN-NEW alerts are recorded in the
         # HTML report but do not fail the step (zap-baseline exits 2 on any
         # WARN-NEW by default, and 3 on report generation failures). Remove
