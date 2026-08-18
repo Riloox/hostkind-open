@@ -1,8 +1,7 @@
 'use strict';
 
 /*
- * bug-report upstream-relay client + one-shot sync state machine
- * (plan Task 5 — .hermes/plans/2026-08-15_124205-upstream-bug-report-relay-pi.md).
+ * bug-report upstream-relay client + one-shot sync state machine.
  *
  * Contract under test (lib/bug-report-config.cjs):
  *   buildRelayPayload(report)  — structured, redacted payload containing ONLY

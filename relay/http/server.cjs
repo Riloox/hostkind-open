@@ -192,7 +192,7 @@ function normalizeLogger(logger) {
 }
 
 function limitWith(defaults, value) {
-  const src = value && typeof value === 'object' ? value : {};
+  const src = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
   return {
     max: Number.isFinite(src.max) ? src.max : defaults.max,
     windowMs: Number.isFinite(src.windowMs) ? src.windowMs : defaults.windowMs,

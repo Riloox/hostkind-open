@@ -1,8 +1,7 @@
 'use strict';
 
 /*
- * bug-report-config upstream-relay mode — configuration contract
- * (plan Task 5 — .hermes/plans/2026-08-15_124205-upstream-bug-report-relay-pi.md).
+ * bug-report-config upstream-relay mode — configuration contract.
  *
  * Contract under test (lib/bug-report-config.cjs):
  *   - bugReports.mode is 'github' (default, current behavior) or

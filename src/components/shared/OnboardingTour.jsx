@@ -84,7 +84,7 @@ function dispatchTourEvent(type, { step, total, game, variant }) {
     window.dispatchEvent(new CustomEvent('fleetdeck:tour', {
       detail: { type, step, total, game, variant },
     }));
-  } catch (_) { /* listener errors must not break the tour */ }
+  } catch { /* listener errors must not break the tour */ }
 }
 
 export function OnboardingTour({ open, onClose, gameId, variant = 'full' }) {
@@ -136,7 +136,7 @@ export function OnboardingTour({ open, onClose, gameId, variant = 'full' }) {
   // Idea 16: persist step to sessionStorage on every step change
   useEffect(() => {
     if (!open || total === 0) return;
-    try { sessionStorage.setItem(resumeKey, String(step)); } catch (_) {}
+    try { sessionStorage.setItem(resumeKey, String(step)); } catch {}
   }, [step, open, resumeKey, total]);
 
   // Idea 11: dispatch 'step' event on every step change (including first)
@@ -188,7 +188,7 @@ export function OnboardingTour({ open, onClose, gameId, variant = 'full' }) {
         setStep(idx);
         restored = true;
       }
-    } catch (_) {}
+    } catch {}
     if (!restored) setStep(0);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -439,7 +439,7 @@ export function OnboardingTour({ open, onClose, gameId, variant = 'full' }) {
             {isLast ? (
               <Button size="sm" className="h-10 min-w-0 px-3 text-title" onClick={() => {
                 // Idea 16: clear sessionStorage on Finish so next open starts fresh
-                try { sessionStorage.removeItem(resumeKey); } catch (_) {}
+                try { sessionStorage.removeItem(resumeKey); } catch {}
                 dispatchTourEvent('complete', { step: clampedStep, total, game: gameId, variant });
                 onClose();
               }}>

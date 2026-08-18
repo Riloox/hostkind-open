@@ -166,7 +166,7 @@ test('a symlinked world root is refused rather than followed', function () {
   const outside = path.join(ROOT, 'outside-target');
   fs.mkdirSync(outside, { recursive: true });
   try { fs.symlinkSync(outside, path.join(server.dir, 'linked')); }
-  catch (_) { return; } // unprivileged Windows: nothing to test
+  catch { return; } // unprivileged Windows: nothing to test
   assert.throws(() => worlds.worldPath(server, 'linked'), /link/i);
 });
 

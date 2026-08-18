@@ -37,7 +37,7 @@ function fresh() {
   close();
   for (const ext of ['', '-wal', '-shm']) {
     const p = dbPath() + ext;
-    if (fs.existsSync(p)) { try { fs.unlinkSync(p); } catch (_) { /* */ } }
+    if (fs.existsSync(p)) { try { fs.unlinkSync(p); } catch { /* */ } }
   }
   migrations.runMigrations();
 }
@@ -696,7 +696,7 @@ test('a start with no world selected fails with a clear, specific error', () => 
     catch (error) { failed++; console.error(`FAIL  ${entry.name}: ${error.message}\n${error.stack}`); }
   }
   close();
-  try { fs.rmSync(ROOT, { recursive: true, force: true }); } catch (_) { /* */ }
+  try { fs.rmSync(ROOT, { recursive: true, force: true }); } catch { /* */ }
   teardown();
   if (failed) { console.error(`FAIL  ${failed} of ${tests.length} valheim-worlds test(s) failed`); process.exit(1); }
   console.log(`PASS  valheim-worlds (${tests.length} tests)`);

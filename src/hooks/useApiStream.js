@@ -29,7 +29,7 @@ export function useApiStream() {
       try {
         const data = await r.json();
         msg = data && data.error;
-      } catch (_) { /* not JSON */ }
+      } catch { /* not JSON */ }
       throw new Error(msg || t('common.httpError', { status: r.status }));
     }
     const reader = r.body.getReader();
@@ -46,7 +46,7 @@ export function useApiStream() {
         buffer = buffer.slice(nl + 1);
         if (!line) continue;
         let evt;
-        try { evt = JSON.parse(line); } catch (_) { continue; }
+        try { evt = JSON.parse(line); } catch { continue; }
         if (onEvent) onEvent(evt);
         if (evt && evt.type === 'done') { doneSeen = true; return evt; }
         if (evt && evt.type === 'error') throw new Error(evt.error || 'Server error');

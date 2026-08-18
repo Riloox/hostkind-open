@@ -142,7 +142,7 @@ export function MinecraftWizard({ onBack, onCreated }) {
               try {
                 const picked = await pick(form.parentDir);
                 if (picked) setForm((current) => ({ ...current, parentDir: picked }));
-              } catch (_) { setFsOpen(true); }
+              } catch { setFsOpen(true); }
             }}><FolderOpen className="h-3.5 w-3.5" />{t('servers.browse')}</Button>
           </div>
         </div>

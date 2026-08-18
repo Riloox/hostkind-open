@@ -43,7 +43,7 @@ export function useWebSocket({ onLine, onHistory, onStatus, onStats, onServer, o
       ws.onmessage = (ev) => {
         if (!mountedRef.current) return;
         let msg;
-        try { msg = JSON.parse(ev.data); } catch (_) { return; }
+        try { msg = JSON.parse(ev.data); } catch { return; }
 
         if (msg.type === 'history') {
           callbacksRef.current.onHistory?.(msg);
@@ -85,7 +85,7 @@ export function useWebSocket({ onLine, onHistory, onStatus, onStats, onServer, o
       mountedRef.current = false;
       clearTimeout(reconnectTimer.current);
       if (wsRef.current) {
-        try { wsRef.current.close(); } catch (_) {}
+        try { wsRef.current.close(); } catch {}
         wsRef.current = null;
       }
     };

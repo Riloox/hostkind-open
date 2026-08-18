@@ -78,17 +78,17 @@ export function NotificationBell() {
 
   const markRead = useCallback(async (id) => {
     setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n));
-    try { await api(`/api/notifications/${id}/read`, { method: 'POST' }); } catch (_) {}
+    try { await api(`/api/notifications/${id}/read`, { method: 'POST' }); } catch {}
   }, [api, setNotifications]);
 
   const readAll = useCallback(async () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-    try { await api('/api/notifications/read-all', { method: 'POST' }); } catch (_) {}
+    try { await api('/api/notifications/read-all', { method: 'POST' }); } catch {}
   }, [api, setNotifications]);
 
   const clearAll = useCallback(async () => {
     setNotifications([]);
-    try { await api('/api/notifications/clear', { method: 'POST' }); } catch (_) {}
+    try { await api('/api/notifications/clear', { method: 'POST' }); } catch {}
   }, [api, setNotifications]);
 
   const serverName = (id) => {

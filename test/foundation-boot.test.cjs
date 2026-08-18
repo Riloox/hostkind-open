@@ -17,12 +17,12 @@ function fresh() {
   close();
   for (const ext of ['', '-wal', '-shm']) {
     const p = dbPath() + ext;
-    if (fs.existsSync(p)) try { fs.unlinkSync(p); } catch (_) { /* */ }
+    if (fs.existsSync(p)) try { fs.unlinkSync(p); } catch { /* */ }
   }
   // Remove the data dir so the foundation creates it fresh.
   const dataDir = path.dirname(dbPath());
   if (fs.existsSync(dataDir)) {
-    try { fs.rmSync(dataDir, { recursive: true, force: true }); } catch (_) { /* */ }
+    try { fs.rmSync(dataDir, { recursive: true, force: true }); } catch { /* */ }
   }
 }
 

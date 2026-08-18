@@ -32,7 +32,7 @@ async function removeTree(target, { attempts = 5 } = {}) {
     try {
       fs.rmSync(target, { recursive: true, force: true, maxRetries: 3, retryDelay: 200 });
       if (!fs.existsSync(target)) return true;
-    } catch (_) { /* fall through to the retry */ }
+    } catch { /* fall through to the retry */ }
     await new Promise((resolve) => setTimeout(resolve, 250 * attempt));
   }
   return !fs.existsSync(target);
@@ -42,7 +42,7 @@ function directorySize(target) {
   let total = 0;
   const walk = (entry) => {
     let stat;
-    try { stat = fs.statSync(entry); } catch (_) { return; }
+    try { stat = fs.statSync(entry); } catch { return; }
     if (stat.isDirectory()) {
       for (const child of fs.readdirSync(entry)) walk(path.join(entry, child));
     } else {

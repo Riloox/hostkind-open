@@ -48,7 +48,7 @@ export function decodeJwt(jwt) {
     const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
     const padded = b64 + '='.repeat((4 - b64.length % 4) % 4);
     return JSON.parse(atob(padded));
-  } catch (_) {
+  } catch {
     return null;
   }
 }

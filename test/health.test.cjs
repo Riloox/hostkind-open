@@ -14,7 +14,7 @@ function fresh() {
   close();
   for (const ext of ['', '-wal', '-shm']) {
     const p = dbPath() + ext;
-    if (fs.existsSync(p)) try { fs.unlinkSync(p); } catch (_) { /* */ }
+    if (fs.existsSync(p)) try { fs.unlinkSync(p); } catch { /* */ }
   }
   migrations.runMigrations();
 }
@@ -29,13 +29,13 @@ let seq = 0;
 const serverId = () => `srv-${++seq}`;
 
 // Fill a server with one sample per minute over `minutes`, ending at NOW.
-function seed(id, minutes, shape = () => ({}), now = NOW) {
+function seed(id, minutes, sampleOverrides = () => ({}), now = NOW) {
   for (let i = minutes - 1; i >= 0; i--) {
     const ts = now - i * MIN;
     health.recordSample({
       serverId: id, ts, online: true, cpu: 10, memoryMb: 1024, players: 3, worldMb: 100,
       tps: 20, heapMb: 4096, diskUsedMb: 50000, diskTotalMb: 100000,
-      ...shape(i, ts),
+      ...sampleOverrides(i, ts),
     });
   }
 }
@@ -510,7 +510,7 @@ tests.push(() => {
  */
 const REAL_METRICS = fs.existsSync(imports.METRICS_PATH) ? fs.readFileSync(imports.METRICS_PATH) : null;
 function restoreMetricsFile() {
-  if (REAL_METRICS === null) { try { fs.unlinkSync(imports.METRICS_PATH); } catch (_) { /* */ } }
+  if (REAL_METRICS === null) { try { fs.unlinkSync(imports.METRICS_PATH); } catch { /* */ } }
   else fs.writeFileSync(imports.METRICS_PATH, REAL_METRICS);
 }
 

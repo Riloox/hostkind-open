@@ -16,6 +16,7 @@
     "package": "node scripts/package.cjs",
     "service:install": "node scripts/install-service.cjs",
     "service:uninstall": "node scripts/uninstall-service.cjs",
+    "test:anti-slop": "node test/anti-slop-rules.test.cjs",
     "test:tshock": "node test/terraria-tshock.test.cjs",
     "test:terraria-import": "node test/terraria-import.test.cjs",
     "test:valheim": "node test/valheim-module.test.cjs && node test/valheim-lifecycle.test.cjs && node test/valheim-registration.test.cjs && node test/valheim-install.test.cjs && node test/valheim-updates.test.cjs && node test/valheim-worlds.test.cjs && node test/valheim-worlds-routes.test.cjs",
@@ -31,7 +32,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "lint": "oxlint"
+    "lint": "oxlint",
+    "lint:anti-slop": "oxlint --config oxlint.config.mjs"
   },
   "engines": {
     "node": ">=22"

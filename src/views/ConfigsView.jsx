@@ -28,12 +28,12 @@ function readMode(base) {
   try {
     const v = localStorage.getItem(MODE_KEY(base));
     if (v === 'raw' || v === 'friendly') return v;
-  } catch (_) { /* noop */ }
+  } catch { /* noop */ }
   return null;
 }
 
 function writeMode(base, mode) {
-  try { localStorage.setItem(MODE_KEY(base), mode); } catch (_) { /* noop */ }
+  try { localStorage.setItem(MODE_KEY(base), mode); } catch { /* noop */ }
 }
 
 function pickInitial(files) {

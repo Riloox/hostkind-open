@@ -42,7 +42,7 @@ export function CustomProcessWizard({ onBack, onCreated }) {
     try {
       const picked = await pick(form.cwd);
       if (picked) setForm((current) => ({ ...current, cwd: picked }));
-    } catch (_) {
+    } catch {
       setFsOpen(true);
     }
   }

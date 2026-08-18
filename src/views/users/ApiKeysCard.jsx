@@ -34,7 +34,7 @@ function TokenDialog({ token, onClose }) {
     try {
       await navigator.clipboard.writeText(token);
       setCopied(true);
-    } catch (_) {
+    } catch {
       // Clipboard access can be refused (insecure origin, denied permission).
       // The token is on screen and selectable, so this is not a failure worth
       // an error toast - it just means they copy it by hand.

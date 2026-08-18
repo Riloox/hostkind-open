@@ -1,8 +1,7 @@
 'use strict';
 
 /*
- * Relay contract tests (plan Task 1 —
- * .hermes/plans/2026-08-15_124205-upstream-bug-report-relay-pi.md).
+ * Relay contract tests.
  *
  * Pins the documented wire contract: relay/README.md and
  * relay/THREAT-MODEL.md exist and state the non-negotiables; the module

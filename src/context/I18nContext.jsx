@@ -9,7 +9,7 @@ function readStored() {
   try {
     const v = localStorage.getItem(STORAGE_KEY);
     if (v && SUPPORTED_LANGS.includes(v)) return v;
-  } catch (_) {}
+  } catch {}
   return null;
 }
 
@@ -17,7 +17,7 @@ function writeStored(lang) {
   try {
     if (lang) localStorage.setItem(STORAGE_KEY, lang);
     else localStorage.removeItem(STORAGE_KEY);
-  } catch (_) {}
+  } catch {}
 }
 
 export function I18nProvider({ initialLang, serverDefaultLang, children }) {
@@ -50,7 +50,7 @@ export function I18nProvider({ initialLang, serverDefaultLang, children }) {
 
   // Keep <html lang> in sync with the active language.
   useEffect(() => {
-    try { document.documentElement.lang = lang; } catch (_) {}
+    try { document.documentElement.lang = lang; } catch {}
   }, [lang]);
 
   const setLang = useCallback((next) => {

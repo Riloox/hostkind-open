@@ -192,7 +192,7 @@ test('generating a world clears the trap, and reaching online clears it too', ()
   // The worldgen capture ends back at the menu, so the flag is set again - but
   // the progress lines in between cleared it, which is what keeps a two-minute
   // generation from looking like a hang.
-  assert.ok(manager.moduleState.worldgen === null || typeof manager.moduleState.worldgen === 'object');
+  assert.ok(manager.moduleState.worldgen === null || (typeof manager.moduleState.worldgen === 'object' && !Array.isArray(manager.moduleState.worldgen)));
   assert.equal(status.awaitingWorldSelection, true);
 
   const started = fakeManager({ terrariaVariant: 'vanilla' });

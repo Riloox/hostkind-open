@@ -17,7 +17,7 @@ function fresh() {
   close();
   for (const ext of ['', '-wal', '-shm']) {
     const p = dbPath() + ext;
-    if (fs.existsSync(p)) try { fs.unlinkSync(p); } catch (_) { /* */ }
+    if (fs.existsSync(p)) try { fs.unlinkSync(p); } catch { /* */ }
   }
 }
 
@@ -145,7 +145,7 @@ function waitForPart(dest, size, timeoutMs = 2000) {
     const check = () => {
       try {
         if (fs.statSync(dest + '.part').size >= size) return resolve();
-      } catch (_) { /* not there yet */ }
+      } catch { /* not there yet */ }
       if (Date.now() - started > timeoutMs) return resolve();
       setTimeout(check, 20);
     };

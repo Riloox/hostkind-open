@@ -1,8 +1,7 @@
 'use strict';
 
 /*
- * Relay validation + redaction tests (plan Task 2 —
- * .hermes/plans/2026-08-15_124205-upstream-bug-report-relay-pi.md).
+ * Relay validation + redaction tests.
  *
  * Pins the pure contract of relay/lib/validate-report.cjs and
  * relay/lib/redact-report.cjs: strict schema, length limits, unknown-field

@@ -13,7 +13,7 @@ function fresh() {
   close();
   for (const ext of ['', '-wal', '-shm']) {
     const p = dbPath() + ext;
-    if (require('fs').existsSync(p)) try { require('fs').unlinkSync(p); } catch (_) { /* */ }
+    if (require('fs').existsSync(p)) try { require('fs').unlinkSync(p); } catch { /* */ }
   }
 }
 

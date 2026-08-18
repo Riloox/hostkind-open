@@ -216,7 +216,7 @@ function AddPlayerBar({ onAdd, t }) {
       try {
         const d = await api(`/api/players/lookup?name=${encodeURIComponent(name)}`, { silent: true });
         setState({ status: 'found', name: d.name, uuid: d.uuid });
-      } catch (_) {
+      } catch {
         setState({ status: 'notfound' });
       }
     }, 450);

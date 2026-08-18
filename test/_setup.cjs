@@ -26,7 +26,7 @@ function setupDataDir() {
 }
 
 function teardown() {
-  try { fs.rmSync(TMP_ROOT, { recursive: true, force: true }); } catch (_) { /* */ }
+  try { fs.rmSync(TMP_ROOT, { recursive: true, force: true }); } catch { /* */ }
 }
 
 module.exports = { setupDataDir, teardown, TMP_ROOT };

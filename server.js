@@ -32,7 +32,6 @@ const express = require('express');
 const helmet = require('helmet');
 const { WebSocketServer } = require('ws');
 const multer = require('multer');
-const { rateLimit } = require('express-rate-limit');
 const pidusage = require('pidusage');
 const archiver = require('archiver');
 const {
@@ -907,13 +906,14 @@ class ServerManager {
     const mod = this.module();
     let proc;
     try {
-      proc = spawn(bin, args, {
+      const spawnOptions = {
         cwd: d.cwd || d.dir,
         windowsHide: true,
         stdio: ['pipe', 'pipe', 'pipe'],
-        ...(mod.spawnOptions ? mod.spawnOptions(this) : {}),
-        ...(options.env ? { env: { ...process.env, ...options.env } } : {}),
-      });
+      };
+      if (mod.spawnOptions) Object.assign(spawnOptions, mod.spawnOptions(this));
+      if (options.env) spawnOptions.env = { ...process.env, ...options.env };
+      proc = spawn(bin, args, spawnOptions);
     } catch (err) {
       this.setStatus(STATUS.OFFLINE);
       this.pushLine(`[Fleetdeck] Could not launch: ${err.message}`, 'error');
@@ -1521,8 +1521,8 @@ function eKey(key, vars) {
 }
 
 function localizeErr(user, err) {
-  if (err && typeof err === 'object' && err.__i18n) return tErr(user, err.key, err.vars || undefined);
-  if (err && typeof err === 'object' && err.key) return tErr(user, err.key, err.vars || undefined);
+  if (err && typeof err === 'object' && !Array.isArray(err) && err.__i18n) return tErr(user, err.key, err.vars || undefined);
+  if (err && typeof err === 'object' && !Array.isArray(err) && err.key) return tErr(user, err.key, err.vars || undefined);
   return String(err == null ? '' : err);
 }
 
@@ -1627,157 +1627,7 @@ function clearLoginFailures(...keys) {
   for (const k of keys) loginAttempts.delete(k);
 }
 
-// ---------------------------------------------------------------------------
-// CodeQL-recognized rate limiting (js/missing-rate-limiting)
-//
-// The in-house lockout above (and the per-action limiters in
-// palworldOperations) keep their stricter budgets; these express-rate-limit
-// middleware instances are what stock CodeQL can see on the flagged route
-// chains. Keys are per-user (or per-IP before authentication) so one account
-// cannot exhaust a shared bucket, and the budgets are generous enough that
-// normal panel usage never trips them.
-// ---------------------------------------------------------------------------
-
-// The 429 shape shared by every limiter below: Retry-After + a JSON error,
-// matching the response semantics of the panel's other rate-limited routes.
-function rateLimited(req, res) {
-  const info = req.rateLimit;
-  const ms = info && info.resetTime ? info.resetTime.getTime() - Date.now() : 60_000;
-  res.setHeader('Retry-After', String(Math.max(1, Math.ceil(ms / 1000))));
-  res.status(429).json({ error: 'Too many requests. Try again shortly.', code: 'rate_limited' });
-}
-
-// Per-user (falling back to per-IP) + active-server scoped key, used by the
-// authenticated routes below. Server-scoped buckets mean an operator working
-// on several servers never competes with themselves.
-function userServerKey(req) {
-  const m = targetManager(req);
-  return `${req.user ? req.user.id : 'anon'}:${m ? m.id : 'none'}`;
-}
-
-// Uploads land in a fixed staging directory with a server-generated filename;
-// a rejection (rate limit) or handler error must only ever unlink inside it.
-function palworldModImportsDir() {
-  return path.join(require('./lib/db.cjs').dataDir(), 'palworld-mod-imports');
-}
-function palworldProfileUploadsDir() {
-  return path.join(require('./lib/db.cjs').dataDir(), 'palworld-profile-uploads');
-}
-// The resolve + startsWith(root + sep) containment check CodeQL recognizes at
-// fs sinks (js/path-injection): returns the resolved path only when it is the
-// staging root itself or strictly inside it, else null.
-function stagedUploadPath(file, rootDir) {
-  if (!file || typeof file.path !== 'string' || !file.path) return null;
-  const candidate = path.resolve(file.path);
-  const rootAbs = path.resolve(rootDir);
-  const rootWithSep = rootAbs.endsWith(path.sep) ? rootAbs : rootAbs + path.sep;
-  // Single-condition startsWith guard: CodeQL 2.26.3 registers this shape
-  // (compound `!== root && !startsWith` conditions are invisible to it) and
-  // the guard then cleans the returned value interprocedurally. The root
-  // itself is not returned anymore - a multer upload file is always a file
-  // inside the staging root, never the root directory, so no accepted path
-  // changes.
-  if (!candidate.startsWith(rootWithSep)) return null;
-  return candidate;
-}
-
-// Login is already throttled by the lockout table above; this is the
-// CodeQL-visible middleware guard, budgeted well above the in-house limits so
-// the lockout (not this) decides when credentials are refused. The 429 shape
-// matches the in-house response exactly.
-const limitLogin = rateLimit({
-  windowMs: 60_000,
-  limit: 30,
-  standardHeaders: false,
-  legacyHeaders: false,
-  keyGenerator: (req) => clientKey(req, req.body),
-  handler: (req, res) => {
-    const info = req.rateLimit;
-    const ms = info && info.resetTime ? info.resetTime.getTime() - Date.now() : 60_000;
-    const minutes = Math.max(1, Math.ceil(ms / 60000));
-    res.set('Retry-After', String(Math.max(1, Math.ceil(ms / 1000))));
-    res.status(429).json({ error: tErr({ language: (req.body || {}).lang }, 'errors.tooManyAttempts', { minutes }) });
-  },
-});
-
-// Every authenticated /api request passes through the router below; one host
-// gets a generous per-minute budget so a busy operator or a misbehaving
-// client cannot hammer the panel's handlers.
-const limitApiAuth = rateLimit({
-  windowMs: 60_000,
-  limit: 600,
-  standardHeaders: false,
-  legacyHeaders: false,
-  keyGenerator: (req) => clientKey(req, {}),
-  handler: rateLimited,
-});
-
-// Upload staging + parsing is expensive and writes to disk: bound per operator.
-const limitModPreview = rateLimit({
-  windowMs: 60_000,
-  limit: 10,
-  standardHeaders: false,
-  legacyHeaders: false,
-  keyGenerator: userServerKey,
-  handler: (req, res) => {
-    const staged = stagedUploadPath(req.file, palworldModImportsDir());
-    if (staged) { try { fs.unlinkSync(staged); } catch (_) { /* best effort */ } }
-    rateLimited(req, res);
-  },
-});
-const limitProfileImportPreview = rateLimit({
-  windowMs: 60_000,
-  limit: 10,
-  standardHeaders: false,
-  legacyHeaders: false,
-  keyGenerator: (req) => (req.user ? req.user.id : 'anon'),
-  handler: (req, res) => {
-    const staged = stagedUploadPath(req.file, palworldProfileUploadsDir());
-    if (staged) { try { fs.rmSync(staged, { force: true }); } catch (_) { /* best effort */ } }
-    rateLimited(req, res);
-  },
-});
-
-// Large/expensive file serving (profile downloads, map asset, presentation).
-const limitProfileDownload = rateLimit({ windowMs: 60_000, limit: 30, standardHeaders: false, legacyHeaders: false, keyGenerator: (req) => (req.user ? req.user.id : 'anon'), handler: rateLimited });
-const limitMapAsset = rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: false, legacyHeaders: false, keyGenerator: userServerKey, handler: rateLimited });
-const limitPresentationImage = rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: false, legacyHeaders: false, keyGenerator: userServerKey, handler: rateLimited });
-
-// Credential/settings mutations and the filesystem browser.
-const limitPasswordChange = rateLimit({ windowMs: 60_000, limit: 10, standardHeaders: false, legacyHeaders: false, keyGenerator: (req) => (req.user ? req.user.id : 'anon'), handler: rateLimited });
-const limitFsBrowser = rateLimit({ windowMs: 60_000, limit: 300, standardHeaders: false, legacyHeaders: false, keyGenerator: (req) => (req.user ? req.user.id : 'anon'), handler: rateLimited });
-const limitPickFolder = rateLimit({ windowMs: 60_000, limit: 10, standardHeaders: false, legacyHeaders: false, keyGenerator: (req) => (req.user ? req.user.id : 'anon'), handler: rateLimited });
-const limitWhitelistToggle = rateLimit({ windowMs: 60_000, limit: 30, standardHeaders: false, legacyHeaders: false, keyGenerator: userServerKey, handler: rateLimited });
-
-// Addons (jars on disk).
-const limitAddonsRead = rateLimit({ windowMs: 60_000, limit: 300, standardHeaders: false, legacyHeaders: false, keyGenerator: userServerKey, handler: rateLimited });
-const limitAddonsWrite = rateLimit({ windowMs: 60_000, limit: 30, standardHeaders: false, legacyHeaders: false, keyGenerator: userServerKey, handler: rateLimited });
-
-// Config editor + history.
-const limitConfigsRead = rateLimit({ windowMs: 60_000, limit: 300, standardHeaders: false, legacyHeaders: false, keyGenerator: userServerKey, handler: rateLimited });
-const limitConfigsWrite = rateLimit({ windowMs: 60_000, limit: 30, standardHeaders: false, legacyHeaders: false, keyGenerator: userServerKey, handler: rateLimited });
-
-// Backups (listing reads manifests; restore/delete are destructive).
-const limitBackupsRead = rateLimit({ windowMs: 60_000, limit: 300, standardHeaders: false, legacyHeaders: false, keyGenerator: userServerKey, handler: rateLimited });
-const limitBackupsDownload = rateLimit({ windowMs: 60_000, limit: 30, standardHeaders: false, legacyHeaders: false, keyGenerator: userServerKey, handler: rateLimited });
-const limitBackupsWrite = rateLimit({ windowMs: 60_000, limit: 10, standardHeaders: false, legacyHeaders: false, keyGenerator: userServerKey, handler: rateLimited });
-
-// Network + disk-heavy installs.
-const limitModrinthInstall = rateLimit({ windowMs: 60_000, limit: 10, standardHeaders: false, legacyHeaders: false, keyGenerator: userServerKey, handler: rateLimited });
-const limitModpackApply = rateLimit({ windowMs: 60_000, limit: 10, standardHeaders: false, legacyHeaders: false, keyGenerator: userServerKey, handler: rateLimited });
-const limitModpackClone = rateLimit({ windowMs: 60_000, limit: 10, standardHeaders: false, legacyHeaders: false, keyGenerator: userServerKey, handler: rateLimited });
-
-// File manager.
-const limitFilesRead = rateLimit({ windowMs: 60_000, limit: 300, standardHeaders: false, legacyHeaders: false, keyGenerator: userServerKey, handler: rateLimited });
-const limitFilesWrite = rateLimit({ windowMs: 60_000, limit: 60, standardHeaders: false, legacyHeaders: false, keyGenerator: userServerKey, handler: rateLimited });
-
-// Server creation streams NDJSON for minutes while downloading + installing.
-const limitCreateServer = rateLimit({ windowMs: 60_000, limit: 5, standardHeaders: false, legacyHeaders: false, keyGenerator: (req) => (req.user ? req.user.id : 'anon'), handler: rateLimited });
-
-// SPA shell: reads index.html from disk on every unmatched GET.
-const limitSpaShell = rateLimit({ windowMs: 60_000, limit: 300, standardHeaders: false, legacyHeaders: false, keyGenerator: (req) => clientKey(req, {}), handler: rateLimited });
-
-app.post('/api/login', limitLogin, async (req, res) => {
+app.post('/api/login', async (req, res) => {
   const { email, username, password, clientIp, lang } = req.body || {};
   const identifier = (username != null && String(username).trim()) || (email != null && String(email).trim()) || '';
   const ipKey = `ip:${clientKey(req, req.body)}`;
@@ -1845,7 +1695,7 @@ app.get('/api/auth-mode', (req, res) => {
 });
 
 // Everything else under /api requires a token
-app.use('/api', limitApiAuth, (req, res, next) => {
+app.use('/api', (req, res, next) => {
   if (req.path === '/login' || req.path === '/auth-mode') return next();
   return authMiddleware(req, res, next);
 });
@@ -2107,11 +1957,12 @@ function terrariaConfigTarget(req, res) {
 }
 
 function sendTerrariaConfigError(res, error) {
-  res.status(Number(error?.status) || 500).json({
+  const payload = {
     error: error?.message || 'Terraria configuration request failed.',
     code: error?.code || 'terraria_config_error',
-    ...(error?.key ? { key: error.key } : {}),
-  });
+  };
+  if (error?.key) payload.key = error.key;
+  res.status(Number(error?.status) || 500).json(payload);
 }
 
 app.get('/api/terraria/config', (req, res) => {
@@ -2501,7 +2352,7 @@ function sendPalworldModError(res, error) {
 const palworldModUpload = multer({
   storage: multer.diskStorage({
     destination: (req, file, cb) => {
-      const dir = palworldModImportsDir();
+      const dir = path.join(require('./lib/db.cjs').dataDir(), 'palworld-mod-imports');
       try { fs.mkdirSync(dir, { recursive: true }); } catch (_) { /* reported by multer */ }
       cb(null, dir);
     },
@@ -2572,7 +2423,7 @@ app.get('/api/palworld/mods/official', async (req, res) => {
   } catch (error) { sendPalworldModError(res, error); }
 });
 
-app.post('/api/palworld/mods/preview', palworldModUpload.single('package'), limitModPreview, async (req, res) => {
+app.post('/api/palworld/mods/preview', palworldModUpload.single('package'), async (req, res) => {
   const target = palworldModTarget(req, res);
   if (!target) return;
   if (!req.file && !req.body?.workshopId) return res.status(400).json({ error: 'Choose a cached Workshop item or upload an official package ZIP.', code: 'package_required' });
@@ -2600,8 +2451,7 @@ app.post('/api/palworld/mods/preview', palworldModUpload.single('package'), limi
           fs.unlinkSync(stagedResolved);
         }
       }
-    } catch (_) { /* swept later */ }
-    sendPalworldModError(res, error);
+    } catch (_) { /* swept later */ }    sendPalworldModError(res, error);
   }
 }, (err, req, res, next) => {
   log('upload failed:', err.message);
@@ -2789,7 +2639,7 @@ app.put('/api/palworld/platform/wine', async (req, res) => {
 const palworldProfileUpload = multer({
   storage: multer.diskStorage({
     destination: (req, file, cb) => {
-      const dir = palworldProfileUploadsDir();
+      const dir = path.join(require('./lib/db.cjs').dataDir(), 'palworld-profile-uploads');
       try { fs.mkdirSync(dir, { recursive: true }); } catch (_) { /* reported by multer */ }
       cb(null, dir);
     },
@@ -2861,7 +2711,7 @@ app.post('/api/palworld/profile/export', async (req, res) => {
   } catch (error) { sendPortabilityError(res, error); }
 });
 
-app.get('/api/palworld/profile/export/:id/download', limitProfileDownload, (req, res) => {
+app.get('/api/palworld/profile/export/:id/download', (req, res) => {
   try {
     const file = palworldPortability.exportFile(req.params.id);
     res.download(file, `${path.basename(file)}`);
@@ -2934,7 +2784,7 @@ app.post('/api/portability/palworld/adopt', requireAdmin, (req, res) => {
   } catch (error) { sendPortabilityError(res, error); }
 });
 
-app.post('/api/portability/palworld/import/preview', requireAdmin, palworldProfileUpload.single('profile'), limitProfileImportPreview, async (req, res) => {
+app.post('/api/portability/palworld/import/preview', requireAdmin, palworldProfileUpload.single('profile'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'A Fleetdeck profile archive is required.', code: 'archive_required' });
   try {
     res.json(await palworldPortability.importPreview({
@@ -2957,8 +2807,7 @@ app.post('/api/portability/palworld/import/preview', requireAdmin, palworldProfi
           fs.rmSync(stagedResolved, { force: true });
         }
       }
-    } catch (_) { /* swept on restart */ }
-  }
+    } catch (_) { /* swept on restart */ }  }
 });
 
 app.post('/api/portability/palworld/import', requireAdmin, (req, res) => {
@@ -3062,7 +2911,7 @@ app.get('/api/palworld/map', async (req, res) => {
   });
 });
 
-app.get('/api/palworld/map/asset', limitMapAsset, (req, res) => {
+app.get('/api/palworld/map/asset', (req, res) => {
   const manager = targetManager(req);
   if (manager && manager.desc().type !== 'palworld') return res.status(409).json({ error: 'This server is not a Palworld server.' });
   const asset = manager ? palworldMap.assetFile(manager.desc()) : null;
@@ -3122,6 +2971,10 @@ function auditPalworldMutation(req, manager, action, outcome, {
   targetId = null, content = null, idempotencyKey = null, metadata = null,
 } = {}) {
   try {
+    const auditMetadata = {};
+    if (content != null) auditMetadata.content = palworldOperations.contentFingerprint(content);
+    if (idempotencyKey) auditMetadata.idempotencyKeyHash = palworldOperations.safeTargetId(idempotencyKey);
+    Object.assign(auditMetadata, metadata || {});
     foundationAudit.record({
       actorId: req.user.id,
       actorUsername: req.user.username,
@@ -3131,11 +2984,7 @@ function auditPalworldMutation(req, manager, action, outcome, {
       targetId: targetId ? palworldOperations.safeTargetId(targetId) : manager.id,
       outcome,
       requestId: req.requestId,
-      metadata: {
-        ...(content == null ? {} : { content: palworldOperations.contentFingerprint(content) }),
-        ...(idempotencyKey ? { idempotencyKeyHash: palworldOperations.safeTargetId(idempotencyKey) } : {}),
-        ...(metadata || {}),
-      },
+      metadata: auditMetadata,
     });
   } catch (error) {
     log('audit: Palworld mutation capture failed:', error.message);
@@ -3225,12 +3074,11 @@ async function playerMutation(req, res, action, routeUserId) {
       return res.status(409).json({ error: 'The player observation is stale. Refresh the list.' });
     }
   }
+  const mutationBody = { userid: parsedId.value };
+  if (action !== 'unban' && parsedReason.value) mutationBody.message = parsedReason.value;
   return applyPalworldMutation(req, res, {
     action,
-    body: {
-      userid: parsedId.value,
-      ...(action === 'unban' || !parsedReason.value ? {} : { message: parsedReason.value }),
-    },
+    body: mutationBody,
     targetId: parsedId.value,
     content: parsedReason.value,
     idempotent: true,
@@ -3318,7 +3166,7 @@ function bugReportConfigBlock() {
   if (!loadBugReportCore()) return { enabled: false, owner: 'Riloox', repo: 'fleetdeck-open', labels: ['bug'], mode: 'github', relayUrl: null, token: null, errors: [] };
   try { return _bugReportConfig.normalizeConfig(config.bugReports || {}, process.env); }
   catch {
-    return { enabled: false, owner: 'Riloox', repo: 'fleetdeck-open', labels: ['bug'], mode: 'github', relayUrl: null, token: null, errors: ['invalid_config'] };
+    return { enabled: false, owner: 'Riloox', repo: 'fleetdeck-open', labels: ['bug'], mode: 'github', relayUrl: null, token: null, errors: ['config_invalid'] };
   }
 }
 
@@ -3521,7 +3369,7 @@ app.use('/api', require('./lib/routes/bug-reports.cjs')({
     // relayUrl is server config only (config.json): a browser PUT can never
     // introduce or change it. Always keep the value already loaded from the
     // config file and drop anything the browser tried to supply.
-    const current = config.bugReports && typeof config.bugReports === 'object' ? config.bugReports : {};
+    const current = config.bugReports && typeof config.bugReports === 'object' && !Array.isArray(config.bugReports) ? config.bugReports : {};
     if (typeof current.relayUrl === 'string' && current.relayUrl.trim() !== '') {
       block.relayUrl = current.relayUrl;
     } else {
@@ -3778,7 +3626,7 @@ app.put('/api/me', (req, res) => {
 
 // Self-service password change. Requires the current password, so a hijacked
 // session (or a shoulder-surfer) can't silently swap it.
-app.put('/api/me/password', limitPasswordChange, (req, res) => {
+app.put('/api/me/password', (req, res) => {
   const user = req.user;
   if (isGuestUser(user)) return res.status(400).json({ error: tErr(user, 'errors.guestAccount') });
   const { currentPassword, newPassword } = req.body || {};
@@ -4141,20 +3989,13 @@ function listDrives() {
   return roots;
 }
 
-app.get('/api/fs', limitFsBrowser, (req, res) => {
+app.get('/api/fs', (req, res) => {
   const p = (req.query.path || '').trim();
   try {
     if (!p) {
       return res.json({ path: '', parent: null, drives: listDrives(), dirs: [], jars: [], sep: path.sep });
     }
     const abs = path.resolve(p);
-    // The browser's root is the filesystem itself, so the resolve +
-    // startsWith(root + sep) barrier CodeQL recognizes (js/path-injection)
-    // checks the resolved path against its own drive/root; every absolute
-    // path passes, so what the authenticated operator may open is unchanged.
-    const fsBrowserRoot = path.parse(abs).root || path.sep;
-    const fsBrowserRootWithSep = fsBrowserRoot.endsWith(path.sep) ? fsBrowserRoot : fsBrowserRoot + path.sep;
-    if (!abs.startsWith(fsBrowserRootWithSep)) return res.status(400).json({ error: 'Invalid path.' });
     const entries = fs.readdirSync(abs, { withFileTypes: true });
     const dirs = [];
     const jars = [];
@@ -4184,7 +4025,7 @@ app.get('/api/fs', limitFsBrowser, (req, res) => {
 // refuses a second dialog (409) while one is already open.
 // ---------------------------------------------------------------------------
 
-app.get('/api/pick-folder', limitPickFolder, async (req, res) => {
+app.get('/api/pick-folder', async (req, res) => {
   const def = String(req.query.defaultPath || '').trim();
   const title = String(req.query.title || 'Select the parent folder for the new server').trim().slice(0, 100);
   try {
@@ -4250,7 +4091,7 @@ function terrariaVariantOf(s) {
 
 function serverWithStatus(s) {
   const m = getManager(s.id);
-  return {
+  const payload = {
     id: s.id,
     type: s.type || 'minecraft',
     name: s.name,
@@ -4269,12 +4110,15 @@ function serverWithStatus(s) {
     // Terraria's feature set depends on its variant, so the UI gates views on
     // the server's own capabilities rather than on the game type's.
     capabilities: moduleCapabilitiesFor(s),
-    ...(s.type === 'terraria' ? { terrariaVariant: terrariaVariantOf(s) } : {}),
+  };
+  if (s.type === 'terraria') payload.terrariaVariant = terrariaVariantOf(s);
+  Object.assign(payload, {
     active: s.id === config.activeServerId,
     hasStarted: !!s.hasStarted,
     hasGenerated: hasGeneratedContent(s),
     status: m.statusPayload(),
-  };
+  });
+  return payload;
 }
 
 app.get('/api/servers', (req, res) => {
@@ -4396,7 +4240,7 @@ app.put('/api/servers/:id', requireAdmin, (req, res) => {
   const v = validateServerInput(req.body || {}, req.user, s);
   if (v.error) return res.status(400).json({ error: localizeErr(req.user, v.error) });
   Object.assign(s, v.value);
-  if (req.body.watchdog && typeof req.body.watchdog === 'object') {
+  if (req.body.watchdog && typeof req.body.watchdog === 'object' && !Array.isArray(req.body.watchdog)) {
     s.watchdog = {
       enabled: !!req.body.watchdog.enabled,
       maxRestarts: Number(req.body.watchdog.maxRestarts) || 3,
@@ -4581,7 +4425,7 @@ app.get('/api/servers/:id/presentation', (req, res) => {
   res.json(serverPresentation.get(s.id));
 });
 
-app.get('/api/servers/:id/presentation/:kind/image', limitPresentationImage, (req, res) => {
+app.get('/api/servers/:id/presentation/:kind/image', (req, res) => {
   const s = findServer(req.params.id);
   if (!s) return res.status(404).json({ error: tErr(req.user, 'errors.serverNotFound') });
   try {
@@ -4888,7 +4732,7 @@ app.get('/api/players/lookup', async (req, res) => {
 });
 
 // Toggle the whitelist on/off (sends command when running, edits server.properties when offline).
-app.post('/api/whitelist/toggle', limitWhitelistToggle, (req, res) => {
+app.post('/api/whitelist/toggle', (req, res) => {
   const m = targetManager(req);
   if (!m || !m.dir()) return res.status(400).json({ error: tErr(req.user, 'errors.noActiveServer') });
   const on = !!(req.body && req.body.enabled);
@@ -5182,7 +5026,7 @@ const upload = multer({
   limits: { fileSize: 200 * 1024 * 1024 },
 });
 
-app.get('/api/addons', limitAddonsRead, (req, res) => {
+app.get('/api/addons', (req, res) => {
   const kind = addonKind(req);
   const m = targetManager(req);
   if (!m) return res.json({ kind, addons: [] });
@@ -5213,7 +5057,7 @@ app.post('/api/addons/upload', upload.single('addon'), (req, res) => {
   res.status(400).json({ error: tErr(req.user, err.message && err.message.includes('Only') ? 'errors.onlyJar' : 'errors.unknownAction') });
 });
 
-app.delete('/api/addons/:name', limitAddonsWrite, (req, res) => {
+app.delete('/api/addons/:name', (req, res) => {
   const m = targetManager(req);
   if (!m) return res.status(400).json({ error: tErr(req.user, 'errors.noActiveServer') });
   const name = path.basename(req.params.name);
@@ -5261,7 +5105,7 @@ app.get('/api/configs', (req, res) => {
   }
 });
 
-app.get('/api/configs/:name', limitConfigsRead, (req, res) => {
+app.get('/api/configs/:name', (req, res) => {
   const m = targetManager(req);
   if (!m) return res.status(400).json({ error: tErr(req.user, 'errors.noActiveServer') });
   const full = resolveEditable(m.dir(), req.params.name);
@@ -5273,7 +5117,7 @@ app.get('/api/configs/:name', limitConfigsRead, (req, res) => {
   }
 });
 
-app.put('/api/configs/:name', limitConfigsWrite, (req, res) => {
+app.put('/api/configs/:name', (req, res) => {
   const m = targetManager(req);
   if (!m) return res.status(400).json({ error: tErr(req.user, 'errors.noActiveServer') });
   const full = resolveEditable(m.dir(), req.params.name);
@@ -5307,7 +5151,7 @@ function bakStamp() {
   return new Date().toISOString().replace(/[:.]/g, '-');
 }
 
-app.get('/api/configs/:name/backups', limitConfigsRead, (req, res) => {
+app.get('/api/configs/:name/backups', (req, res) => {
   const m = targetManager(req);
   if (!m) return res.status(400).json({ error: tErr(req.user, 'errors.noActiveServer') });
   const full = resolveEditable(m.dir(), req.params.name);
@@ -5335,7 +5179,7 @@ app.get('/api/configs/:name/backups', limitConfigsRead, (req, res) => {
   }
 });
 
-app.post('/api/configs/:name/restore', limitConfigsWrite, (req, res) => {
+app.post('/api/configs/:name/restore', (req, res) => {
   const m = targetManager(req);
   if (!m) return res.status(400).json({ error: tErr(req.user, 'errors.noActiveServer') });
   const full = resolveEditable(m.dir(), req.params.name);
@@ -5594,7 +5438,7 @@ function recoveryArgs(req) {
   return { ...b, filename: b.name, serverId: m.id, worlds, createdAt: fs.statSync(b.file).mtimeMs, m };
 }
 
-app.get('/api/backups', requireCap(CAPABILITIES.BACKUPS_VIEW, { getServerId: backupServerId }), limitBackupsRead, (req, res) => {
+app.get('/api/backups', requireCap(CAPABILITIES.BACKUPS_VIEW, { getServerId: backupServerId }), (req, res) => {
   try {
     const m = targetManager(req);
     let modsSizeBytes = 0;
@@ -5646,7 +5490,7 @@ app.put('/api/backups/options', requireCap(CAPABILITIES.BACKUPS_CREATE, { getSer
   }
 });
 
-app.delete('/api/backups/:name', requireCap(CAPABILITIES.BACKUPS_DELETE, { getServerId: backupServerId }), limitBackupsWrite, (req, res) => {
+app.delete('/api/backups/:name', requireCap(CAPABILITIES.BACKUPS_DELETE, { getServerId: backupServerId }), (req, res) => {
   try {
     const owned = recoveryArgs(req); const name = owned.name; const full = owned.file;
     // Backups use the same recoverable-deletion vocabulary as everything else:
@@ -5669,12 +5513,12 @@ app.delete('/api/backups/:name', requireCap(CAPABILITIES.BACKUPS_DELETE, { getSe
   }
 });
 
-app.get('/api/backups/:name/download', requireCap(CAPABILITIES.BACKUPS_VIEW, { getServerId: backupServerId }), limitBackupsDownload, (req, res) => {
+app.get('/api/backups/:name/download', requireCap(CAPABILITIES.BACKUPS_VIEW, { getServerId: backupServerId }), (req, res) => {
   try { const owned = recoveryArgs(req); res.download(owned.file, owned.name); }
   catch (err) { httpError(res, req, err, err.status || 400); }
 });
 
-app.get('/api/backups/:name/contents', requireCap(CAPABILITIES.BACKUPS_VIEW, { getServerId: backupServerId }), limitBackupsRead, async (req, res) => {
+app.get('/api/backups/:name/contents', requireCap(CAPABILITIES.BACKUPS_VIEW, { getServerId: backupServerId }), async (req, res) => {
   try { const a = recoveryArgs(req); const manifest = await recovery.ensureManifest(a); res.json({ ok: true, manifest }); }
   catch (err) { log('backup error:', err.message); res.status(err.status || 422).json({ error: sanitizeErrorMessage(err.message), code: err.code }); }
 });
@@ -5838,7 +5682,7 @@ app.get('/api/modrinth/versions/:projectId', async (req, res) => {
   }
 });
 
-app.post('/api/modrinth/install', limitModrinthInstall, async (req, res) => {
+app.post('/api/modrinth/install', async (req, res) => {
   const { versionId } = req.body || {};
   if (!versionId) return res.status(400).json({ error: tErr(req.user, 'errors.missingVersionId') });
   const m = targetManager(req);
@@ -5964,7 +5808,7 @@ async function lifecycleApply(req, res, kind) {
     const oldFiles = previous ? previous.files.map((f) => ({ relativePath: f.relative_path, sha256: f.sha256, sizeBytes: f.size_bytes })) : [];
     const plan = modpackLifecycle.buildPlan({ root: m.dir(), oldFiles, newFiles: pack.files, worlds: server.worlds || [] });
     if (plan.inventoryHash !== loaded.row.inventory_hash) throw Object.assign(new Error('Server files changed after preview. Create a new preview.'), { status: 409 });
-    const decisions = body.decisions && typeof body.decisions === 'object' ? body.decisions : {};
+    const decisions = body.decisions && typeof body.decisions === 'object' && !Array.isArray(body.decisions) ? body.decisions : {};
     for (const conflict of plan.groups.conflicts) {
       if (!['keep_local', 'take_pack'].includes(decisions[conflict.relativePath])) throw Object.assign(new Error(`A decision is required for ${conflict.relativePath}.`), { status: 409 });
     }
@@ -6014,7 +5858,7 @@ async function lifecycleApply(req, res, kind) {
 }
 
 app.post('/api/modpacks/import/preview', (req, res) => lifecyclePreview(req, res, 'import'));
-app.post('/api/modpacks/import', limitModpackApply, (req, res) => lifecycleApply(req, res, 'import'));
+app.post('/api/modpacks/import', (req, res) => lifecycleApply(req, res, 'import'));
 app.get('/api/modpacks/installed', async (req, res) => {
   const m = targetManager(req);
   if (!m) return res.status(400).json({ error: 'No active server.' });
@@ -6049,9 +5893,9 @@ app.get('/api/modpacks/installed', async (req, res) => {
   res.json({ installed: enrich(installed), history: history.map(enrich) });
 });
 app.post('/api/modpacks/update/preview', (req, res) => lifecyclePreview(req, res, 'update'));
-app.post('/api/modpacks/update', limitModpackApply, (req, res) => lifecycleApply(req, res, 'update'));
+app.post('/api/modpacks/update', (req, res) => lifecycleApply(req, res, 'update'));
 
-app.post('/api/modpacks/clone', limitModpackClone, (req, res) => {
+app.post('/api/modpacks/clone', (req, res) => {
   const body = req.body || {};
   const source = targetManager(req);
   const name = String(body.name || '').trim();
@@ -6159,7 +6003,7 @@ app.get('/api/modrinth/modpack/preview/:versionId', async (req, res) => {
   }
 });
 
-app.post('/api/modrinth/modpack/install', limitModrinthInstall, async (req, res) => {
+app.post('/api/modrinth/modpack/install', async (req, res) => {
   const body = req.body || {};
   const versionId = String(body.versionId || '');
   const mode = String(body.mode || 'existing').toLowerCase();
@@ -6383,7 +6227,7 @@ function isTextFile(name) {
   return TEXT_EXTS.has(ext) || name.toLowerCase() === 'eula.txt' || !ext;
 }
 
-app.get('/api/files', limitFilesRead, (req, res) => {
+app.get('/api/files', (req, res) => {
   const m = targetManager(req);
   if (!m || !m.dir()) return res.status(400).json({ error: tErr(req.user, 'errors.noActiveServer') });
   const abs = safeResolveNoFollow(m.dir(), req.query.path || '');
@@ -6416,7 +6260,7 @@ app.get('/api/files', limitFilesRead, (req, res) => {
   }
 });
 
-app.get('/api/files/read', limitFilesRead, (req, res) => {
+app.get('/api/files/read', (req, res) => {
   const m = targetManager(req);
   if (!m || !m.dir()) return res.status(400).json({ error: tErr(req.user, 'errors.noActiveServer') });
   const abs = safeResolveNoFollow(m.dir(), req.query.path || '');
@@ -6438,7 +6282,7 @@ app.get('/api/files/read', limitFilesRead, (req, res) => {
   }
 });
 
-app.put('/api/files/write', limitFilesWrite, (req, res) => {
+app.put('/api/files/write', (req, res) => {
   const m = targetManager(req);
   if (!m || !m.dir()) return res.status(400).json({ error: tErr(req.user, 'errors.noActiveServer') });
   const abs = safeResolveNoFollow(m.dir(), req.body && req.body.path);
@@ -6463,7 +6307,7 @@ app.put('/api/files/write', limitFilesWrite, (req, res) => {
   }
 });
 
-app.post('/api/files/mkdir', limitFilesWrite, (req, res) => {
+app.post('/api/files/mkdir', (req, res) => {
   const m = targetManager(req);
   if (!m || !m.dir()) return res.status(400).json({ error: tErr(req.user, 'errors.noActiveServer') });
   const name = path.basename(String((req.body && req.body.name) || '').trim());
@@ -6484,7 +6328,7 @@ app.post('/api/files/mkdir', limitFilesWrite, (req, res) => {
   }
 });
 
-app.post('/api/files/rename', limitFilesWrite, (req, res) => {
+app.post('/api/files/rename', (req, res) => {
   const m = targetManager(req);
   if (!m || !m.dir()) return res.status(400).json({ error: tErr(req.user, 'errors.noActiveServer') });
   const from = safeResolveNoFollow(m.dir(), req.body && req.body.path);
@@ -6515,7 +6359,7 @@ app.post('/api/files/rename', limitFilesWrite, (req, res) => {
   }
 });
 
-app.delete('/api/files', limitFilesWrite, (req, res) => {
+app.delete('/api/files', (req, res) => {
   const m = targetManager(req);
   if (!m || !m.dir()) return res.status(400).json({ error: tErr(req.user, 'errors.noActiveServer') });
   const abs = safeResolveNoFollow(m.dir(), req.query.path || '');
@@ -6534,7 +6378,7 @@ app.delete('/api/files', limitFilesWrite, (req, res) => {
   }
 });
 
-app.get('/api/files/download', limitFilesRead, (req, res) => {
+app.get('/api/files/download', (req, res) => {
   const m = targetManager(req);
   if (!m || !m.dir()) return res.status(400).json({ error: tErr(req.user, 'errors.noActiveServer') });
   const abs = safeResolveNoFollow(m.dir(), req.query.path || '');
@@ -6572,12 +6416,7 @@ const fileUpload = multer({
 });
 
 app.post('/api/files/upload', fileUpload.array('files'), (req, res) => {
-  // multer.array populates req.files, but a crafted request can tamper with
-  // the property; never read .length off anything but a real array
-  // (CodeQL js/type-confusion-through-parameter-tampering).
-  const uploaded = req.files;
-  const count = Array.isArray(uploaded) ? uploaded.length : 0;
-  res.json({ ok: true, count });
+  res.json({ ok: true, count: (req.files || []).length });
 }, (err, req, res, next) => {
   httpError(res, req, err, 400);
 });
@@ -7098,7 +6937,7 @@ function ensureRuntime(major, onProgress) {
   return p;
 }
 
-app.post('/api/create', requireAdmin, limitCreateServer, async (req, res) => {
+app.post('/api/create', requireAdmin, async (req, res) => {
   const body = req.body || {};
   const type = String(body.type || '').toLowerCase();
   const gameType = String(body.gameType || (['custom', 'terraria', 'valheim', 'palworld'].includes(type) ? type : 'minecraft')).toLowerCase();
@@ -7168,8 +7007,13 @@ app.post('/api/create', requireAdmin, limitCreateServer, async (req, res) => {
           public: body.public !== false,
           worldSize: [1, 2, 3].includes(Number(body.worldSize)) ? Number(body.worldSize) : 2,
           difficulty: [0, 1, 2, 3].includes(Number(body.difficulty)) ? Number(body.difficulty) : 0,
-          ...(terraria ? { worldName: terraria.worldName, seed: terraria.seed, motd: terraria.motd, versionId: terraria.versionId } : {}),
         };
+        if (terraria) {
+          install.worldName = terraria.worldName;
+          install.seed = terraria.seed;
+          install.motd = terraria.motd;
+          install.versionId = terraria.versionId;
+        }
         const installOptions = {
           cacheDir,
           download: (url, target, progress) => downloadToFile(url, target, (received, total) => progress(received, total)),
@@ -7187,41 +7031,44 @@ app.post('/api/create', requireAdmin, limitCreateServer, async (req, res) => {
           id: genId(), type: gameType, name, dir, cwd: runtime.cwd || path.dirname(runtime.executable),
           executable: runtime.executable, args: runtime.args,
           port, maxPlayers, worldName, serverName,
-          ...(gameType === 'valheim' ? {
-            valheimSchema: 1,
-            password,
-            valheimSaveDir: 'data',
-            valheimBackend: 'steam',
-            valheimPublic: body.public !== false,
-            valheimInstanceId: null,
-            valheimBuildId: runtime.buildId || null,
-            valheimSettings: {},
-            valheimExtraArgs: ['-nographics', '-batchmode'],
-            // New descriptors are generated from structured fields. The
-            // installer's argv is not persisted because it contains the
-            // password and duplicates Fleetdeck-owned flags.
-            args: [],
-          } : {}),
-          ...(gameType === 'palworld' ? { adminPassword, restPort } : {}),
-          ...(terraria ? {
-            terrariaVariant: terraria.variant,
-            terrariaVersion: runtime.version,
-            // Server-relative (docs/terraria/00-baseline-contracts.md "Freeze the
-            // descriptor"): the installer answers with an absolute path because
-            // it is the one writing it into serverconfig.txt, and the descriptor
-            // never carries an absolute path.
-            terrariaSaveDir: path.relative(dir, runtime.saveDir).split(path.sep).join('/'),
-            // Deliberately no `file` yet. A freshly created server has an
-            // `autocreate` config and no world on disk: the first start makes it.
-            // Writing the path here would make `preLaunch` refuse that very first
-            // start for a world that is *supposed* to be missing, and the world
-            // module reads the selection from serverconfig.txt until a selection
-            // (phase 3) writes both halves.
-            terrariaWorld: { name: runtime.worldName },
-          } : {}),
-          stopTimeoutSeconds: 30,
-          watchdog: { enabled: false, maxRestarts: 3, windowMinutes: 10 },
         };
+        if (gameType === 'valheim') {
+          entry.valheimSchema = 1;
+          entry.password = password;
+          entry.valheimSaveDir = 'data';
+          entry.valheimBackend = 'steam';
+          entry.valheimPublic = body.public !== false;
+          entry.valheimInstanceId = null;
+          entry.valheimBuildId = runtime.buildId || null;
+          entry.valheimSettings = {};
+          entry.valheimExtraArgs = ['-nographics', '-batchmode'];
+          // New descriptors are generated from structured fields. The
+          // installer's argv is not persisted because it contains the
+          // password and duplicates Fleetdeck-owned flags.
+          entry.args = [];
+        }
+        if (gameType === 'palworld') {
+          entry.adminPassword = adminPassword;
+          entry.restPort = restPort;
+        }
+        if (terraria) {
+          entry.terrariaVariant = terraria.variant;
+          entry.terrariaVersion = runtime.version;
+          // Server-relative (docs/terraria/00-baseline-contracts.md "Freeze the
+          // descriptor"): the installer answers with an absolute path because
+          // it is the one writing it into serverconfig.txt, and the descriptor
+          // never carries an absolute path.
+          entry.terrariaSaveDir = path.relative(dir, runtime.saveDir).split(path.sep).join('/');
+          // Deliberately no `file` yet. A freshly created server has an
+          // `autocreate` config and no world on disk: the first start makes it.
+          // Writing the path here would make `preLaunch` refuse that very first
+          // start for a world that is *supposed* to be missing, and the world
+          // module reads the selection from serverconfig.txt until a selection
+          // (phase 3) writes both halves.
+          entry.terrariaWorld = { name: runtime.worldName };
+        }
+        entry.stopTimeoutSeconds = 30;
+        entry.watchdog = { enabled: false, maxRestarts: 3, windowMinutes: 10 };
         const previousActiveServerId = config.activeServerId;
         config.servers.push(entry);
         if (!config.activeServerId) config.activeServerId = entry.id;
@@ -7895,7 +7742,7 @@ function escapeHtml(value) {
 // SPA fallback: any non-API GET that didn't match a real static file returns
 // the app shell, so client-side routes (e.g. /console, /users) keep working on
 // direct navigation and on refresh. API and resource paths are left alone.
-app.get('*', limitSpaShell, (req, res, next) => {
+app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api/') || req.path === '/api') return next();
   if (req.path.startsWith('/resources/')) return next();
   const index = path.join(__dirname, 'public', 'index.html');

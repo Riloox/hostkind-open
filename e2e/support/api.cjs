@@ -26,17 +26,16 @@ async function client(panel, account = panel.admin) {
   const { token, user } = await response.json();
 
   async function send(method, path, body, { raw = false } = {}) {
-    const result = await fetch(`${panel.url}${path}`, {
-      method,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
-      },
-      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-    });
+    const headers = { Authorization: `Bearer ${token}` };
+    const fetchOptions = { method, headers };
+    if (body !== undefined) {
+      headers['Content-Type'] = 'application/json';
+      fetchOptions.body = JSON.stringify(body);
+    }
+    const result = await fetch(`${panel.url}${path}`, fetchOptions);
     const text = await result.text();
     let parsed = null;
-    try { parsed = text ? JSON.parse(text) : null; } catch (_) { parsed = text; }
+    try { parsed = text ? JSON.parse(text) : null; } catch { parsed = text; }
     if (raw) return { ok: result.ok, status: result.status, body: parsed };
     if (!result.ok) {
       const message = (parsed && parsed.error) || text || result.statusText;

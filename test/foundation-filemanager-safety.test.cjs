@@ -139,7 +139,7 @@ for (let i = 0; i < tests.length; i++) {
   catch (e) { failed++; console.error(`FAIL  filemanager-safety test ${i + 1}: ${e.message}\n${e.stack}`); }
 }
 
-try { fs.rmSync(tmp, { recursive: true, force: true }); } catch (_) { /* */ }
+try { fs.rmSync(tmp, { recursive: true, force: true }); } catch { /* */ }
 teardown();
 if (failed) { console.error(`FAIL  ${failed} filemanager-safety test(s) failed`); process.exit(1); }
 console.log(`PASS  foundation-filemanager-safety${skipped ? ` (${skipped} skipped)` : ''}`);

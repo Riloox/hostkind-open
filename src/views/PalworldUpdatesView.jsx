@@ -61,7 +61,7 @@ export function PalworldUpdatesView() {
         const result = await api(`/api/operations/${operation.id}`);
         setOperation(result.operation);
         if (result.operation.state === 'succeeded') { toast.success(t('palworldUpdates.applied')); load(false); }
-      } catch (_) {}
+      } catch {}
     }, 1500);
     return () => clearInterval(timer);
   }, [operation?.id, operation?.state, api, load, t]);

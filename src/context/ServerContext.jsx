@@ -40,13 +40,13 @@ export function ServerProvider({ children }) {
     if (!user?.id) return;
     try {
       const stored = JSON.parse(localStorage.getItem(`fleetdeck_active_servers:${user.id}`) || '{}');
-      setActiveServerByGame(stored && typeof stored === 'object' ? stored : {});
-    } catch (_) { setActiveServerByGame({}); }
+      setActiveServerByGame(stored && typeof stored === 'object' && !Array.isArray(stored) ? stored : {});
+    } catch { setActiveServerByGame({}); }
   }, [user?.id]);
 
   useEffect(() => {
     if (!user?.id) return;
-    try { localStorage.setItem(`fleetdeck_active_servers:${user.id}`, JSON.stringify(activeServerByGame)); } catch (_) {}
+    try { localStorage.setItem(`fleetdeck_active_servers:${user.id}`, JSON.stringify(activeServerByGame)); } catch {}
   }, [activeServerByGame, user?.id]);
 
   useEffect(() => {

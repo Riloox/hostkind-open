@@ -67,7 +67,7 @@ test('a folder equal to, inside, or containing another registered server is reje
 test('a symlink cannot disguise a protected root', function () {
   const { dataDir } = require('../lib/db.cjs');
   const link = path.join(TMP_ROOT, 'link-to-data');
-  try { fs.symlinkSync(dataDir(), link, 'junction'); } catch (_) { return; } // unsupported host: nothing to assert
+  try { fs.symlinkSync(dataDir(), link, 'junction'); } catch { return; } // unsupported host: nothing to assert
   assert.strictEqual(pathSafety.protectedReason(link, {}).reason, 'fleetdeck_data');
 });
 

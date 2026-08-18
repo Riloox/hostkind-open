@@ -90,7 +90,7 @@ export function PalworldModsView() {
         setOperation(result.operation);
         if (result.operation.state === 'succeeded') { toast.success(t('palworldMods.official.installed')); load(); }
         if (result.operation.state === 'failed') toast.error(result.operation.error?.text || t('palworldMods.importFailed'));
-      } catch (_) { /* retry on the next poll */ }
+      } catch { /* retry on the next poll */ }
     }, 1500);
     return () => clearInterval(timer);
   }, [operation?.id, operation?.state, api, load, t]);

@@ -92,11 +92,15 @@ async function main() {
   const httpServer = http.createServer(app);
   await new Promise((resolve, reject) => { httpServer.once('error', reject); httpServer.listen(0, '127.0.0.1', resolve); });
   const base = `http://127.0.0.1:${httpServer.address().port}`;
-  const call = (method, url, { user = 'admin', body, key } = {}) => fetch(`${base}${url}`, {
-    method,
-    headers: { 'x-test-user': user, 'content-type': 'application/json', ...(key ? { 'Idempotency-Key': key } : {}) },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
+  const call = (method, url, { user = 'admin', body, key } = {}) => {
+    const headers = { 'x-test-user': user, 'content-type': 'application/json' };
+    if (key) headers['Idempotency-Key'] = key;
+    return fetch(`${base}${url}`, {
+      method,
+      headers,
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  };
 
   const parent = fs.mkdtempSync(path.join(ROOT, 'dest-'));
 

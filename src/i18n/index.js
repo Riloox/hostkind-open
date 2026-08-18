@@ -19,7 +19,7 @@ function lookup(dict, key) {
   const parts = String(key).split('.');
   let cur = dict;
   for (const p of parts) {
-    if (cur && typeof cur === 'object' && p in cur) cur = cur[p];
+    if (cur && typeof cur === 'object' && !Array.isArray(cur) && p in cur) cur = cur[p];
     else return undefined;
   }
   return typeof cur === 'string' ? cur : undefined;

@@ -1,8 +1,7 @@
 'use strict';
 
 /*
- * Relay durable queue + sync worker tests (plan Task 3 —
- * .hermes/plans/2026-08-15_124205-upstream-bug-report-relay-pi.md).
+ * Relay durable queue + sync worker tests.
  *
  * Proves with a real SQLite database (temp dir) and injected fake GitHub
  * clients:

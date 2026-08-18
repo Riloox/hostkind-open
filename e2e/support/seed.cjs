@@ -42,7 +42,7 @@ function writeTree(root, tree) {
   fs.mkdirSync(root, { recursive: true });
   for (const [name, value] of Object.entries(tree || {})) {
     const target = path.join(root, name);
-    if (value && typeof value === 'object' && !Buffer.isBuffer(value)) {
+    if (value && typeof value === 'object' && !Array.isArray(value) && !Buffer.isBuffer(value)) {
       writeTree(target, value);
     } else {
       fs.mkdirSync(path.dirname(target), { recursive: true });
@@ -181,7 +181,7 @@ function plantRunnable(dir) {
   const executable = path.join(dir, path.basename(process.execPath));
   if (!fs.existsSync(executable)) {
     try { fs.linkSync(process.execPath, executable); }
-    catch (_) { fs.copyFileSync(process.execPath, executable); }
+    catch { fs.copyFileSync(process.execPath, executable); }
   }
   const script = path.join(dir, 'fake-process.cjs');
   fs.copyFileSync(FAKE_PROCESS, script);

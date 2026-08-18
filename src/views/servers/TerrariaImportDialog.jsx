@@ -42,7 +42,7 @@ export function TerrariaImportDialog({ open, onOpenChange, onImported }) {
     try {
       const picked = await pick(dir, t('terraria.import.pickFolder'));
       if (picked) chooseDir(picked);
-    } catch (_) {
+    } catch {
       setFsOpen(true);
     }
   }

@@ -9,9 +9,10 @@ export function useApi() {
   const { activeServerId } = useServer();
 
   const api = useCallback(async (path, opts = {}) => {
-    const headers = { ...opts.headers, ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+    const headers = { ...opts.headers };
+    if (token) headers.Authorization = `Bearer ${token}`;
     if (activeServerId && opts.serverScoped !== false) headers['X-Fleetdeck-Server-Id'] = activeServerId;
-    if (opts.body && typeof opts.body === 'object' && !(opts.body instanceof FormData)) {
+    if (opts.body != null && !(opts.body instanceof FormData) && (typeof opts.body === 'object' || Array.isArray(opts.body))) {
       headers['Content-Type'] = 'application/json';
       opts = { ...opts, body: JSON.stringify(opts.body) };
     }
@@ -24,7 +25,10 @@ export function useApi() {
     if (!r.ok) {
       const error = data.error;
       const translated = typeof error === 'string' ? t(error) : '';
-      throw new Error(error && translated !== error ? translated : (error || t('common.httpError', { status: r.status })));
+      const message = error && translated !== error ? translated : (error || t('common.httpError', { status: r.status }));
+      const err = new Error(message);
+      err.code = data.code;
+      throw err;
     }
     return data;
   }, [token, logout, t, activeServerId]);

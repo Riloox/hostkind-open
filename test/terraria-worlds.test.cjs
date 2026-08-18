@@ -456,7 +456,7 @@ test('a save directory reached through a link is refused rather than followed', 
   const outside = path.join(ROOT, `link-target-${++seq}`);
   fs.mkdirSync(outside, { recursive: true });
   try { fs.symlinkSync(outside, path.join(desc.dir, 'linked')); }
-  catch (_) { return; } // unprivileged Windows: nothing to test
+  catch { return; } // unprivileged Windows: nothing to test
   desc.terrariaSaveDir = 'linked';
   assert.throws(() => worlds.resolveSaveDir(desc), (err) => err.code === 'symlink_path');
 });

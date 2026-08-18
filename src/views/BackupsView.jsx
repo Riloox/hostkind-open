@@ -35,7 +35,7 @@ function RetentionCard({ onSaved }) {
           maxCount: Number(cfg?.backups?.maxCount ?? cfg?.backups?.retainCount ?? 10) || 0,
           maxSizeMB: Number(cfg?.backups?.maxSizeMB ?? 0) || 0,
         });
-      } catch (_) { /* ignore - defaults stay in place */ }
+      } catch { /* ignore - defaults stay in place */ }
     })();
     return () => { cancelled = true; };
   }, []);

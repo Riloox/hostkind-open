@@ -107,13 +107,15 @@ const test = base.test.extend({
       const instance = await startInstance({
         servers: [],
         ...options,
-        env: (dirs) => ({
-          ...(shared ? {} : {
-            FLEETDECK_INSTALLER_CACHE: path.join(dirs.root, 'installer-cache'),
-            FLEETDECK_RUNTIMES_DIR: path.join(dirs.root, 'runtimes'),
-          }),
-          ...(typeof options.env === 'function' ? options.env(dirs) : options.env),
-        }),
+        env: (dirs) => {
+          const env = {};
+          if (!shared) {
+            env.FLEETDECK_INSTALLER_CACHE = path.join(dirs.root, 'installer-cache');
+            env.FLEETDECK_RUNTIMES_DIR = path.join(dirs.root, 'runtimes');
+          }
+          Object.assign(env, typeof options.env === 'function' ? options.env(dirs) : options.env);
+          return env;
+        },
       });
       const tracker = createTracker(instance);
       started.push(instance);
@@ -144,7 +146,7 @@ const test = base.test.extend({
   page: async ({ page, uiLanguage }, use) => {
     if (uiLanguage) {
       await page.addInitScript(([key, lang]) => {
-        try { window.localStorage.setItem(key, lang); } catch (_) { /* ignore */ }
+        try { window.localStorage.setItem(key, lang); } catch { /* ignore */ }
       }, [LANG_KEY, uiLanguage]);
     }
     await use(page);

@@ -1,9 +1,8 @@
 'use strict';
 
 /*
- * bug-report-relay-http — HTTP service contract for the upstream bug-report
- * relay (plan: .hermes/plans/2026-08-15_124205-upstream-bug-report-relay-pi.md,
- * Task 4). Tests run against an in-process HTTP server on an ephemeral port
+ * bug-report-relay-http — HTTP service contract for the upstream bug-report relay.
+ * Tests run against an in-process HTTP server on an ephemeral port
  * with injected fakes: no network access, no database, no secrets, no
  * long-running process. The server is closed after every test.
  *

@@ -26,7 +26,7 @@ function newestMtime(target, budget = { files: 5000 }) {
   const walk = (entry) => {
     if (budget.files <= 0) return;
     let stat;
-    try { stat = fs.statSync(entry); } catch (_) { return; }
+    try { stat = fs.statSync(entry); } catch { return; }
     budget.files -= 1;
     if (stat.isDirectory()) {
       for (const child of fs.readdirSync(entry)) walk(path.join(entry, child));

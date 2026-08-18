@@ -66,7 +66,7 @@ async function signInFast(page, panel, account = panel.admin) {
       // version differs from __APP_VERSION__. Plant it so the modal never
       // shows in specs that just want to get to the UI.
       window.localStorage.setItem('fleetdeck_tour_version', tourVersion);
-    } catch (_) { /* ignore */ }
+    } catch { /* ignore */ }
   }, [TOKEN_KEY, token, user.id, APP_VERSION]);
 
   return { token, user };
@@ -122,7 +122,7 @@ async function enterGame(page, gameId) {
     try {
       await page.waitForURL(new RegExp(`/games/${gameId}/`), { timeout: 2_000 });
       break;
-    } catch (_) {
+    } catch {
       if (attempt === 2) throw new Error(`could not enter ${gameId} from the hub`);
     }
   }
@@ -138,7 +138,7 @@ function readToken(page) {
 /** Plant a session token before the app boots. */
 function seedToken(page, token) {
   return page.addInitScript(([key, value]) => {
-    try { window.localStorage.setItem(key, value); } catch (_) { /* ignore */ }
+    try { window.localStorage.setItem(key, value); } catch { /* ignore */ }
   }, [TOKEN_KEY, token]);
 }
 

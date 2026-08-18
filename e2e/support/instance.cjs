@@ -51,7 +51,7 @@ function removeInstanceTree(pid, target) {
   if (process.platform === 'win32') {
     try {
       execFileSync('taskkill', ['/F', '/T', '/PID', String(pid)], { stdio: 'ignore' });
-    } catch (_) { /* the tree may already be gone */ }
+    } catch { /* the tree may already be gone */ }
   }
   fs.rmSync(target, { recursive: true, force: true, maxRetries: 5, retryDelay: 300 });
 }
@@ -141,7 +141,7 @@ async function waitForBoot(url, child, log) {
     try {
       const response = await fetch(`${url}/api/auth-mode`);
       if (response.ok) return;
-    } catch (_) {
+    } catch {
       // Not listening yet.
     }
     await new Promise((resolve) => setTimeout(resolve, BOOT_POLL_MS));
@@ -277,7 +277,7 @@ function sweepInstanceDirs({ olderThanMs = null } = {}) {
   const tmp = os.tmpdir();
   const removed = [];
   let entries = [];
-  try { entries = fs.readdirSync(tmp); } catch (_) { return removed; }
+  try { entries = fs.readdirSync(tmp); } catch { return removed; }
 
   for (const name of entries) {
     const matchesThisRun = name.startsWith(DIR_PREFIX);
@@ -291,7 +291,7 @@ function sweepInstanceDirs({ olderThanMs = null } = {}) {
       if (olderThanMs != null && Date.now() - stat.mtimeMs < olderThanMs) continue;
       fs.rmSync(target, { recursive: true, force: true, maxRetries: 3, retryDelay: 200 });
       if (!fs.existsSync(target)) removed.push(target);
-    } catch (_) { /* someone else's, or in use - leave it */ }
+    } catch { /* someone else's, or in use - leave it */ }
   }
   return removed;
 }

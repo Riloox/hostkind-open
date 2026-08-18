@@ -37,7 +37,7 @@ async function fetchPublicIp(timeoutMs = 3000) {
     if (!r.ok) return null;
     const d = await r.json();
     return typeof d.ip === 'string' ? d.ip : null;
-  } catch (_) {
+  } catch {
     return null;
   } finally {
     clearTimeout(t);
@@ -144,14 +144,12 @@ export function LoginView({ onLogin }) {
     let data;
     try {
       const clientIp = geoLanguageDetection ? await fetchPublicIp() : null;
+      const payload = { ...loginField, password: pass };
+      if (clientIp) payload.clientIp = clientIp;
       const r = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...loginField,
-          password: pass,
-          ...(clientIp ? { clientIp } : {}),
-        }),
+        body: JSON.stringify(payload),
       });
       data = await r.json();
       if (!r.ok) {

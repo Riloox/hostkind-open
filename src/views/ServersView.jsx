@@ -90,7 +90,7 @@ function ServerModal({ open, onOpenChange, server, onSaved, servers: allServers 
       try {
         const listing = await api(`/api/fs?path=${encodeURIComponent(picked)}`);
         j = listing.jars || [];
-      } catch (_) {}
+      } catch {}
       applyDir(picked, j);
     } catch {
       setFsOpen(true);
@@ -218,7 +218,7 @@ function LegacyCreateServerModal({ open, onOpenChange, onCreated }) {
       const { versions: v } = await api(`/api/create/versions?type=${encodeURIComponent(type)}`);
       setVersions(v.slice(0, 60));
       setForm(f => ({ ...f, mcVersion: v[0] || '' }));
-    } catch (_) {}
+    } catch {}
   }
 
   async function create() {

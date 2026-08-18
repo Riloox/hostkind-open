@@ -426,12 +426,11 @@ function AppShell({ onLoggedIn }) {
       try {
         // The panel's API is bearer-authenticated, same as every other call.
         const token = localStorage.getItem('fleetdeck_token') || '';
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) headers.Authorization = `Bearer ${token}`;
         fetch('/api/audit/tour-event', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
+          headers,
           body: JSON.stringify({
             type: detailType,
             step: d.step ?? null,
