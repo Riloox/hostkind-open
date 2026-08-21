@@ -99,6 +99,17 @@ no license activation or keys. This repo is generated from the private upstream
 repository via a strip script, so changes land here as snapshots rather than as a
 continuously synced fork.
 
+## Releases
+
+Publishing is automated upstream: every green CI run on the source repository
+publishes a fresh snapshot to `main` here, and each tagged release (`vX.Y.Z`)
+is mirrored to a GitHub Release on this repository with a zip archive, its
+SHA256 checksum, and a full manifest. Verify a download with:
+
+```
+sha256sum -c fleetdeck-<version>.zip.sha256
+```
+
 ## License
 
 This repo is the open edition of Fleetdeck, licensed AGPL-3.0. A commercial license is
