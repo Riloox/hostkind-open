@@ -75,6 +75,16 @@ export default defineConfig({
   server: {
     host: '127.0.0.1',
     port: 5173,
+    watch: {
+      // SteamCMD writes locked temp files (libraryfolders.vdf.async*.tmp)
+      // into resources/installers/steamcmd while installing/updating game
+      // servers. Watching them crashes the Vite watcher with EBUSY on
+      // Windows, so ignore that whole tree (files there never need HMR).
+      ignored: [
+        '**/resources/installers/steamcmd/**',
+        '**/*.tmp',
+      ],
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:2121',

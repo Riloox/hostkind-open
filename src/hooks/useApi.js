@@ -11,7 +11,7 @@ export function useApi() {
   const api = useCallback(async (path, opts = {}) => {
     const headers = { ...opts.headers };
     if (token) headers.Authorization = `Bearer ${token}`;
-    if (activeServerId && opts.serverScoped !== false) headers['X-Fleetdeck-Server-Id'] = activeServerId;
+    if (activeServerId && opts.serverScoped !== false) headers['X-Hostkind-Server-Id'] = activeServerId;
     if (opts.body != null && !(opts.body instanceof FormData) && (typeof opts.body === 'object' || Array.isArray(opts.body))) {
       headers['Content-Type'] = 'application/json';
       opts = { ...opts, body: JSON.stringify(opts.body) };

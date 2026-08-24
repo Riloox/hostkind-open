@@ -1,18 +1,18 @@
 # THIRD_PARTY_NOTICES
 
-Fleetdeck is published under the AGPL-3.0 (`SPDX-License-Identifier: AGPL-3.0-only`);
+Hostkind is published under the AGPL-3.0 (`SPDX-License-Identifier: AGPL-3.0-only`);
 the full text is in `LICENSE`. This file records every bundled asset that is not
-plain Fleetdeck original work, the provenance we could establish for it, and what
+plain Hostkind original work, the provenance we could establish for it, and what
 was done about it. Reviewed as of August 2026.
 
 Statuses used below:
 
 | Status | Meaning |
 | --- | --- |
-| **Original** | Created for Fleetdeck, owned by Fleetdeck. Safe to ship. |
-| **Generated placeholder** | A neutral, procedurally generated asset produced for this pass to replace third-party art. Owned by Fleetdeck. Safe to ship. |
+| **Original** | Created for Hostkind, owned by Hostkind. Safe to ship. |
+| **Generated placeholder** | A neutral, procedurally generated asset produced for this pass to replace third-party art. Owned by Hostkind. Safe to ship. |
 | **Third-party (official)** | Recognisable official artwork/trademarks of another party. Not licensed for redistribution here; ship only after replacement or a written licence. |
-| **Third-party (unverified)** | Not identifiable as Fleetdeck origin, and no licence or source can be established. Treat as not licensed; replace or verify. |
+| **Third-party (unverified)** | Not identifiable as Hostkind origin, and no licence or source can be established. Treat as not licensed; replace or verify. |
 | **Not shipped** | Not part of the distributed tree (gitignored runtime cache). |
 
 Nothing in this file grants a licence. Where a status is not **Original** or
@@ -25,12 +25,12 @@ commercial redistribution.
 
 | File | Purpose | Provenance | Status | Disposition |
 | --- | --- | --- | --- | --- |
-| `resources/favicon.svg` | Browser favicon (`index.html`), default branding icon. | Hand-written geometric SVG in the Fleetdeck ember palette (`#fdb25b` -> `#c14624` on `#23140e`); in repo since the initial commit. | **Original** | Keep. |
-| `resources/fleetdeck.svg` | Default logo/favicon mark served by the panel and used by the SPA. | Identical geometry to `favicon.svg`; a Fleetdeck-authored mark. | **Original** | Keep. |
+| `resources/favicon.svg` | Browser favicon (`index.html`), default branding icon. | Hand-written geometric SVG in the Hostkind ember palette (`#fdb25b` -> `#c14624` on `#23140e`); in repo since the initial commit. | **Original** | Keep. |
+| `resources/fleetdeck.svg` | Default logo/favicon mark served by the panel and used by the SPA. | Identical geometry to `favicon.svg`; a Hostkind-authored mark. | **Original** | Keep. |
 | `resources/maps/palworld-world.png` | Built-in Palworld world-map fallback streamed by `lib/palworld-map.cjs` (`/api/palworld/map/asset`). | The original shipped file was the official in-game Palworld world map (Pocketpair game art); no licence, no source recorded in git (introduced in the initial commit, `git log` shows binary blobs only). It was first replaced with a procedurally generated placeholder, then (Aug 2026) with the current 1128x1128 map. | **Generated placeholder** | **Replaced.** Current file is an AI-generated original world-map image (maintainer-authored via Gemini, star watermark removed, padded to square), no game-derived art. `lib/palworld-map.cjs` asset version bumped to `fleetdeck-palpagos-2`; the media type, bounds, and test contract (`test/palworld-map.test.cjs` passes) still hold. The original Pocketpair art remains in git history only. |
-| `resources/hero.webp` | README hero banner. | Original file was a Fleetdeck dashboard mockup that embedded Minecraft (Mojang) and Palworld (Pocketpair) game icons; unlicensed third-party art inside an otherwise Fleetdeck-made graphic. Introduced with the README revamp commit. | **Generated placeholder** | **Replaced.** A branded banner (ember palette, Fleetdeck mark, abstract server cards, no game art) was generated and written over the same path; the README still references it and is unchanged apart from the alt text. |
+| `resources/hero.webp` | README hero banner. | Original file was a Hostkind dashboard mockup that embedded Minecraft (Mojang) and Palworld (Pocketpair) game icons; unlicensed third-party art inside an otherwise Hostkind-made graphic. Introduced with the README revamp commit. | **Generated placeholder** | **Replaced.** A branded banner (ember palette, Hostkind mark, abstract server cards, no game art) was generated and written over the same path; the README still references it and is unchanged apart from the alt text. |
 | `resources/stone_tile.jpg` | Panel background texture in the Settings dialog (`src/components/shared/SettingsDialog.jsx`, served from `/resources/stone_tile.jpg`). | Original file was the Minecraft "stone" block texture (Mojang). In repo since the initial commit, no licence. | **Generated placeholder** | **Replaced.** A neutral, tileable stone/concrete texture was generated and written over the same path. No frontend change was needed because the path is unchanged. |
-| `resources/lodestone.webp` | Unreferenced. "Lodestone" is the project's legacy codename ; the file was a render of the Minecraft "chiseled stone bricks" block (Mojang). | No code or docs reference it today; git history shows it in the initial commit. | **Generated placeholder** | **Replaced** with a neutral dark tile bearing the Fleetdeck mark. The file is still unreferenced and is a candidate for outright removal from the repo. |
+| `resources/lodestone.webp` | Unreferenced. "Lodestone" is the project's legacy codename ; the file was a render of the Minecraft "chiseled stone bricks" block (Mojang). | No code or docs reference it today; git history shows it in the initial commit. | **Generated placeholder** | **Replaced** with a neutral dark tile bearing the Hostkind mark. The file is still unreferenced and is a candidate for outright removal from the repo. |
 | `resources/fleetdeck_face.png` | Now referenced by `e2e/specs/presentation.spec.cjs`. Originally named `lodestone_face.png`, the face texture of the Minecraft chiseled stone brick (Mojang), matching the legacy "lodestone" codename. | `e2e/specs/presentation.spec.cjs` (icon upload fixture). | **Generated placeholder** | **Renamed** to `fleetdeck_face.png`. Still a neutral placeholder for e2e fixture use. |
 
 ## 2. Game-module artwork under `src/assets/games/`
@@ -54,7 +54,7 @@ licensee and must be cleared by replacing them with licensed or original art.
 | `src/assets/games/custom-hero.jpg` | "Other Processes" slide. | AI-generated black-and-white collage embedding Nintendo/Mario/Pac-Man/Space Invaders and other third-party game references; author unknown. | **Third-party (unverified)** - needs replacement. |
 
 **Action required:** every row above must reach **Original** or **Generated
-placeholder** (or a written licence from the rights holder) before Fleetdeck ships
+placeholder** (or a written licence from the rights holder) before Hostkind ships
 commercially. See `CONTRIBUTING.md` -> "Asset provenance" for the rule that prevents
 new unlicensed art.
 
@@ -74,7 +74,7 @@ attribution) before commercial distribution.
 
 | Path | Status |
 | --- | --- |
-| `resources/installers/steamcmd/**` | SteamCMD binaries (Valve) and their cache. **Not committed**: confirmed gitignored (`git check-ignore` matches; `resources/installers/` is in `.gitignore`). `ensureSteamCmd()` re-downloads SteamCMD when the folder is missing. Valve's SteamCMD distribution terms apply to whoever downloads and runs it; Fleetdeck only orchestrates the download at runtime. |
+| `resources/installers/steamcmd/**` | SteamCMD binaries (Valve) and their cache. **Not committed**: confirmed gitignored (`git check-ignore` matches; `resources/installers/` is in `.gitignore`). `ensureSteamCmd()` re-downloads SteamCMD when the folder is missing. Valve's SteamCMD distribution terms apply to whoever downloads and runs it; Hostkind only orchestrates the download at runtime. |
 | `runtimes/` | Downloaded Temurin JREs (per Minecraft Java major). Gitignored runtime cache, not distributed. |
 | `data/`, `config.json`, `public/` | Local runtime data and build output. Not committed. |
 
@@ -85,4 +85,4 @@ attribution) before commercial distribution.
 The placeholders were produced by throwaway scripts (kept out of the repo, under the
 user's temp directory) that use only the Node standard library (`zlib`) and, for the
 JPEG/WebP files, a stock Python `Pillow`. They are not build inputs and are not needed
-to build or run Fleetdeck. Re-running them is not required for any workflow.
+to build or run Hostkind. Re-running them is not required for any workflow.

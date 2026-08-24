@@ -41,9 +41,9 @@ export function PalworldUpdatesView() {
         api(force ? '/api/palworld/updates/check' : '/api/palworld/updates', {
           method: force ? 'POST' : 'GET',
           body: force ? { serverId: activeServerId } : undefined,
-          headers: { 'X-Fleetdeck-Server-Id': activeServerId },
+          headers: { 'X-Hostkind-Server-Id': activeServerId },
         }),
-        api('/api/palworld/updates/policy', { headers: { 'X-Fleetdeck-Server-Id': activeServerId } }),
+        api('/api/palworld/updates/policy', { headers: { 'X-Hostkind-Server-Id': activeServerId } }),
       ]);
       setUpdate(result.update);
       setPolicy(policyResult.policy);
@@ -71,7 +71,7 @@ export function PalworldUpdatesView() {
     try {
       const result = await api('/api/palworld/updates/preview', {
         method: 'POST',
-        headers: { 'X-Fleetdeck-Server-Id': activeServerId },
+        headers: { 'X-Hostkind-Server-Id': activeServerId },
         body: { restart: true, backupRequired: true, announceSeconds: update?.running?.version ? 300 : 0 },
       });
       setPlan(result.plan);
@@ -87,7 +87,7 @@ export function PalworldUpdatesView() {
       const result = await api('/api/palworld/updates/apply', {
         method: 'POST',
         headers: {
-          'X-Fleetdeck-Server-Id': activeServerId,
+          'X-Hostkind-Server-Id': activeServerId,
           'Idempotency-Key': crypto.randomUUID(),
         },
         body: { plan, revision: plan.revision },
@@ -102,7 +102,7 @@ export function PalworldUpdatesView() {
     try {
       const result = await api('/api/palworld/updates/policy', {
         method: 'PUT',
-        headers: { 'X-Fleetdeck-Server-Id': activeServerId },
+        headers: { 'X-Hostkind-Server-Id': activeServerId },
         body: policy,
       });
       setPolicy(result.policy);

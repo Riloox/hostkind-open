@@ -16,7 +16,7 @@ uniform JSON `404`. There is no admin endpoint.
 
 - `Content-Type` must be `application/json` (or `*+json`) — anything else is `415`.
 - Body limit: **32 KiB** by default (`413 payload_too_large` above it).
-- Fields (camelCase, matching the Fleetdeck store): `title` (required, ≤200),
+- Fields (camelCase, matching the Hostkind store): `title` (required, ≤200),
   `description` (required), `actorId`, `actorUsername`, `game`, `view`, `route`
   (≤500), `reproSteps`, `expected` (≤5000), `userAgent` (≤1000), `version`
   (≤100), `marker` (≤100, `[A-Za-z0-9._-]`). Unknown fields are **dropped**;

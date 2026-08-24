@@ -1,6 +1,6 @@
 @echo off
 REM ============================================================
-REM  Fleetdeck - DEVELOPMENT launcher (Windows)
+REM  Hostkind - DEVELOPMENT launcher (Windows)
 REM  Runs the backend + the Vite dev server with hot reload.
 REM  Edit anything under src/ and the browser updates instantly,
 REM  no rebuild and no panel restart needed.
@@ -11,7 +11,7 @@ REM ============================================================
 REM Move to the folder where this .bat lives (handles spaces and "N").
 cd /d "%~dp0"
 
-title Fleetdeck Dev
+title Hostkind Dev
 
 REM --- Determine the backend port (env override, else the default 2121) ---
 set "PORT=2121"
@@ -30,7 +30,7 @@ if errorlevel 1 (
 
 for /f %%v in ('node -p "process.versions.node.split('.')[0]"') do set "NODE_MAJOR=%%v"
 if %NODE_MAJOR% LSS 22 (
-  echo [ERROR] Node.js %NODE_MAJOR% is unsupported. Fleetdeck requires Node.js 22+ for its SQLite foundation.
+  echo [ERROR] Node.js %NODE_MAJOR% is unsupported. Hostkind requires Node.js 22+ for its SQLite foundation.
   echo Install a current Node LTS release, then re-run this launcher.
   echo.
   pause
@@ -92,8 +92,8 @@ REM --- Kill any previous backend instance still holding the port ---
 call :kill_port "%PORT%"
 
 echo.
-echo Starting Fleetdeck backend ^(port %PORT%^) in a separate window...
-start "Fleetdeck Backend" cmd /c node server.js
+echo Starting Hostkind backend ^(port %PORT%^) in a separate window...
+start "Hostkind Backend" cmd /c node server.js
 
 echo Starting Vite dev server with hot reload...
 echo Open http://localhost:5173 in your browser ^(it should open automatically^).

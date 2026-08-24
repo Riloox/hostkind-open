@@ -184,11 +184,11 @@ tests.push({ name: 'submit POSTs JSON to the fixed relayUrl with content-type ap
 tests.push({ name: 'submit resolves (no throw) for 201 synced and 400 errors', fn: async () => {
   const synced = createRelayClient({
     relayUrl: RELAY_URL,
-    fetch: makeFetchQueue(jsonResponse(201, { id: 'r1', state: 'synced', issueUrl: 'https://github.com/Riloox/fleetdeck-open/issues/42' })).fetch,
+    fetch: makeFetchQueue(jsonResponse(201, { id: 'r1', state: 'synced', issueUrl: 'https://github.com/Riloox/hostkind-open/issues/42' })).fetch,
   });
   const ok = await synced.submit(sampleRow());
   assert.strictEqual(ok.status, 201);
-  assert.strictEqual(ok.body.issueUrl, 'https://github.com/Riloox/fleetdeck-open/issues/42');
+  assert.strictEqual(ok.body.issueUrl, 'https://github.com/Riloox/hostkind-open/issues/42');
 
   const rejected = createRelayClient({
     relayUrl: RELAY_URL,
@@ -239,14 +239,14 @@ tests.push({ name: 'createRelayClient requires relayUrl', fn: () => {
 /* ── syncReportToRelay state machine ─────────────────────────────── */
 
 tests.push({ name: '201 with issueUrl -> synced, row marked synced, no markFailed', fn: async () => {
-  const { fetch } = makeFetchQueue(jsonResponse(201, { id: 'r1', state: 'synced', issueUrl: 'https://github.com/Riloox/fleetdeck-open/issues/42' }));
+  const { fetch } = makeFetchQueue(jsonResponse(201, { id: 'r1', state: 'synced', issueUrl: 'https://github.com/Riloox/hostkind-open/issues/42' }));
   const spies = makeSpies();
   const summary = await syncReportToRelay(sampleRow(), { relayUrl: RELAY_URL, fetch, ...spies });
   assert.strictEqual(summary.state, 'synced');
-  assert.strictEqual(summary.issueUrl, 'https://github.com/Riloox/fleetdeck-open/issues/42');
+  assert.strictEqual(summary.issueUrl, 'https://github.com/Riloox/hostkind-open/issues/42');
   assert.strictEqual(summary.error, null);
   assert.strictEqual(spies.calls.synced.length, 1);
-  assert.deepStrictEqual(spies.calls.synced[0], { id: '11111111-2222-3333-4444-555555555555', meta: { issueNumber: null, issueUrl: 'https://github.com/Riloox/fleetdeck-open/issues/42' } });
+  assert.deepStrictEqual(spies.calls.synced[0], { id: '11111111-2222-3333-4444-555555555555', meta: { issueNumber: null, issueUrl: 'https://github.com/Riloox/hostkind-open/issues/42' } });
   assert.strictEqual(spies.calls.failed.length, 0);
 }});
 
@@ -264,11 +264,11 @@ tests.push({ name: '202 queued -> pending with useful message, row untouched', f
 }});
 
 tests.push({ name: '202 that (unexpectedly) carries an issueUrl -> synced (contract: issueUrl wins)', fn: async () => {
-  const { fetch } = makeFetchQueue(jsonResponse(202, { id: 'r1', state: 'queued', issueUrl: 'https://github.com/Riloox/fleetdeck-open/issues/9' }));
+  const { fetch } = makeFetchQueue(jsonResponse(202, { id: 'r1', state: 'queued', issueUrl: 'https://github.com/Riloox/hostkind-open/issues/9' }));
   const spies = makeSpies();
   const summary = await syncReportToRelay(sampleRow(), { relayUrl: RELAY_URL, fetch, ...spies });
   assert.strictEqual(summary.state, 'synced');
-  assert.strictEqual(summary.issueUrl, 'https://github.com/Riloox/fleetdeck-open/issues/9');
+  assert.strictEqual(summary.issueUrl, 'https://github.com/Riloox/hostkind-open/issues/9');
   assert.strictEqual(spies.calls.synced.length, 1);
 }});
 
@@ -329,10 +329,28 @@ tests.push({ name: 'missing relayUrl -> pending not_configured, fetch never call
   assert.strictEqual(calls.length, 0);
   assert.strictEqual(spies.calls.failed.length, 0);
   assert.strictEqual(spies.calls.synced.length, 0);
+  assert.strictEqual(summary.trackerUrl, null, 'no trackerUrl when the caller did not supply one');
+}});
+
+tests.push({ name: 'missing relayUrl summary carries the caller-supplied trackerUrl', fn: async () => {
+  const { fetch, calls } = makeFetchQueue();
+  const spies = makeSpies();
+  const summary = await syncReportToRelay(sampleRow(), {
+    relayUrl: '',
+    fetch,
+    trackerUrl: 'https://github.com/Riloox/hostkind-open/issues/new/choose',
+    ...spies,
+  });
+  assert.strictEqual(summary.state, 'pending');
+  assert.strictEqual(summary.reason, 'not_configured');
+  assert.strictEqual(summary.trackerUrl, 'https://github.com/Riloox/hostkind-open/issues/new/choose', 'user-facing fallback link must survive to the UI');
+  assert.strictEqual(calls.length, 0, 'no relay contact when unconfigured');
+  assert.strictEqual(spies.calls.failed.length, 0);
+  assert.strictEqual(spies.calls.synced.length, 0);
 }});
 
 tests.push({ name: 'syncReportToRelay never throws even when store seams throw', fn: async () => {
-  const { fetch } = makeFetchQueue(jsonResponse(201, { id: 'r1', state: 'synced', issueUrl: 'https://github.com/Riloox/fleetdeck-open/issues/1' }));
+  const { fetch } = makeFetchQueue(jsonResponse(201, { id: 'r1', state: 'synced', issueUrl: 'https://github.com/Riloox/hostkind-open/issues/1' }));
   const throwing = {
     markSynced: () => { throw new Error('db locked'); },
     markFailed: () => { throw new Error('db locked'); },

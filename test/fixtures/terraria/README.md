@@ -32,7 +32,7 @@ OS, capture date, and source.
 its listening line and leaves without ever printing `Server started`.
 
 The join and leave lines have no tModLoader capture. A tModLoader server refuses
-unmodded clients, so producing one needs a modded Terraria client Fleetdeck does
+unmodded clients, so producing one needs a modded Terraria client Hostkind does
 not have. The lines are vanilla's, and tModLoader ships the same strings -
 `Game.19` / `Game.20` ("{0} has joined." / "{0} has left.") are in the
 localization embedded in `tModLoader.dll` - which is what the tModLoader entry
@@ -50,7 +50,7 @@ Captures were passed through `lib/redact.cjs` plus two capture-specific rules:
 - **Paths.** The capture directory is rewritten to `<fixture-root>`; no path
   outside it appears.
 
-Player names are synthetic (`Fleetdeck Guest`, `Zoë Müller` - chosen because a
+Player names are synthetic (`Hostkind Guest`, `Zoë Müller` - chosen because a
 name with a space and a name with non-ASCII characters both have to round-trip).
 
 Two shapes are not verbatim, and both are marked in the file:

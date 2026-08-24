@@ -1,0 +1,206 @@
+# Open Publish — automated hostkind-open edition pipeline.
+#
+# Two jobs, one trigger surface (CI workflow completions on the private repo):
+#
+#   snapshot       After every GREEN CI run on main: generate the stripped
+#                  public tree (scripts/strip-open.cjs --publish) from the
+#                  exact SHA that was just tested, push it to
+#                  Riloox/hostkind-open main, then wait for the public
+#                  repo's own CI to go green. A broken snapshot therefore
+#                  shows up as a failed run HERE, not silently downstream.
+#
+#   mirror-release After every GREEN CI run pushed via a v* tag (the private
+#                  `release` job lives inside the CI workflow, so workflow_run
+#                  cannot target it by name — the tag in head_branch is the
+#                  signal instead): find the open-edition snapshot commit
+#                  carrying the released version, tag it on the public repo,
+#                  and wait for the public repo's dormant tag-gated release
+#                  job to build and publish the zip + checksums.
+#
+# Cross-repo writes use the OPEN_PUBLISH_TOKEN secret: a fine-grained PAT
+# scoped to Riloox/hostkind-open (Contents: RW). GITHUB_TOKEN cannot be used
+# because it carries no permissions on the other repository AND pushes made
+# with it would not trigger the public repo's CI — which we explicitly want
+# (every snapshot must be tested by the public repo itself).
+#
+# Renewal: when the PAT expires these jobs fail at their first cross-repo
+# step with an auth error. Rotate via `gh secret set OPEN_PUBLISH_TOKEN
+# --repo Riloox/hostkind`.
+
+name: Open Publish
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: open-publish
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    name: rolling snapshot to hostkind-open
+    # The strip copies this workflow verbatim into hostkind-open, where the
+    # workflow_run trigger would otherwise fire on the public repo's own CI
+    # completions (and fail: strip-open.cjs is stripped from the public tree).
+    # Run for real only in the source repository.
+    if: >-
+      github.repository == 'Riloox/hostkind' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout the exact SHA that CI validated
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          # git archive HEAD only needs the tip; a shallow clone is enough.
+          fetch-depth: 1
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      # No `npm ci` on purpose: strip-open.cjs is dependency-free (fs, path,
+      # child_process only) and its invariants walk files with the stdlib.
+
+      - name: Publish snapshot to Riloox/hostkind-open
+        env:
+          GITHUB_TOKEN: ${{ secrets.OPEN_PUBLISH_TOKEN }}
+        run: node scripts/strip-open.cjs --publish
+
+      - name: Wait for hostkind-open CI on the published commit
+        env:
+          GH_TOKEN: ${{ secrets.OPEN_PUBLISH_TOKEN }}
+        run: |
+          set -eu
+          sha="$(git -C .open-staging rev-parse HEAD)"
+          echo "published open-edition commit: $sha"
+          verdict=""
+          for i in $(seq 1 40); do
+            sleep 30
+            verdict="$(gh api "repos/Riloox/hostkind-open/commits/$sha/check-runs" \
+              --jq 'if (.total_count // 0) == 0 then "pending"
+                    else ([.check_runs[]] |
+                      if any(.[]; .conclusion == "failure" or .conclusion == "startup_failure" or .conclusion == "cancelled" or .conclusion == "timed_out")
+                      then "failure"
+                      elif any(.[]; .status != "completed")
+                      then "pending"
+                      else "success" end)
+                    end' || echo pending)"
+            echo "attempt $i: $verdict"
+            case "$verdict" in
+              success) exit 0 ;;
+              failure) echo "::error::hostkind-open CI failed on snapshot $sha"; exit 1 ;;
+            esac
+          done
+          echo "::error::timed out (20m) waiting for hostkind-open CI on $sha (last: ${verdict:-unknown})"
+          exit 1
+
+  mirror-release:
+    name: mirror release tag to hostkind-open
+    if: >-
+      github.repository == 'Riloox/hostkind' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      startsWith(github.event.workflow_run.head_branch, 'v')
+    runs-on: ubuntu-latest
+    # Queues behind a concurrent snapshot run (shared concurrency group), then
+    # waits out the public release CI: allow generous headroom.
+    timeout-minutes: 75
+    steps:
+      - name: Wait for this version's snapshot to reach hostkind-open main
+        env:
+          GH_TOKEN: ${{ secrets.OPEN_PUBLISH_TOKEN }}
+          VERSION: ${{ github.event.workflow_run.head_branch }}
+        run: |
+          set -eu
+          want="Open edition snapshot: hostkind ${VERSION}"
+          found=""
+          for i in $(seq 1 30); do
+            sleep 30
+            found="$(gh api 'repos/Riloox/hostkind-open/commits/main' \
+              --jq '.commit.message | split("\n")[0]' || echo '')"
+            echo "attempt $i: open main tip = ${found}"
+            [ "$found" = "$want" ] && { echo "ready=$found"; exit 0; }
+          done
+          echo "::error::snapshot '${want}' never reached hostkind-open main within 15m."
+          echo "::error::If the release commit and tag were pushed together, the main-branch"
+          echo "::error::CI run (and thus its snapshot job) may still be running; re-run this"
+          echo "::error::job once it completes, or publish manually:"
+          echo "::error::  node scripts/strip-open.cjs --publish && git push origin main   # inside .open-staging"
+          exit 1
+
+      - name: Tag the matching snapshot commit on hostkind-open
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.OPEN_PUBLISH_TOKEN }}
+          script: |
+            const version = process.env.RELEASE_VERSION;
+            const commits = await github.paginate(github.rest.repos.listCommits, {
+              owner: 'Riloox', repo: 'hostkind-open', sha: 'main', per_page: 100,
+            });
+            const match = commits.find(c =>
+              c.commit.message.split('\n')[0].trim() === `Open edition snapshot: hostkind ${version}`);
+            if (!match) {
+              core.setFailed(`no hostkind-open snapshot commit found for ${version}`);
+              return;
+            }
+            core.info(`tagging ${match.sha} as ${version}`);
+            try {
+              await github.rest.git.createRef({
+                owner: 'Riloox', repo: 'hostkind-open',
+                ref: `refs/tags/${version}`, sha: match.sha,
+              });
+            } catch (err) {
+              // Idempotent re-runs: if the tag already exists, succeed only
+              // when it points at the commit we would have tagged.
+              if (err.status !== 422) throw err;
+              const existing = await github.rest.git.getRef({
+                owner: 'Riloox', repo: 'hostkind-open', ref: `tags/${version}`,
+              });
+              if (existing.data.object.sha !== match.sha) {
+                core.setFailed(`ref ${version} already exists at ${existing.data.object.sha}, expected ${match.sha}`);
+                return;
+              }
+              core.info(`ref ${version} already exists at ${match.sha}; nothing to do`);
+            }
+        env:
+          RELEASE_VERSION: ${{ github.event.workflow_run.head_branch }}
+
+      - name: Wait for the open release to publish, then verify assets
+        env:
+          GH_TOKEN: ${{ secrets.OPEN_PUBLISH_TOKEN }}
+          VERSION: ${{ github.event.workflow_run.head_branch }}
+        run: |
+          set -eu
+          echo "waiting for hostkind-open release ${VERSION}"
+          # Poll for the RELEASE ITSELF, not check-runs: check-runs on the
+          # tagged commit also include the earlier green main-branch CI run
+          # on that same commit, which would report success before the
+          # tag-triggered release job has even started.
+          verdict=""
+          for i in $(seq 1 60); do
+            sleep 30
+            verdict="$(gh api "repos/Riloox/hostkind-open/actions/runs?event=push&branch=${VERSION}" \
+              --jq '[.workflow_runs[]] | if length == 0 then "pending"
+                    else (.[0] | if .status != "completed" then "pending"
+                         elif .conclusion == "success" then "success"
+                         else "failure" end) end' || echo pending)"
+            echo "attempt $i: $verdict"
+            case "$verdict" in
+              success) break ;;
+              failure) echo "::error::hostkind-open release CI failed on ${VERSION}"; exit 1 ;;
+            esac
+          done
+          [ "$verdict" = "success" ] || { echo "::error::timed out waiting for hostkind-open release run"; exit 1; }
+          sleep 15
+          echo "Release assets:"
+          gh release view "$VERSION" --repo Riloox/hostkind-open \
+            --json name,tagName,assets --jq '.name + " (" + .tagName + ")" , (.assets[] | "  - " + .name + "  " + (.size|tostring) + " bytes")'

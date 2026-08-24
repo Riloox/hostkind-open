@@ -89,8 +89,8 @@ export function AuditView() {
       anchor.href = url;
       // The downloaded archive is named after the panel, not the stock product,
       // so a white-labelled install ships files under its own brand.
-      const base = (branding.name || 'fleetdeck').toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'fleetdeck';
+      const base = (branding.name || 'hostkind').toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'hostkind';
       anchor.download = `${base}-audit-${new Date().toISOString().slice(0, 10)}.${format}`;
       anchor.click();
       URL.revokeObjectURL(url);

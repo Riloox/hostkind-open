@@ -207,7 +207,7 @@ for (const leak of ['s.executable', 's.args', 's.cwd', 's.adminPassword', 's.pas
 /*
  * Descriptor round-trip. saveConfig writes the whole config object as
  * pretty-printed JSON and loadConfig parses it back (server.js), so the round
- * trip is exercised here through the same serialization: fields Fleetdeck does
+ * trip is exercised here through the same serialization: fields Hostkind does
  * not know about must survive, because descriptors are never rebuilt from a
  * panel-side template.
  */

@@ -23,7 +23,7 @@ test.describe('config editor', () => {
     // The friendly editor labels each key in plain language rather than
     // showing the raw file, and fills the field from what is on disk.
     await expect(page.getByText(en('minecraft.configs.field.motd.label'))).toBeVisible();
-    await expect(page.locator('#cfg-motd')).toHaveValue('A Fleetdeck test server');
+    await expect(page.locator('#cfg-motd')).toHaveValue('A Hostkind test server');
     await expect(page.locator('#cfg-max-players')).toHaveValue('20');
   });
 
@@ -35,7 +35,7 @@ test.describe('config editor', () => {
 
     // Raw shows the file as it is written.
     const raw = page.locator('textarea').first();
-    await expect(raw).toContainText('motd=A Fleetdeck test server');
+    await expect(raw).toContainText('motd=A Hostkind test server');
 
     await page.getByRole('button', { name: en('configs.switchToFriendly') }).click();
     await expect(page.locator('textarea')).toHaveCount(0);

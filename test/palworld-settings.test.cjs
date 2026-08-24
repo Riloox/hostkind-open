@@ -5,7 +5,7 @@ const settings = require('../lib/palworld-settings.cjs');
 
 function fixture(eol = '\n', bom = '') {
   return Buffer.from([
-    `${bom}; Fleetdeck must preserve this comment`,
+    `${bom}; Hostkind must preserve this comment`,
     '[/Script/Pal.PalGameWorldSettings]',
     'OptionSettings=(ServerName="Pal \\"Home\\"",ServerPlayerMaxNum=12,CommunityServer=False,FutureSetting="雪,=ok")',
     '',

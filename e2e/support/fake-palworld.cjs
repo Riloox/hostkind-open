@@ -3,7 +3,7 @@
 /*
  * A stand-in Palworld dedicated server for the browser tests.
  *
- * Fleetdeck's palworld module proves readiness from the REST API, because on
+ * Hostkind's palworld module proves readiness from the REST API, because on
  * Windows the real server writes its console to its own window and the
  * "Running Palworld dedicated server" line never reaches the panel's pipe. So
  * this script never prints that line by default - only FAKE_READY=1 turns it

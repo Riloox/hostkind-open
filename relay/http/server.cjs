@@ -61,7 +61,7 @@ const DEFAULTS = {
 };
 
 // Field limits mirror lib/bug-reports.cjs LIMITS so the HTTP layer accepts
-// exactly what the Fleetdeck store accepts (the 32 KiB body limit is the
+// exactly what the Hostkind store accepts (the 32 KiB body limit is the
 // real cap on description size).
 const FIELD_LIMITS = {
   title: { required: true, max: 200 },

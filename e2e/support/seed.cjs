@@ -63,7 +63,7 @@ function serverDir(dirs, slug) {
 
 const SERVER_PROPERTIES = [
   '#Minecraft server properties',
-  'motd=A Fleetdeck test server',
+  'motd=A Hostkind test server',
   'server-port=25565',
   'max-players=20',
   'difficulty=normal',
@@ -254,7 +254,7 @@ function terraria(dirs, options = {}) {
   writeTree(dir, {
     [path.basename(executable)]: 'not a real binary',
     'serverconfig.txt': [
-      '# Fleetdeck test config',
+      '# Hostkind test config',
       `worldpath=${savePath}`,
       worlds.length ? `world=${path.join(savePath, `${worlds[0]}.wld`)}` : '',
       worlds.length ? `worldname=${worlds[0]}` : '',
@@ -332,7 +332,7 @@ function valheim(dirs, options = {}) {
 
 const PALWORLD_SETTINGS = [
   '[/Script/Pal.PalGameWorldSettings]',
-  'OptionSettings=(Difficulty=None,DayTimeSpeedRate=1.000000,ServerName="Fleetdeck test",ServerPlayerMaxNum=32,PublicPort=8211,RESTAPIEnabled=True,RESTAPIPort=8212,AdminPassword="test-admin")',
+  'OptionSettings=(Difficulty=None,DayTimeSpeedRate=1.000000,ServerName="Hostkind test",ServerPlayerMaxNum=32,PublicPort=8211,RESTAPIEnabled=True,RESTAPIPort=8212,AdminPassword="test-admin")',
   '',
 ].join('\n');
 

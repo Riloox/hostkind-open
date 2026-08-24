@@ -27,6 +27,7 @@ const {
   normalizeConfig,
   redactConfig,
   validateRelayUrl,
+  buildTrackerUrl,
   MODE_GITHUB,
   MODE_UPSTREAM_RELAY,
 } = require('../lib/bug-report-config.cjs');
@@ -166,7 +167,7 @@ tests.push({ name: 'redactConfig keeps relayUrl, strips token', fn: () => {
 
 // 15. DEFAULTS is untouched (pinned by the pre-existing config test).
 tests.push({ name: 'DEFAULTS unchanged', fn: () => {
-  assert.deepStrictEqual(DEFAULTS, { enabled: false, owner: 'Riloox', repo: 'fleetdeck-open', labels: ['bug'] });
+  assert.deepStrictEqual(DEFAULTS, { enabled: false, owner: 'Riloox', repo: 'hostkind-open', labels: ['bug'] });
 }});
 
 // 16. MODES export exposes exactly the two supported modes.
@@ -180,6 +181,29 @@ tests.push({ name: 'garbage input never throws with relay fields', fn: () => {
   assert.strictEqual(normalizeConfig('garbage').relayUrl, null);
   assert.strictEqual(normalizeConfig([]).mode, MODE_GITHUB);
   assert.deepStrictEqual(normalizeConfig(42).errors, []);
+}});
+
+// 18. buildTrackerUrl derives the public issue chooser from owner/repo: the
+// "not configured" fallback link shown to users of installs without a relay
+// or token (the default for the open edition).
+tests.push({ name: 'buildTrackerUrl builds the issue chooser URL', fn: () => {
+  assert.strictEqual(buildTrackerUrl('Riloox', 'hostkind-open'), 'https://github.com/Riloox/hostkind-open/issues/new/choose');
+  assert.strictEqual(buildTrackerUrl('some-org', 'a-repo'), 'https://github.com/some-org/a-repo/issues/new/choose');
+  assert.strictEqual(buildTrackerUrl('xn--foo', 'repo.with.dots_and-dashes'), 'https://github.com/xn--foo/repo.with.dots_and-dashes/issues/new/choose');
+}});
+
+// 19. buildTrackerUrl fails closed on garbage/absent values — never throws,
+// never emits a URL that GitHub would 404 or that could redirect elsewhere.
+tests.push({ name: 'buildTrackerUrl fails closed on bad input', fn: () => {
+  assert.strictEqual(buildTrackerUrl(), null);
+  assert.strictEqual(buildTrackerUrl('', ''), null);
+  assert.strictEqual(buildTrackerUrl('Riloox', ''), null);
+  assert.strictEqual(buildTrackerUrl('', 'hostkind-open'), null);
+  assert.strictEqual(buildTrackerUrl(null, 'repo'), null);
+  assert.strictEqual(buildTrackerUrl('Riloox', null), null);
+  assert.strictEqual(buildTrackerUrl(42, ['x']), null);
+  assert.strictEqual(buildTrackerUrl('a b', 'c d'), null, 'spaces are not valid GitHub owner/repo chars');
+  assert.strictEqual(buildTrackerUrl('Riloox', 'evil repo\njavascript:alert(1)'), null, 'control chars must fail closed');
 }});
 
 let failed = 0;

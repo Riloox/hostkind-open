@@ -1,7 +1,7 @@
 {
-  "name": "fleetdeck-relay",
+  "name": "hostkind-relay",
   "version": "0.1.0",
-  "description": "Standalone upstream bug-report relay core for Fleetdeck: strict validation/redaction, durable SQLite queue, idempotent GitHub sync worker.",
+  "description": "Standalone upstream bug-report relay core for Hostkind: strict validation/redaction, durable SQLite queue, idempotent GitHub sync worker.",
   "private": true,
   "license": "AGPL-3.0-only",
   "type": "commonjs",

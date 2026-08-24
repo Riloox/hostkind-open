@@ -26,7 +26,7 @@ function int(value) {
   return buffer;
 }
 
-function infoEntry({ author = 'Fleetdeck', version = '1.2.3', buildVersion = '2025.6.3.0', dependencies = [] } = {}) {
+function infoEntry({ author = 'Hostkind', version = '1.2.3', buildVersion = '2025.6.3.0', dependencies = [] } = {}) {
   const parts = [];
   if (dependencies.length) {
     parts.push(dotnetString('modReferences'));
@@ -83,7 +83,7 @@ try {
   const parsed = mods.parseTmod(path.join(modsDir, 'example.tmod'));
   assert.equal(parsed.internalName, 'ExampleMod');
   assert.equal(parsed.displayName, 'Example Mod');
-  assert.equal(parsed.author, 'Fleetdeck');
+  assert.equal(parsed.author, 'Hostkind');
   assert.deepEqual(parsed.dependencies, [{ internalName: 'LibraryMod', version: '2.0' }]);
 
   const before = fs.readFileSync(path.join(modsDir, 'enabled.json'));

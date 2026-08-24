@@ -73,6 +73,10 @@ export function BugReportDialog({ open, onOpenChange, context }) {
           // The translated not-configured copy already explains the state;
           // avoid repeating the same backend diagnostic below it.
           message: sync.reason === 'not_configured' ? null : (sync.message || sync.error),
+          // For local-only installs (the open edition's default) the dialog
+          // offers a direct link to the configured repo's issue tracker so
+          // the user can still report upstream.
+          trackerUrl: sync.trackerUrl || null,
         });
       } else {
         setResult({ kind: 'synced', url: null });
@@ -127,6 +131,18 @@ export function BugReportDialog({ open, onOpenChange, context }) {
                     {t(result.kind === 'not_configured' ? 'bugReport.notConfigured' : 'bugReport.pending')}
                     {result.message ? ` — ${result.message}` : ''}
                   </span>
+                </p>
+              )}
+              {result.kind === 'not_configured' && result.trackerUrl && (
+                <p className="pl-6 text-sm">
+                  <a
+                    href={result.trackerUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-medium break-all text-primary underline underline-offset-4"
+                  >
+                    {t('bugReport.openTracker')}
+                  </a>
                 </p>
               )}
               {result.kind === 'error' && (

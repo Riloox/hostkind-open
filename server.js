@@ -1,7 +1,7 @@
 'use strict';
 
 /*
- * Fleetdeck - lightweight web panel to manage Minecraft servers on Windows,
+ * Hostkind - lightweight web panel to manage Minecraft servers on Windows,
  * Linux, and macOS.
  *
  * A single Node process:
@@ -30,6 +30,7 @@ const zlib = require('zlib');
 
 const express = require('express');
 const helmet = require('helmet');
+const { rateLimit } = require('express-rate-limit');
 const { WebSocketServer } = require('ws');
 const multer = require('multer');
 const pidusage = require('pidusage');
@@ -211,7 +212,7 @@ function loadConfig() {
     // reads config.appName. Likewise, write the file directly instead of
     // via saveConfig(): the `config` binding is still in its temporal dead
     // zone while this initializer runs.
-    console.log(`[Fleetdeck] no config at ${CONFIG_PATH}; creating one from the shipped template. Nothing is configured yet - use the setup wizard or edit the file.`);
+    console.log(`[Hostkind] no config at ${CONFIG_PATH}; creating one from the shipped template. Nothing is configured yet - use the setup wizard or edit the file.`);
     fs.writeFileSync(CONFIG_PATH, JSON.stringify(JSON.parse(fs.readFileSync(CONFIG_TEMPLATE_PATH, 'utf8')), null, 2), 'utf8');
   }
   const raw = fs.readFileSync(CONFIG_PATH, 'utf8');
@@ -242,7 +243,7 @@ function ensureSafeJwtSecret() {
   // The generation path cannot produce an unsafe value, but refuse to boot
   // rather than keep running on one if it somehow does.
   if (typeof config.jwtSecret !== 'string' || config.jwtSecret === DEFAULT_JWT_SECRET || config.jwtSecret.length < MIN_JWT_SECRET_LENGTH) {
-    console.error(`[${config.appName || 'Fleetdeck'}] REFUSING TO START: could not establish a safe jwtSecret. Set a strong random jwtSecret in config.json and restart.`);
+    console.error(`[${config.appName || 'Hostkind'}] REFUSING TO START: could not establish a safe jwtSecret. Set a strong random jwtSecret in config.json and restart.`);
     throw new Error('refusing to start without a safe jwtSecret');
   }
 }
@@ -429,7 +430,7 @@ const DEFAULT_ADMIN_EMAIL = 'admin@fleetdeck.local';
 const DEFAULT_ADMIN_USERNAME = 'admin';
 
 // First-run admin password handling. A fresh install gets a random password
-// (never a repo-known default like the old 'Fleetdeck1'): the plaintext is
+// (never a repo-known default like the old 'Hostkind1'): the plaintext is
 // written to a mode-0600 file next to config.json and printed once in the
 // startup banner. The file is deleted on the first successful sign-in, so a
 // missed console scroll doesn't lock the operator out - they can open the
@@ -441,7 +442,7 @@ function writeInitialPasswordFile(password) {
   initialAdminPassword = password;
   try {
     fs.writeFileSync(INITIAL_PASSWORD_FILE,
-      `Fleetdeck first-run admin password. Sign in once and this file is deleted automatically.\n\n${password}\n`,
+      `Hostkind first-run admin password. Sign in once and this file is deleted automatically.\n\n${password}\n`,
       { mode: 0o600 });
   } catch (err) { log('could not write initial admin password file:', err.message); }
 }
@@ -483,7 +484,7 @@ function migrateConfig() {
     changed = true;
   }
   if (!config.appName || config.appName === 'Lodestone') {
-    config.appName = 'Fleetdeck';
+    config.appName = 'Hostkind';
     changed = true;
   }
   if (!Array.isArray(config.servers)) {
@@ -581,13 +582,13 @@ function migrateConfig() {
   if (config.geoLanguageDetection === undefined) { config.geoLanguageDetection = false; changed = true; }
   
   // Bug-report GitHub integration defaults: disabled until an administrator
-  // configures it, destination Riloox/fleetdeck-open. The token is never stored
+  // configures it, destination Riloox/hostkind-open. The token is never stored
   // in the block - it comes from FLEETDECK_GITHUB_TOKEN (see the bug-report
   // wiring section further down). Prefer the config module's DEFAULTS when it
   // has landed; fall back to the documented literals so a partially-deployed
   // tree still boots.
   if (!config.bugReports || typeof config.bugReports !== 'object' || Array.isArray(config.bugReports)) {
-    let bugReportDefaults = { enabled: false, owner: 'Riloox', repo: 'fleetdeck-open', labels: ['bug'] };
+    let bugReportDefaults = { enabled: false, owner: 'Riloox', repo: 'hostkind-open', labels: ['bug'] };
     try {
       const bugReportConfig = require('./lib/bug-report-config.cjs');
       if (bugReportConfig && bugReportConfig.DEFAULTS) bugReportDefaults = bugReportConfig.DEFAULTS;
@@ -697,7 +698,7 @@ function log(...args) {
   const ts = new Date().toISOString();
   // The panel's own name on the terminal, derived from config so a branded
   // install does not narrate its boot under the stock product name.
-  console.log(`[${config.appName || 'Fleetdeck'} ${ts}]`, ...args);
+  console.log(`[${config.appName || 'Hostkind'} ${ts}]`, ...args);
 }
 
 // ---------------------------------------------------------------------------
@@ -854,10 +855,10 @@ class ServerManager {
     if (mod.redactLine) text = mod.redactLine(text);
     // The console stream is user-visible, so a white-labelled install must not
     // narrate its supervision under the stock product name. Every panel-authored
-    // line carries a leading "[Fleetdeck] " tag; rewrite it from config.appName
+    // line carries a leading "[Hostkind] " tag; rewrite it from config.appName
     // at the single funnel instead of touching two dozen literals.
-    const tag = `[${config.appName || 'Fleetdeck'}]`;
-    const entry = { ts: Date.now(), text: text.replace(/^\[Fleetdeck\]/, tag), level };
+    const tag = `[${config.appName || 'Hostkind'}]`;
+    const entry = { ts: Date.now(), text: text.replace(/^\[Hostkind\]/, tag), level };
     const max = config.consoleHistoryLines || 500;
     if (!appendConsoleLine(this.history, entry, max)) return;
     this.broadcast({ type: 'line', line: entry });
@@ -899,13 +900,13 @@ class ServerManager {
     if (mod.resetState) mod.resetState(this);
     this.manualStop = false;
     this.setStatus(STATUS.STARTING);
-    this.pushLine(`[Fleetdeck] Starting "${this.name()}": ${bin} ${visibleArgs.join(' ')}`, 'info');
+    this.pushLine(`[Hostkind] Starting "${this.name()}": ${bin} ${visibleArgs.join(' ')}`, 'info');
 
     const preLaunch = mod.preLaunch ? mod.preLaunch(this) : { ok: true };
     Promise.resolve(preLaunch).then((res) => {
       if (res && res.ok === false) {
         this.setStatus(STATUS.OFFLINE);
-        this.pushLine(`[Fleetdeck] ${res.error}`, 'error');
+        this.pushLine(`[Hostkind] ${res.error}`, 'error');
         return;
       }
       this._spawn(bin, args, options);
@@ -932,7 +933,7 @@ class ServerManager {
       proc = spawn(bin, args, spawnOptions);
     } catch (err) {
       this.setStatus(STATUS.OFFLINE);
-      this.pushLine(`[Fleetdeck] Could not launch: ${err.message}`, 'error');
+      this.pushLine(`[Hostkind] Could not launch: ${err.message}`, 'error');
       return { ok: false, error: err.message };
     }
 
@@ -948,7 +949,7 @@ class ServerManager {
     proc.stderr.on('data', (b) => this._onData(b, 'stderr'));
 
     proc.on('error', (err) => {
-      this.pushLine(`[Fleetdeck] Process error: ${err.message}`, 'error');
+      this.pushLine(`[Hostkind] Process error: ${err.message}`, 'error');
     });
 
     proc.on('exit', (code, signal) => this._onExit(code, signal));
@@ -1063,7 +1064,7 @@ class ServerManager {
     }
     this.manualStop = true;
     if (force) {
-      this.pushLine('[Fleetdeck] Force killing the process.', 'warn');
+      this.pushLine('[Hostkind] Force killing the process.', 'warn');
       this._kill();
       return { ok: true };
     }
@@ -1072,26 +1073,26 @@ class ServerManager {
       // A detached child has no stdin to receive a graceful-stop command;
       // SIGTERM triggers the process's own shutdown hook (e.g. Minecraft
       // still saves the world on SIGTERM).
-      this.pushLine(`[Fleetdeck] Stopping detached "${this.name()}" (pid ${this.adoptedPid}) with SIGTERM...`, 'info');
+      this.pushLine(`[Hostkind] Stopping detached "${this.name()}" (pid ${this.adoptedPid}) with SIGTERM...`, 'info');
       try { process.kill(this.adoptedPid, 'SIGTERM'); } catch (_) { /* already gone */ }
     } else {
       const mod = this.module();
       const seq = mod.buildStopSequence ? mod.buildStopSequence(this) : null;
       if (seq && seq.execute) {
-        this.pushLine('[Fleetdeck] Stopping (graceful)...', 'info');
+        this.pushLine('[Hostkind] Stopping (graceful)...', 'info');
         Promise.resolve(seq.execute()).catch((err) => {
           if (!this.isRunning() || !this.proc) return;
-          this.pushLine(`[Fleetdeck] Graceful stop failed (${err.message}); sending SIGTERM.`, 'warn');
+          this.pushLine(`[Hostkind] Graceful stop failed (${err.message}); sending SIGTERM.`, 'warn');
           try { this.proc.kill('SIGTERM'); } catch (_) { /* already gone */ }
         });
       } else if (seq && seq.command) {
-        this.pushLine('[Fleetdeck] Stopping (graceful)...', 'info');
+        this.pushLine('[Hostkind] Stopping (graceful)...', 'info');
         this.sendCommand(seq.command, true);
       } else if (seq && seq.signal && this.proc) {
-        this.pushLine(`[Fleetdeck] Stopping (${seq.signal})...`, 'info');
+        this.pushLine(`[Hostkind] Stopping (${seq.signal})...`, 'info');
         try { this.proc.kill(seq.signal); } catch (_) { /* already gone */ }
       } else if (this.proc) {
-        this.pushLine('[Fleetdeck] Stopping (SIGTERM)...', 'info');
+        this.pushLine('[Hostkind] Stopping (SIGTERM)...', 'info');
         try { this.proc.kill('SIGTERM'); } catch (_) { /* already gone */ }
       }
     }
@@ -1099,7 +1100,7 @@ class ServerManager {
     const timeoutSec = this.desc().stopTimeoutSeconds || config.stopTimeoutSeconds || 30;
     this.killTimer = setTimeout(() => {
       if (this.isRunning()) {
-        this.pushLine(`[Fleetdeck] Did not close within ${timeoutSec}s, killing process.`, 'warn');
+        this.pushLine(`[Hostkind] Did not close within ${timeoutSec}s, killing process.`, 'warn');
         this._kill();
       }
     }, timeoutSec * 1000);
@@ -1121,14 +1122,14 @@ class ServerManager {
 
   async restart() {
     if (this.isRunning()) {
-      this.pushLine('[Fleetdeck] Restart requested: stopping...', 'info');
+      this.pushLine('[Hostkind] Restart requested: stopping...', 'info');
       const exited = this._waitForExit();
       this.stop(false);
       await exited;
       // small pause so the OS releases ports/handles
       await new Promise((r) => setTimeout(r, 2000));
     }
-    this.pushLine('[Fleetdeck] Restart: starting again...', 'info');
+    this.pushLine('[Hostkind] Restart: starting again...', 'info');
     return this.start();
   }
 
@@ -1166,7 +1167,7 @@ class ServerManager {
       clearTimeout(this.readinessTimer);
       this.readinessTimer = null;
     }
-    this.pushLine(`[Fleetdeck] "${this.name()}" exited (code=${code}, signal=${signal || 'none'}).`, wasManual ? 'info' : 'warn');
+    this.pushLine(`[Hostkind] "${this.name()}" exited (code=${code}, signal=${signal || 'none'}).`, wasManual ? 'info' : 'warn');
     this.proc = null;
     this.startedAt = null;
     { const mod = this.module(); if (mod.onExit) mod.onExit(this, { code, signal, manual: wasManual, statusBeforeExit }); }
@@ -1206,7 +1207,7 @@ class ServerManager {
     this.startedAt = startedAt || Date.now();
     { const mod = this.module(); if (mod.onAdopt) mod.onAdopt(this); }
     this.setStatus(STATUS.ONLINE);
-    this.pushLine(`[Fleetdeck] Re-attached to "${this.name()}" (pid ${pid}) left running by a previous panel session. Console is detached — commands are unavailable until you restart the server, but Stop still works.`, 'warn');
+    this.pushLine(`[Hostkind] Re-attached to "${this.name()}" (pid ${pid}) left running by a previous panel session. Console is detached — commands are unavailable until you restart the server, but Stop still works.`, 'warn');
     this._startAdoptedWatch();
   }
 
@@ -1237,7 +1238,7 @@ class ServerManager {
       clearTimeout(this.killTimer);
       this.killTimer = null;
     }
-    this.pushLine(`[Fleetdeck] Detached "${this.name()}" (pid ${this.adoptedPid}) has exited.`, wasManual ? 'info' : 'warn');
+    this.pushLine(`[Hostkind] Detached "${this.name()}" (pid ${this.adoptedPid}) has exited.`, wasManual ? 'info' : 'warn');
     this.adopted = false;
     this.adoptedPid = null;
     this.startedAt = null;
@@ -1269,13 +1270,13 @@ class ServerManager {
     if (!wd.enabled) return;
     const recent = this._recentRestartCount();
     if (recent >= (wd.maxRestarts || 3)) {
-      this.pushLine(`[Fleetdeck] Watchdog: ${recent} restarts within the window, NOT relaunching (possible crash-loop).`, 'error');
+      this.pushLine(`[Hostkind] Watchdog: ${recent} restarts within the window, NOT relaunching (possible crash-loop).`, 'error');
       notifyDiscord(this.id, 'watchdog_action', `:no_entry: Watchdog "${this.name()}": restart limit reached (${recent}). Not relaunching to avoid a crash-loop.`);
       addNotification('watchdog_limit', 'Watchdog Crash Limit', `Server "${this.name()}" hit the watchdog restart limit (${recent}). Not relaunching to avoid a crash-loop.`, this.id);
       return;
     }
     this.restartTimestamps.push(Date.now());
-    this.pushLine('[Fleetdeck] Watchdog: relaunching the server in 5s...', 'warn');
+    this.pushLine('[Hostkind] Watchdog: relaunching the server in 5s...', 'warn');
     notifyDiscord(this.id, 'watchdog_action', `:yellow_circle: Watchdog "${this.name()}": relaunching automatically...`);
     addNotification('watchdog_restart', 'Watchdog Restart', `Server "${this.name()}" crashed and will be automatically restarted in 5s.`, this.id);
     setTimeout(() => {
@@ -1305,7 +1306,7 @@ function activeManager() {
 }
 
 function targetManager(req) {
-  const id = req.get('X-Fleetdeck-Server-Id') || (req.query && req.query.serverId) || (req.body && req.body.serverId) || config.activeServerId;
+  const id = req.get('X-Hostkind-Server-Id') || (req.query && req.query.serverId) || (req.body && req.body.serverId) || config.activeServerId;
   return getManager(id);
 }
 
@@ -1355,6 +1356,12 @@ async function adoptOrphans() {
 
 const app = express();
 app.use(express.json({ limit: '24mb' }));
+app.use('/api', rateLimit({
+  windowMs: 60 * 1000,
+  limit: 600,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+}));
 
 // ---------------------------------------------------------------------------
 // HTTP security headers + cross-origin defense
@@ -1732,7 +1739,7 @@ function requestServerId(req) {
     const task = (config.tasks || []).find((item) => item.id === decodeURIComponent(taskMatch[1]));
     if (task) return task.serverId;
   }
-  const requested = req.get('X-Fleetdeck-Server-Id') || (req.query && req.query.serverId) || (req.body && req.body.serverId);
+  const requested = req.get('X-Hostkind-Server-Id') || (req.query && req.query.serverId) || (req.body && req.body.serverId);
   if (requested) return requested;
   if (/^\/(?:server|status|metrics|health|crashes|command|players|playerlists|whitelist|palworld|terraria|addons|modrinth|modpacks|configs|files|backups|tasks|worlds)(?:\/|$)/.test(req.path)) {
     return config.activeServerId || null;
@@ -2662,7 +2669,7 @@ const palworldProfileUpload = multer({
     filename: (req, file, cb) => cb(null, `${crypto.randomUUID()}.zip`),
   }),
   fileFilter: (req, file, cb) => {
-    if (!/\.(?:zip|fdprofile\.zip)$/i.test(file.originalname || '')) return cb(new Error('Only a Fleetdeck profile archive can be imported.'));
+    if (!/\.(?:zip|fdprofile\.zip)$/i.test(file.originalname || '')) return cb(new Error('Only a Hostkind profile archive can be imported.'));
     cb(null, true);
   },
   limits: { fileSize: 8 * 1024 * 1024 * 1024, files: 1 },
@@ -2801,7 +2808,7 @@ app.post('/api/portability/palworld/adopt', requireAdmin, (req, res) => {
 });
 
 app.post('/api/portability/palworld/import/preview', requireAdmin, palworldProfileUpload.single('profile'), async (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'A Fleetdeck profile archive is required.', code: 'archive_required' });
+  if (!req.file) return res.status(400).json({ error: 'A Hostkind profile archive is required.', code: 'archive_required' });
   try {
     res.json(await palworldPortability.importPreview({
       file: req.file.path,
@@ -3179,10 +3186,10 @@ function loadBugReportCore() {
 }
 
 function bugReportConfigBlock() {
-  if (!loadBugReportCore()) return { enabled: false, owner: 'Riloox', repo: 'fleetdeck-open', labels: ['bug'], mode: 'github', relayUrl: null, token: null, errors: [] };
+  if (!loadBugReportCore()) return { enabled: false, owner: 'Riloox', repo: 'hostkind-open', labels: ['bug'], mode: 'github', relayUrl: null, token: null, errors: [] };
   try { return _bugReportConfig.normalizeConfig(config.bugReports || {}, process.env); }
   catch {
-    return { enabled: false, owner: 'Riloox', repo: 'fleetdeck-open', labels: ['bug'], mode: 'github', relayUrl: null, token: null, errors: ['config_invalid'] };
+    return { enabled: false, owner: 'Riloox', repo: 'hostkind-open', labels: ['bug'], mode: 'github', relayUrl: null, token: null, errors: ['config_invalid'] };
   }
 }
 
@@ -3199,6 +3206,9 @@ async function syncBugReportNow(report) {
   if (!cfg.enabled) {
     // Not configured: the report stays pending locally. This is different
     // from an outage, so the UI must not claim the relay/GitHub is down.
+    // Since local-only sync is the open edition's default, the summary also
+    // carries a direct link to the configured repo's issue chooser so the
+    // user can still reach the public tracker.
     return {
       state: 'pending',
       issueNumber: null,
@@ -3206,6 +3216,7 @@ async function syncBugReportNow(report) {
       reason: 'not_configured',
       message: 'Bug-report sync is not configured. The report is saved locally and will sync after an administrator enables it.',
       error: 'sync_disabled: bug-report integration is not configured',
+      trackerUrl: _bugReportConfig.buildTrackerUrl(cfg.owner, cfg.repo),
     };
   }
   if (cfg.mode === 'upstream-relay') {
@@ -3214,6 +3225,7 @@ async function syncBugReportNow(report) {
     return _bugReportConfig.syncReportToRelay(report, {
       relayUrl: cfg.relayUrl,
       timeoutMs: _bugReportConfig.RELAY_TIMEOUT_MS,
+      trackerUrl: _bugReportConfig.buildTrackerUrl(cfg.owner, cfg.repo),
       markSynced: (id, meta) => _bugReportsStore.markSynced(id, meta),
       markFailed: (id, meta) => _bugReportsStore.markFailed(id, meta),
     });
@@ -3228,6 +3240,7 @@ async function syncBugReportNow(report) {
       reason: 'not_configured',
       message: 'GitHub issue sync is not configured. The report is saved locally and will sync after an administrator enables it.',
       error: 'sync_disabled: GitHub integration is not configured',
+      trackerUrl: _bugReportConfig.buildTrackerUrl(cfg.owner, cfg.repo),
     };
   }
   const client = _githubIssues.createGitHubClient({ token: cfg.token, owner: cfg.owner, repo: cfg.repo, labels: cfg.labels });
@@ -3351,7 +3364,7 @@ app.use('/api/operations', operationsRouter());
 app.use('/api/audit', auditRouter());
 // Bug reports: mounted at /api WITHOUT active-server scoping. Reports belong
 // to the panel and the reporter, never to a selected game server, so no
-// X-Fleetdeck-Server-Id handling and no per-server capability gate applies.
+// X-Hostkind-Server-Id handling and no per-server capability gate applies.
 // Auth is enforced by the /api middleware above; the router re-checks req.user
 // so it stays safe if ever mounted elsewhere. The router itself is always
 // available; its injected store/sync degrade gracefully while the core
@@ -3368,7 +3381,7 @@ app.use('/api', require('./lib/routes/bug-reports.cjs')({
   audit: foundationAudit,
   getConfig: () => config.bugReports || {},
   normalizeConfig: (input, env) => {
-    if (!loadBugReportCore()) return { enabled: false, owner: 'Riloox', repo: 'fleetdeck-open', labels: ['bug'], mode: 'github', relayUrl: null, token: null, errors: ['sync_unavailable'] };
+    if (!loadBugReportCore()) return { enabled: false, owner: 'Riloox', repo: 'hostkind-open', labels: ['bug'], mode: 'github', relayUrl: null, token: null, errors: ['sync_unavailable'] };
     return _bugReportConfig.normalizeConfig(input, env);
   },
   redactConfig: (cfg) => {
@@ -3399,7 +3412,7 @@ app.use('/api', require('./lib/routes/bug-reports.cjs')({
   panelVersion: () => PANEL_VERSION,
 }));
 app.use('/api/health', healthRouter({
-  resolveServerId: (req) => req.get('X-Fleetdeck-Server-Id') || (req.query && req.query.serverId) || (req.body && req.body.serverId) || config.activeServerId || null,
+  resolveServerId: (req) => req.get('X-Hostkind-Server-Id') || (req.query && req.query.serverId) || (req.body && req.body.serverId) || config.activeServerId || null,
   knownServer: (id) => !!findServer(id),
 }));
 
@@ -4005,14 +4018,24 @@ function listDrives() {
   return roots;
 }
 
-app.get('/api/fs', (req, res) => {
-  const p = (req.query.path || '').trim();
+app.get('/api/fs', requireAdmin, (req, res) => {
+  const requestedPath = req.query.path;
+  if (requestedPath !== undefined && typeof requestedPath !== 'string') {
+    return res.status(400).json({ error: tErr(req.user, 'errors.invalidPath') });
+  }
+  const p = (requestedPath || '').trim();
   try {
     if (!p) {
       return res.json({ path: '', parent: null, drives: listDrives(), dirs: [], jars: [], sep: path.sep });
     }
     const abs = path.resolve(p);
-    const entries = fs.readdirSync(abs, { withFileTypes: true });
+    const allowedRoot = listDrives()
+      .map((root) => path.resolve(root))
+      .find((root) => abs === root || abs.startsWith(root.endsWith(path.sep) ? root : root + path.sep));
+    if (!allowedRoot) return res.status(400).json({ error: tErr(req.user, 'errors.invalidPath') });
+    let entries;
+    if (abs.startsWith(allowedRoot)) entries = fs.readdirSync(abs, { withFileTypes: true });
+    else return res.status(400).json({ error: tErr(req.user, 'errors.invalidPath') });
     const dirs = [];
     const jars = [];
     for (const e of entries) {
@@ -4288,7 +4311,7 @@ app.delete('/api/servers/:id', requireAdmin, (req, res) => {
   const m = getManager(s.id);
   if (m.isRunning()) return res.status(409).json({ error: tErr(req.user, 'errors.stopBeforeRemove') });
   // Two separate decisions, two separate audit actions: removing the profile
-  // from Fleetdeck, and moving the server files to trash. `files=trash` is the
+  // from Hostkind, and moving the server files to trash. `files=trash` is the
   // only value that touches the disk, and it is recoverable - the legacy
   // deleteFiles flag now means the same thing rather than deleting permanently.
   const filesMode = String(req.query.files || '').toLowerCase() === 'trash'
@@ -4304,7 +4327,7 @@ app.delete('/api/servers/:id', requireAdmin, (req, res) => {
         kind: 'server-files',
         serverId: s.id,
         label: s.name,
-        reason: 'Server removed from Fleetdeck',
+        reason: 'Server removed from Hostkind',
         actorId: req.user.id,
         servers: config.servers,
         selfId: s.id,
@@ -4556,7 +4579,7 @@ app.post('/api/server/restart', async (req, res) => {
 /*
  * Console command (docs/terraria/02-lifecycle-console.md step 5).
  *
- * The console is the console: there is no Fleetdeck allowlist of commands,
+ * The console is the console: there is no Hostkind allowlist of commands,
  * because the `commands.run` capability is the control. What is enforced is
  * that one request is one command - a newline in the text would run a second
  * command on the same authorization and put an unaudited line in the console -
@@ -4805,7 +4828,7 @@ app.post('/api/playerlists/:kind/:op', async (req, res) => {
     if (arr.some((x) => (x.name || '').toLowerCase() === name.toLowerCase())) return res.json({ ok: true, note: 'Already listed.' });
     if (kind === 'whitelist') arr.push({ uuid, name });
     else if (kind === 'op') arr.push({ uuid, name, level: 4, bypassesPlayerLimit: false });
-    else if (kind === 'ban') arr.push({ uuid, name, created: new Date().toISOString(), source: 'Fleetdeck', expires: 'forever', reason: reason || 'Banned by an operator' });
+    else if (kind === 'ban') arr.push({ uuid, name, created: new Date().toISOString(), source: 'Hostkind', expires: 'forever', reason: reason || 'Banned by an operator' });
     writeJsonArray(file, arr);
     return res.json({ ok: true, note: 'Updated (server offline).' });
   } catch (e) { return res.status(500).json({ error: e.message }); }
@@ -4972,7 +4995,7 @@ function queueCrashCapture(payload, attempt = 0) {
     } catch (err) {
       log('Crash capture failed:', err.message);
       const manager = getManager(payload.serverId);
-      if (manager) manager.pushLine('[Fleetdeck] Crash evidence could not be saved. Server supervision will continue.', 'warn');
+      if (manager) manager.pushLine('[Hostkind] Crash evidence could not be saved. Server supervision will continue.', 'warn');
       if (attempt < 2) setTimeout(() => queueCrashCapture(payload, attempt + 1), 1000 * (attempt + 1));
     }
   });
@@ -5348,7 +5371,7 @@ async function createBackup(m, { applyRetention = true, includeMods = false, off
       if (!started || started.ok === false) {
         const restartError = new Error('The backup finished, but the server could not be restarted.');
         if (!archiveError) archiveError = restartError;
-        m.pushLine(`[Fleetdeck] ${restartError.message}`, 'error');
+        m.pushLine(`[Hostkind] ${restartError.message}`, 'error');
       }
     }
     backupInProgress = false;
@@ -5384,7 +5407,7 @@ async function createBackup(m, { applyRetention = true, includeMods = false, off
   });
   if (applyRetention) pruneBackups(slug);
   log(`Backup: done -> ${outName} (${(st.size / 1048576).toFixed(1)} MB)`);
-  m.pushLine(`[Fleetdeck] Backup created: ${outName} (${(st.size / 1048576).toFixed(1)} MB)`, 'info');
+  m.pushLine(`[Hostkind] Backup created: ${outName} (${(st.size / 1048576).toFixed(1)} MB)`, 'info');
   addNotification('backup_created', 'Backup Created', `Backup "${outName}" created for server "${m.name()}" (${(st.size / 1048576).toFixed(1)} MB).`, m.id);
   notifyDiscord(m.id, 'backup', `:floppy_disk: Backup completed for "${m.name()}".`);
   if (archiveError) throw archiveError;
@@ -5603,7 +5626,7 @@ app.post('/api/backups/:name/restore', requireCap(CAPABILITIES.BACKUPS_RESTORE, 
 
 // --- Modrinth ---
 const MODRINTH = 'https://api.modrinth.com/v2';
-const UA = `${(config.appName || 'Fleetdeck')}-Panel/1.0 (local use)`;
+const UA = `${(config.appName || 'Hostkind')}-Panel/1.0 (local use)`;
 
 const MODRINTH_SORTS = ['relevance', 'downloads', 'follows', 'newest', 'updated'];
 // Categories that exist for both plugins and mods on Modrinth.
@@ -5736,7 +5759,7 @@ app.post('/api/modrinth/install', async (req, res) => {
       sha256: crypto.createHash('sha256').update(buf).digest('hex'),
     });
     log(`Modrinth: installed ${file.filename} into ${compat.folder}/ for "${m.name()}"`);
-    m.pushLine(`[Fleetdeck] Installed from Modrinth into ${compat.folder}/: ${file.filename}`, 'info');
+    m.pushLine(`[Hostkind] Installed from Modrinth into ${compat.folder}/: ${file.filename}`, 'info');
     addNotification('plugin_installed', 'Plugin Installed', `"${file.filename}" installed into ${compat.folder}/ for "${m.name()}". Restart the server to apply.`, m.id);
     res.json({ ok: true, name: file.filename, note: 'Restart the server to apply.' });
   } catch (err) {
@@ -6088,7 +6111,7 @@ app.post('/api/modrinth/modpack/install', async (req, res) => {
         launchArgs = produced.launchArgs;
       }
 
-      fs.writeFileSync(path.join(dir, 'eula.txt'), `# Accepted via Fleetdeck modpack install on ${new Date().toISOString()}\neula=true\n`, 'utf8');
+      fs.writeFileSync(path.join(dir, 'eula.txt'), `# Accepted via Hostkind modpack install on ${new Date().toISOString()}\neula=true\n`, 'utf8');
 
       targetDir = dir;
       serverName = createName;
@@ -6172,7 +6195,7 @@ app.post('/api/modrinth/modpack/install', async (req, res) => {
     if (mode === 'existing') {
       const m = targetManager(req);
       if (m) {
-        m.pushLine(`[Fleetdeck] Installed modpack from Modrinth: ${spec.name || version.name || ''} (${installed} files, ${overridesExtracted} overrides)`, 'info');
+        m.pushLine(`[Hostkind] Installed modpack from Modrinth: ${spec.name || version.name || ''} (${installed} files, ${overridesExtracted} overrides)`, 'info');
         addNotification('modpack_installed', 'Modpack Installed', `Modpack "${spec.name || version.name || ''}" installed into "${serverName}" (${installed} files, ${overridesExtracted} overrides).`, m.id);
       }
     } else {
@@ -6432,7 +6455,7 @@ const fileUpload = multer({
 });
 
 app.post('/api/files/upload', fileUpload.array('files'), (req, res) => {
-  res.json({ ok: true, count: (req.files || []).length });
+  res.json({ ok: true, count: Array.isArray(req.files) ? req.files.length : 0 });
 }, (err, req, res, next) => {
   httpError(res, req, err, 400);
 });
@@ -6936,7 +6959,7 @@ function ensureRuntime(major, onProgress) {
 
     // Extract into a clean target. Unix/macOS Temurin archives are .tar.gz
     // and use the system tar; Windows Temurin archives are .zip and are
-    // unpacked with Node so Fleetdeck does not depend on bsdtar zip support.
+    // unpacked with Node so Hostkind does not depend on bsdtar zip support.
     try { fs.rmSync(dest, { recursive: true, force: true }); } catch (_) { /* ignore */ }
     fs.mkdirSync(dest, { recursive: true });
     extractRuntimeArchive(archive, dest, ext);
@@ -7060,7 +7083,7 @@ app.post('/api/create', requireAdmin, async (req, res) => {
           entry.valheimExtraArgs = ['-nographics', '-batchmode'];
           // New descriptors are generated from structured fields. The
           // installer's argv is not persisted because it contains the
-          // password and duplicates Fleetdeck-owned flags.
+          // password and duplicates Hostkind-owned flags.
           entry.args = [];
         }
         if (gameType === 'palworld') {
@@ -7231,7 +7254,7 @@ app.post('/api/create', requireAdmin, async (req, res) => {
 
     send({ type: 'phase', phase: 'finalizing' });
     log('Create: writing eula.txt and registering server...');
-    fs.writeFileSync(path.join(dir, 'eula.txt'), `# Accepted via Fleetdeck on ${new Date().toISOString()}\neula=true\n`, 'utf8');
+    fs.writeFileSync(path.join(dir, 'eula.txt'), `# Accepted via Hostkind on ${new Date().toISOString()}\neula=true\n`, 'utf8');
 
     let javaArgs = body.javaArgs;
     if (typeof javaArgs === 'string') javaArgs = javaArgs.trim().split(/\s+/).filter(Boolean);
@@ -7758,7 +7781,12 @@ function escapeHtml(value) {
 // SPA fallback: any non-API GET that didn't match a real static file returns
 // the app shell, so client-side routes (e.g. /console, /users) keep working on
 // direct navigation and on refresh. API and resource paths are left alone.
-app.get('*', (req, res, next) => {
+app.get('*', rateLimit({
+  windowMs: 60 * 1000,
+  limit: 600,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+}), (req, res, next) => {
   if (req.path.startsWith('/api/') || req.path === '/api') return next();
   if (req.path.startsWith('/resources/')) return next();
   const index = path.join(__dirname, 'public', 'index.html');
@@ -8293,7 +8321,7 @@ function logDefaultCredentials() {
     if (oneTime) {
       console.log('');
       console.log(bar);
-      console.log('  Fleetdeck first-run sign-in  (CHANGE THIS PASSWORD!)');
+      console.log('  Hostkind first-run sign-in  (CHANGE THIS PASSWORD!)');
       console.log(bar);
       console.log(`  URL:       http://${host}:${config.panelPort}`);
       console.log(`  Username:  ${DEFAULT_ADMIN_USERNAME}   (or email ${DEFAULT_ADMIN_EMAIL})`);
@@ -8309,12 +8337,12 @@ function logDefaultCredentials() {
     // default still matches, so a long-running panel keeps its old banner.
     const admin = findUserByEmail(DEFAULT_ADMIN_EMAIL);
     if (!admin) return;
-    const knownDefaults = ['Fleetdeck1', 'admin'];
+    const knownDefaults = ['Hostkind1', 'admin'];
     const current = knownDefaults.find((pw) => verifyPassword(pw, admin.passwordHash));
     if (!current) return;
     console.log('');
     console.log(bar);
-    console.log('  Fleetdeck default sign-in  (CHANGE THIS PASSWORD!)');
+    console.log('  Hostkind default sign-in  (CHANGE THIS PASSWORD!)');
     console.log(bar);
     console.log(`  URL:       http://${host}:${config.panelPort}`);
     console.log(`  Username:  ${DEFAULT_ADMIN_USERNAME}   (or email ${DEFAULT_ADMIN_EMAIL})`);

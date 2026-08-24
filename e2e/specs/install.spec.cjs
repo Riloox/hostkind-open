@@ -23,7 +23,7 @@
  *      half-downloaded SteamCMD does not survive either.
  *
  * Nothing is written to the repo, and nothing is written to the developer's
- * real Fleetdeck install.
+ * real Hostkind install.
  */
 
 const fs = require('fs');

@@ -1,6 +1,6 @@
-# Upgrading Fleetdeck
+# Upgrading Hostkind
 
-How to move an existing Fleetdeck installation from one release to the next.
+How to move an existing Hostkind installation from one release to the next.
 Releases ship as a single zip (`fleetdeck-<version>.zip`) with the SPA
 **prebuilt** — you never build the panel on the server, but you do need Node
 and npm (see [Requirements](#requirements)).

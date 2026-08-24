@@ -700,7 +700,7 @@
     animation: none;
   }
 }
-/* Fleetdeck wordmark. Also previously declared twice; the surviving values are
+/* Hostkind wordmark. Also previously declared twice; the surviving values are
    the ones that were actually winning. The old `-webkit-font-smoothing: none`
    is gone with its stale "keep the pixel art crisp" comment - the mark has not
    been pixel art for a while, and disabling antialiasing on 13px display-weight
@@ -722,7 +722,7 @@
   display: block;
   width: 28px;
   height: 28px;
-  background: center / contain no-repeat url('/resources/fleetdeck.svg');
+  background: center / contain no-repeat url('/resources/hostkind.svg');
   border-radius: 6px;
   box-shadow: none;
   flex: none;
@@ -739,7 +739,7 @@
   object-fit: contain;
 }
 
-/* 3D spinning Fleetdeck cube */
+/* 3D spinning Hostkind cube */
 .ls-cube-scene {
   width: var(--cube-size, 96px);
   height: var(--cube-size, 96px);
@@ -760,7 +760,7 @@
      slightly - this closes the sub-pixel hairline seams at the corners. */
   inset: -1px;
   background-color: oklch(var(--card));
-  background-image: url('/resources/fleetdeck.svg');
+  background-image: url('/resources/hostkind.svg');
   background-size: cover;
   backface-visibility: hidden;
 }
@@ -970,7 +970,7 @@
   }
 }
 
-/* Fleetdeck Workbench system */
+/* Hostkind Workbench system */
 html,
 body {
   overflow-x: clip;

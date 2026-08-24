@@ -1,7 +1,7 @@
 'use strict';
 
 /*
- * Boots a throwaway Fleetdeck panel for the browser tests.
+ * Boots a throwaway Hostkind panel for the browser tests.
  *
  * Each instance gets its own temp directory holding the config file and the
  * SQLite data dir, and listens on its own port, so nothing it does can reach
@@ -110,7 +110,7 @@ function freePort() {
 
 function baseConfig({ port, requireAuth, users, servers, backupsDir }) {
   return {
-    appName: 'Fleetdeck',
+    appName: 'Hostkind',
     serverDir: '',
     jar: '',
     javaArgs: ['-Xmx1G', '-Xms1G'],

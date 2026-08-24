@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-#  Fleetdeck - DEVELOPMENT launcher (Linux / macOS)
+#  Hostkind - DEVELOPMENT launcher (Linux / macOS)
 #  Runs the backend + the Vite dev server with hot reload.
 #  Edit anything under src/ and the browser updates instantly,
 #  no rebuild and no panel restart needed.
@@ -76,7 +76,7 @@ if ! command -v node >/dev/null 2>&1; then
 fi
 command -v node >/dev/null 2>&1 || { echo "[ERROR] Node.js still not available. Install Node 22+ and retry."; exit 1; }
 if [ "$(node_major)" -lt 22 ] 2>/dev/null; then
-  echo "[ERROR] Node $(node -v) is unsupported. Fleetdeck requires Node.js 22+ for its SQLite foundation."
+  echo "[ERROR] Node $(node -v) is unsupported. Hostkind requires Node.js 22+ for its SQLite foundation."
   exit 1
 fi
 if ! command -v npm >/dev/null 2>&1; then
@@ -151,7 +151,7 @@ fi
 
 # --- Start the backend in the background, then Vite in the foreground ---
 echo
-echo "Starting Fleetdeck backend (port $PORT)..."
+echo "Starting Hostkind backend (port $PORT)..."
 node server.js &
 BACKEND_PID=$!
 # Stop the backend when this script exits (Ctrl+C on Vite), and also on

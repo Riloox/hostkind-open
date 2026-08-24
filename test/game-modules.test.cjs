@@ -81,7 +81,7 @@ async function testPalworldRestClient() {
     assert.equal(captured.options.method, 'POST');
     assert.deepEqual(JSON.parse(captured.options.body), {
       waittime: 1,
-      message: 'Fleetdeck requested shutdown',
+      message: 'Hostkind requested shutdown',
     });
   } finally {
     global.fetch = originalFetch;
@@ -200,7 +200,7 @@ async function testPalworldRestPromotion() {
 
   const desc = () => ({ restPort: 8212, adminPassword: 'test-admin', cwd: root, dir: root, executable, args: [] });
   const healthyBody = (endpoint) => {
-    if (endpoint === '/info') return { status: 'OK', version: 'v0.6', servername: 'Fleetdeck', description: 'Fixture' };
+    if (endpoint === '/info') return { status: 'OK', version: 'v0.6', servername: 'Hostkind', description: 'Fixture' };
     if (endpoint === '/metrics') return { status: 'OK', days: 1, uptime: 60, currentplayernum: 1, maxplayernum: 32, serverfps: 60, serverframetime: 16.6, basecampnum: 2 };
     return { status: 'OK', players: [{ name: 'Lamball', userid: 'steam_1', accountName: 'a', location: { x: 1, y: 2, z: 3 }, level: 1, ping: 20 }] };
   };

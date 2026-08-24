@@ -61,7 +61,7 @@ test.describe('file manager', () => {
     await entry(page, 'server.properties').getByLabel(en('files.edit')).click();
     const editor = dialog(page, 'server.properties');
     const textarea = editor.root.locator('textarea');
-    await expect(textarea).toContainText('motd=A Fleetdeck test server');
+    await expect(textarea).toContainText('motd=A Hostkind test server');
 
     await textarea.fill('motd=Edited from the browser\n');
     await editor.root.getByRole('button', { name: en('common.save') }).click();

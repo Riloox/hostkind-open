@@ -50,7 +50,7 @@ const { test, expect, en, es } = require('../support/fixtures.cjs');
 const { appShell, loginScreen, gamesHub, controlBar, dialog } = require('../support/pages.cjs');
 const { signInFast, openView } = require('../support/actions.cjs');
 
-const GITHUB_URL = 'https://github.com/Riloox/fleetdeck-open/issues/123';
+const GITHUB_URL = 'https://github.com/Riloox/hostkind-open/issues/123';
 const HIDDEN_KEY = 'fleetdeck_bug_report_hidden';
 
 function launcher(page) {
@@ -272,6 +272,37 @@ test.describe('bug reporter dialog', () => {
     await dlg.getByRole('button', { name: en('bugReport.submit'), exact: true }).click();
 
     await expect(dlg).toContainText(en('bugReport.pending'));
+  });
+
+  test('offers the direct issue tracker link when sync is not configured', async ({ page, newApp }) => {
+    const panel = await newApp();
+    await signInFast(page, panel);
+    await openView(page, 'minecraft', 'dashboard', { origin: panel.url });
+
+    await launcher(page).click();
+    const dlg = reporterDialog(page);
+    await expect(dlg).toBeVisible();
+
+    const tracker = 'https://github.com/Riloox/hostkind-open/issues/new/choose';
+    await page.route('**/api/bug-reports', (route) => route.fulfill({
+      status: 200,
+      json: {
+        report: { id: '00000000-0000-4000-8000-000000000004' },
+        sync: { state: 'pending', reason: 'not_configured', trackerUrl: tracker, message: null, error: null },
+      },
+    }));
+
+    await dlg.locator('[name="summary"]').fill('Not configured');
+    await dlg.locator('[name="description"]').fill('Nothing is wired up.');
+    await dlg.getByRole('button', { name: en('bugReport.submit'), exact: true }).click();
+
+    await expect(dlg).toContainText(en('bugReport.notConfigured'));
+    const link = dlg.getByRole('link', { name: en('bugReport.openTracker'), exact: true });
+    await expect(link).toBeVisible();
+    await expect(link).toHaveAttribute('href', tracker);
+    await expect(link).toHaveAttribute('target', '_blank');
+    // The link is only for the not-configured case: no issue URL is shown yet.
+    await expect(dlg).not.toContainText(GITHUB_URL);
   });
 
   test('does not submit twice when the button is clicked rapidly', async ({ page, newApp }) => {

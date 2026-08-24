@@ -40,7 +40,7 @@
  *     POST {baseUrl}/repos/{owner}/{repo}/issues
  *     Headers: Authorization 'Bearer <token>', Accept
  *     'application/vnd.github+json', Content-Type application/json,
- *     User-Agent starting with 'Fleetdeck'.
+ *     User-Agent starting with 'Hostkind'.
  *     Body: { title: '[In-app report] ' + title (not doubled), body, labels }.
  *     If marker is given but body lacks the marker comment, it is appended.
  *     2xx with { number, html_url } -> { ok: true, issueNumber, issueUrl, status }
@@ -96,7 +96,7 @@ function clientWithFetch(fetch, overrides = {}) {
   return createGitHubClient({
     token: TOKEN,
     owner: 'Riloox',
-    repo: 'fleetdeck-open',
+    repo: 'hostkind-open',
     fetch,
     ...overrides,
   });
@@ -128,7 +128,7 @@ const EXPECTED_HEADINGS = [
   '## Game',
   '## Reported by',
   '## Timestamp',
-  '## Fleetdeck version',
+  '## Hostkind version',
   '## Browser',
   '## Reproduction steps',
   '## Expected behaviour',
@@ -145,7 +145,7 @@ const tests = [];
 /* 1. createIssue POSTs to the right endpoint with auth and returns the issue. */
 tests.push(async () => {
   const { calls, fetch } = captureFetch([
-    jsonResponse(201, { number: 42, html_url: 'https://github.com/Riloox/fleetdeck-open/issues/42' }),
+    jsonResponse(201, { number: 42, html_url: 'https://github.com/Riloox/hostkind-open/issues/42' }),
   ]);
   const client = clientWithFetch(fetch);
 
@@ -155,12 +155,12 @@ tests.push(async () => {
   assert.deepStrictEqual(result, {
     ok: true,
     issueNumber: 42,
-    issueUrl: 'https://github.com/Riloox/fleetdeck-open/issues/42',
+    issueUrl: 'https://github.com/Riloox/hostkind-open/issues/42',
     status: 201,
   });
 
   const { url, init } = calls[0];
-  assert.strictEqual(url, 'https://api.github.com/repos/Riloox/fleetdeck-open/issues');
+  assert.strictEqual(url, 'https://api.github.com/repos/Riloox/hostkind-open/issues');
   assert.strictEqual(init.method, 'POST');
   // Header names are matched case-insensitively (implementers may emit either casing).
   const headers = Object.fromEntries(
@@ -169,7 +169,7 @@ tests.push(async () => {
   assert.ok(String(headers.authorization).includes(TOKEN), 'Authorization must carry the token');
   assert.strictEqual(headers.accept, 'application/vnd.github+json');
   assert.strictEqual(headers['content-type'], 'application/json');
-  assert.ok(String(headers['user-agent']).startsWith('Fleetdeck'), 'GitHub requires a Fleetdeck UA');
+  assert.ok(String(headers['user-agent']).startsWith('Hostkind'), 'GitHub requires a Hostkind UA');
 
   const payload = JSON.parse(init.body);
   assert.strictEqual(payload.title, '[In-app report] Crash on boot');
@@ -185,7 +185,7 @@ tests.push(async () => {
 /* 2. The title prefix is not doubled when already present. */
 tests.push(async () => {
   const { calls, fetch } = captureFetch([
-    jsonResponse(201, { number: 1, html_url: 'https://github.com/Riloox/fleetdeck-open/issues/1' }),
+    jsonResponse(201, { number: 1, html_url: 'https://github.com/Riloox/hostkind-open/issues/1' }),
   ]);
   const client = clientWithFetch(fetch);
   await client.createIssue({ title: '[In-app report] Crash', body: 'x' });
@@ -197,12 +197,12 @@ tests.push(async () => {
 /* 3. Custom labels and repo are honoured. */
 tests.push(async () => {
   const { calls, fetch } = captureFetch([
-    jsonResponse(201, { number: 3, html_url: 'https://github.com/Riloox/fleetdeck-open/issues/3' }),
+    jsonResponse(201, { number: 3, html_url: 'https://github.com/Riloox/hostkind-open/issues/3' }),
   ]);
   const client = clientWithFetch(fetch, { labels: ['custom-label'], repo: 'example-repo', owner: 'example-owner' });
-    await client.createIssue({ title: 'T', body: 'b' });
-    const { url, init } = calls[0];
-    assert.ok(url.endsWith('/repos/example-owner/example-repo/issues'), `unexpected url ${url}`);
+  await client.createIssue({ title: 'T', body: 'b' });
+  const { url, init } = calls[0];
+  assert.ok(url.endsWith('/repos/example-owner/example-repo/issues'), `unexpected url ${url}`);
   assert.deepStrictEqual(JSON.parse(init.body).labels, ['custom-label']);
   console.log('ok  github-issues createIssue: custom labels and repo');
 });
@@ -351,16 +351,16 @@ tests.push(async () => {
 /* 13. findIssueByMarker searches and resolves an existing issue. */
 tests.push(async () => {
   const { calls, fetch } = captureFetch([
-    jsonResponse(200, { items: [{ number: 99, html_url: 'https://github.com/Riloox/fleetdeck-open/issues/99' }] }),
+    jsonResponse(200, { items: [{ number: 99, html_url: 'https://github.com/Riloox/hostkind-open/issues/99' }] }),
   ]);
   const client = clientWithFetch(fetch);
   const hit = await client.findIssueByMarker('fleetdeck-marker-1');
   assert.deepStrictEqual(hit, {
     issueNumber: 99,
-    issueUrl: 'https://github.com/Riloox/fleetdeck-open/issues/99',
+    issueUrl: 'https://github.com/Riloox/hostkind-open/issues/99',
   });
   assert.ok(calls[0].url.includes('/search/issues'), `expected search URL, got ${calls[0].url}`);
-  assert.ok(calls[0].url.includes('repo%3ARiloox%2Ffleetdeck-open'), 'search must be scoped to the repo');
+  assert.ok(calls[0].url.includes('repo%3ARiloox%2Fhostkind-open'), 'search must be scoped to the repo');
   assert.ok(calls[0].url.includes(encodeURIComponent('"fleetdeck-marker-1"')), 'marker must be quoted');
   console.log('ok  github-issues findIssueByMarker: hit resolution');
 });
@@ -407,8 +407,8 @@ tests.push(() => {
 
 /* 17. The factory refuses to run without token/owner/repo. */
 tests.push(() => {
-  assert.throws(() => createGitHubClient({ owner: 'Riloox', repo: 'fleetdeck-open' }), /token/i);
-  assert.throws(() => createGitHubClient({ token: TOKEN, repo: 'fleetdeck-open' }), /owner/i);
+  assert.throws(() => createGitHubClient({ owner: 'Riloox', repo: 'hostkind-open' }), /token/i);
+  assert.throws(() => createGitHubClient({ token: TOKEN, repo: 'hostkind-open' }), /owner/i);
   assert.throws(() => createGitHubClient({ token: TOKEN, owner: 'Riloox' }), /repo/i);
   console.log('ok  github-issues factory: token/owner/repo required');
 });

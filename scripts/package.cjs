@@ -4,8 +4,8 @@
  * Build the release artifact.
  *
  * Produces, in dist/:
- *   fleetdeck-<version>.zip          the shippable artifact
- *   fleetdeck-<version>.zip.sha256   sha256 of the archive, for verifying the
+ *   hostkind-<version>.zip          the shippable artifact
+ *   hostkind-<version>.zip.sha256   sha256 of the archive, for verifying the
  *                                    download (`sha256sum -c <file>` from dist/)
  *   SHA256SUMS                       sha256 of the archive and of every file
  *                                    inside it - the full shipping manifest
@@ -117,7 +117,7 @@ function parseVersion(argv) {
 
 async function main() {
   if (!fs.existsSync(PUBLIC_INDEX)) {
-    console.error('Fleetdeck: public/index.html is missing - the SPA has not been built.');
+    console.error('Hostkind: public/index.html is missing - the SPA has not been built.');
     console.error('Run `npm run build` first so the artifact contains the real panel.');
     process.exit(1);
   }
@@ -128,9 +128,9 @@ async function main() {
     throw new Error(`refusing to package a non-semver version: ${version}`);
   }
 
-  const archiveName = `fleetdeck-${version}.zip`;
+  const archiveName = `hostkind-${version}.zip`;
   const archivePath = path.join(DIST_DIR, archiveName);
-  const staging = fs.mkdtempSync(path.join(os.tmpdir(), 'fleetdeck-package-'));
+  const staging = fs.mkdtempSync(path.join(os.tmpdir(), 'hostkind-package-'));
 
   try {
     for (const root of SHIPPED_ROOTS) {

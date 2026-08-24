@@ -1,6 +1,6 @@
-# Design — Fleetdeck
+# Design — Hostkind
 
-A locked design system for Fleetdeck. Every view uses this system; extend it here before introducing local visual exceptions.
+A locked design system for Hostkind. Every view uses this system; extend it here before introducing local visual exceptions.
 
 ## Genre
 
@@ -117,7 +117,7 @@ Four-point named scale. Values live in root `tokens.css`; application CSS consum
 
 ## What pages MUST share
 
-- Fleetdeck mark and wordmark treatment.
+- Hostkind mark and wordmark treatment.
 - Ember accent placement, limited to active state, focus, status emphasis, and primary action.
 - Typography, spacing, control geometry, focus treatment, and surface hierarchy.
 - Workbench rhythm: one dominant working surface, then supporting tools.
@@ -138,7 +138,7 @@ The canonical implementation is [`tokens.css`](tokens.css).
 
 > This project is on **Tailwind v3** and maps tokens through
 > `tailwind.config.js`, not `@theme`. The block below is an export for
-> consumers on v4, not what Fleetdeck itself runs.
+> consumers on v4, not what Hostkind itself runs.
 
 ```css
 @theme {

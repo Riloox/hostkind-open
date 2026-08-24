@@ -2,9 +2,10 @@
 
 /*
  * A bare boot with no config anywhere (fresh clone, the open edition which
- * git-ignores config.json, or CI): server.js must materialise config.json
- * from the shipped config.example.json template instead of crashing, and
- * rotate the placeholder jwtSecret before it signs anything.
+ * git-ignores config.json, a packaged install, or CI): server.js must
+ * materialise config.json from the shipped config.example.json template
+ * instead of crashing, and rotate the placeholder jwtSecret before it signs
+ * anything.
  *
  * Regression test for the DAST (ZAP) workflow, which boots `node server.js`
  * on a fresh checkout and previously died on ENOENT.
@@ -55,26 +56,26 @@ async function main() {
     assert.ok(fs.existsSync(configPath), `config.json should have been created at ${configPath}`);
 
     // 3. the placeholder secret was rotated before anything could be signed.
-        // The child writes the template, then rotates the secret, in two separate
-        // synchronous writes. The 'no config at' line above is emitted before the
-        // first write lands, so a single read here can catch the placeholder in
-        // the gap between the two writes (seen on loaded Linux CI runners). Poll
-        // the file until the rotation lands instead of asserting on first read.
-        const rotDeadline = Date.now() + 10_000;
-        let config;
-        while (Date.now() < rotDeadline) {
-          config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-          if (typeof config.jwtSecret === 'string' &&
-              config.jwtSecret !== template.jwtSecret &&
-              config.jwtSecret.length >= 32) break;
-          await sleep(50);
-        }
-        assert.strictEqual(config.appName, template.appName, 'template fields carried over');
-        assert.strictEqual(config.panelPort, template.panelPort, 'template fields carried over');
-        assert.notStrictEqual(config.jwtSecret, template.jwtSecret,
-          'placeholder jwtSecret must be regenerated on first boot');
-        assert.ok(typeof config.jwtSecret === 'string' && config.jwtSecret.length >= 32,
-          'rotated jwtSecret must meet the length floor');
+    // The child writes the template, then rotates the secret, in two separate
+    // synchronous writes. The 'no config at' line above is emitted before the
+    // first write lands, so a single read here can catch the placeholder in
+    // the gap between the two writes (seen on loaded Linux CI runners). Poll
+    // the file until the rotation lands instead of asserting on first read.
+    const rotDeadline = Date.now() + 10_000;
+    let config;
+    while (Date.now() < rotDeadline) {
+      config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      if (typeof config.jwtSecret === 'string' &&
+          config.jwtSecret !== template.jwtSecret &&
+          config.jwtSecret.length >= 32) break;
+      await sleep(50);
+    }
+    assert.strictEqual(config.appName, template.appName, 'template fields carried over');
+    assert.strictEqual(config.panelPort, template.panelPort, 'template fields carried over');
+    assert.notStrictEqual(config.jwtSecret, template.jwtSecret,
+      'placeholder jwtSecret must be regenerated on first boot');
+    assert.ok(typeof config.jwtSecret === 'string' && config.jwtSecret.length >= 32,
+      'rotated jwtSecret must meet the length floor');
 
     // 4. nothing on the boot path died from the missing config.
     assert.ok(!/ENOENT/.test(stderr), 'no ENOENT on the boot path\n' + stderr);

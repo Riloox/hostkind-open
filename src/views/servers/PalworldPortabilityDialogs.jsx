@@ -14,7 +14,7 @@ import { FolderBrowserModal } from './FolderBrowserModal';
 /*
  * Adoption: inspect first, register second. The inspection panel is the whole
  * point - the operator sees the detected install and the exact REST settings
- * Fleetdeck would reconcile before anything is written.
+ * Hostkind would reconcile before anything is written.
  */
 export function PalworldAdoptDialog({ open, onOpenChange, onAdopted }) {
   const api = useApi();

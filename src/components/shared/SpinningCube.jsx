@@ -1,7 +1,7 @@
 import { cn } from '@/lib/utils';
 
 /**
- * A pure-CSS 3D cube carrying the abstract Fleetdeck glyph on all six sides.
+ * A pure-CSS 3D cube carrying the abstract Hostkind glyph on all six sides.
  * No 3D library is needed.
  *
  * @param {number|string} size      Edge length (px number or any CSS length). Default 96.

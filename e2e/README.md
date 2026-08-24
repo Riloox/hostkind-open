@@ -130,7 +130,7 @@ expensive to leave behind. Four layers, in order:
    that crashed earlier.
 
 Nothing is written into the repository, and nothing touches the developer's
-real Fleetdeck install.
+real Hostkind install.
 
 ```js
 test('installs and removes', async ({ page, installer }) => {

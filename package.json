@@ -1,12 +1,12 @@
 {
-  "name": "fleetdeck-open",
-  "version": "0.1.0",
+  "name": "hostkind-open",
+  "version": "0.1.1",
   "description": "Self-hosted web panel for managing servers and long-running processes",
   "license": "AGPL-3.0-only",
   "author": "Federico Prunell Alza",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Riloox/fleetdeck-open.git"
+    "url": "git+https://github.com/Riloox/hostkind-open.git"
   },
   "main": "server.js",
   "type": "commonjs",

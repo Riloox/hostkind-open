@@ -17,7 +17,7 @@
  * resolve exactly as they do for `npm start`.
  *
  * Usage:
- *   node scripts/install-service.cjs [--name fleetdeck] [--user <unix user>]
+ *   node scripts/install-service.cjs [--name hostkind] [--user <unix user>]
  *
  * The generator functions are exported so test/service-wrappers.test.cjs can
  * assert the exact unit/task content without executing anything.
@@ -28,7 +28,7 @@ const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
 
-const DEFAULT_NAME = 'fleetdeck';
+const DEFAULT_NAME = 'hostkind';
 
 // The unit/task needs the same Node that runs this script, so an operator
 // using a version manager gets a service that starts with the version they
@@ -69,7 +69,7 @@ function systemdUnit({ name, user = null, installDir, nodePath, configPath }) {
   const execStart = `${nodePath} ${serverPath}`;
   const lines = [
     '[Unit]',
-    `Description=Fleetdeck game-server panel (${name})`,
+    `Description=Hostkind game-server panel (${name})`,
     'After=network.target',
     '',
     '[Service]',

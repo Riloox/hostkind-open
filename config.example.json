@@ -1,5 +1,5 @@
 {
-  "appName": "Fleetdeck",
+  "appName": "Hostkind",
   "branding": {
     "name": "",
     "logoUrl": "",
@@ -18,7 +18,7 @@
     "enabled": true,
     "mode": "upstream-relay",
     "owner": "Riloox",
-    "repo": "fleetdeck-open",
+    "repo": "hostkind-open",
     "labels": [
       "bug",
       "in-app-report"

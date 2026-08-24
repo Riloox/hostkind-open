@@ -41,7 +41,7 @@ itself, which is the gap the service closes.
 `scripts/install-service.cjs` creates an OS autostart entry that runs
 `node server.js` from the install directory on boot/logon:
 
-- **Linux (systemd):** writes `<name>.service` (default `fleetdeck`) into
+- **Linux (systemd):** writes `<name>.service` (default `hostkind`) into
   `/etc/systemd/system/`, `daemon-reload`s, and `enable --now`s it. The unit
   pins `WorkingDirectory` to the install dir (so relative paths in config
   resolve), sets `Restart=on-failure`, optionally runs as `User=<user>`
@@ -55,7 +55,7 @@ itself, which is the gap the service closes.
 
 ```bash
 npm run service:install            # autostart, current user, detected install dir
-npm run service:install -- --user fleetdeck     # systemd: run as this user
+npm run service:install -- --user hostkind     # systemd: run as this user
 npm run service:install -- --name games-panel   # different unit/task name
 npm run service:uninstall
 ```
@@ -118,7 +118,7 @@ and a once-a-minute scheduler retries it with backoff.
    ```sh
    curl -X PUT http://localhost:2121/api/config/bug-reports \
      -H "Authorization: Bearer <admin-token>" -H "Content-Type: application/json" \
-     -d '{"enabled":true,"owner":"Riloox","repo":"fleetdeck-open","labels":["bug"]}'
+     -d '{"enabled":true,"owner":"Riloox","repo":"hostkind-open","labels":["bug"]}'
    ```
 
    Only `enabled`, `owner`, `repo`, and `labels` are accepted; a `token` field

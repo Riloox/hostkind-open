@@ -285,7 +285,7 @@ test('a lua package needs its framework present on a windows-target server', asy
   fs.writeFileSync(path.join(server.dir, 'Pal', 'Binaries', 'Win64', 'UE4SS.dll'), 'stub');
   const detected = mods.detectFrameworks(server).find((item) => item.id === 'ue4ss');
   assert.strictEqual(detected.detected, true);
-  assert.strictEqual(detected.managed, false, 'frameworks are detected, never installed by Fleetdeck');
+  assert.strictEqual(detected.managed, false, 'frameworks are detected, never installed by Hostkind');
 
   const preview = await mods.previewImport({ server, manager: { status: 'offline' }, actorId: 'u', archivePath: archive, fileName: 'luamod2.zip', host: 'windows' });
   assert.strictEqual(preview.plan.kind, 'ue4ss-lua');

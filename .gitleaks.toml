@@ -8,7 +8,7 @@
 #    assets; the generic-api-key hits are the vendor's own JS literals.
 # If a real secret ever appears, it must NOT be added here - fix the leak.
 
-title = "fleetdeck gitleaks config"
+title = "hostkind gitleaks config"
 
 [allowlist]
 description = "Test fixtures and vendored third-party steamcmd UI"

@@ -3,7 +3,7 @@
 /*
  * A stand-in game server for the browser tests.
  *
- * Fleetdeck's `custom` module runs an arbitrary process and treats its stdout
+ * Hostkind's `custom` module runs an arbitrary process and treats its stdout
  * as the console, so this script gives the tests a *real* managed process -
  * real spawn, real stdout streaming over the WebSocket, real stop sequence,
  * real exit codes - without installing Java or a game.

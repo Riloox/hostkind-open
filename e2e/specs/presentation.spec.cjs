@@ -20,7 +20,7 @@ const seed = require('../support/seed.cjs');
 // A real PNG the repo already ships: 256x256, 2 KB, inside both the icon and
 // the banner limits. Uploading bytes assembled in the spec would prove the
 // route accepts them but not that the preview decodes.
-const IMAGE = path.join(__dirname, '..', '..', 'resources', 'fleetdeck_face.png');
+const IMAGE = path.join(__dirname, '..', '..', 'resources', 'hostkind_face.png');
 
 /** Open the wrench dialog on a server row and return its locators. */
 async function openTools(page, panel, game, name) {

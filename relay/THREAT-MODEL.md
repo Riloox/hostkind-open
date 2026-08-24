@@ -1,7 +1,7 @@
-# Threat Model — Fleetdeck Upstream Bug Report Relay
+# Threat Model — Hostkind Upstream Bug Report Relay
 
 Scope: the standalone relay service (`relay/`) that accepts public bug-report
-submissions and creates GitHub issues in `Riloox/fleetdeck-open` with a
+submissions and creates GitHub issues in `Riloox/hostkind-open` with a
 server-side GitHub credential.
 
 ## Assets
@@ -21,7 +21,7 @@ server-side GitHub credential.
 - **Anonymous internet callers** (primary): anyone who can reach the tunnel
   hostname. They can submit arbitrary text, replay requests, and probe for
   misconfiguration.
-- **Fleetdeck instances**: legitimate reporters; treated as untrusted input
+- **Hostkind instances**: legitimate reporters; treated as untrusted input
   sources (a compromised panel is just a spammer).
 - **Passive observers**: the tunnel edge, the upstream GitHub API, anyone
   reading the public issue tracker.

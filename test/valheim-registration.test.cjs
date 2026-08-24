@@ -50,7 +50,7 @@ async function run() {
     assert.throws(() => mod.buildLaunch({ ...migrated, password: 'four' }), /5 to 64/);
     assert.throws(() => mod.buildLaunch({ ...migrated, password: 'bad pass' }), /whitespace/);
     assert.throws(() => mod.buildLaunch({ ...migrated, port: 65534 }), /three consecutive ports/);
-    assert.throws(() => mod.buildLaunch({ ...migrated, valheimExtraArgs: ['-port', '3000'] }), /Fleetdeck-owned/);
+    assert.throws(() => mod.buildLaunch({ ...migrated, valheimExtraArgs: ['-port', '3000'] }), /Hostkind-owned/);
     assert.throws(() => mod.buildLaunch({ ...migrated, valheimExtraArgs: ['bad\0arg'] }), /unsafe character/);
     assert.throws(() => mod.buildLaunch({ ...migrated, valheimSaveDir: '../escape' }), /inside the server folder/);
     if (process.platform !== 'win32') {
