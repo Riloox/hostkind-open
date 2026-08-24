@@ -138,7 +138,7 @@ jobs:
           exit 1
 
       - name: Tag the matching snapshot commit on hostkind-open
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.OPEN_PUBLISH_TOKEN }}
           script: |
