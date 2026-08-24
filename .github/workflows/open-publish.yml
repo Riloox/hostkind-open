@@ -57,7 +57,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout the exact SHA that CI validated
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
           # git archive HEAD only needs the tip; a shallow clone is enough.
