@@ -189,7 +189,7 @@ test.describe('per-game views', () => {
     await openView(page, 'palworld', 'addons', { origin: panel.url });
 
     await expect(page).toHaveURL(/\/games\/palworld\/addons$/);
-    await expect(page.getByText(en('palworldMods.title'))).toBeVisible();
+    await expect(page.getByRole('heading', { name: en('palworldMods.title') })).toBeVisible();
 
     // The seeded item lives in the server's own folder. It must surface as
     // downloadable content instead of silently vanishing.
