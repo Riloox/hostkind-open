@@ -57,7 +57,7 @@ const PAYLOAD = {
 };
 
 function okIssue(overrides = {}) {
-  return { issueNumber: 42, issueUrl: 'https://github.com/Riloox/fleetdeck-open/issues/42', ...overrides };
+  return { issueNumber: 42, issueUrl: 'https://github.com/Riloox/hostkind-open/issues/42', ...overrides };
 }
 
 function fakeGithub({ onCreate } = {}) {
@@ -241,7 +241,7 @@ tests.push(async () => {
     const fresh = store.get(row.id);
     assert.strictEqual(fresh.sync_state, 'synced');
     assert.strictEqual(fresh.issue_number, 42);
-    assert.strictEqual(fresh.issue_url, 'https://github.com/Riloox/fleetdeck-open/issues/42');
+    assert.strictEqual(fresh.issue_url, 'https://github.com/Riloox/hostkind-open/issues/42');
     assert.strictEqual(fresh.last_error, null);
     assert.strictEqual(store.counts().synced, 1);
     store.close();
@@ -297,7 +297,7 @@ tests.push(async () => {
         ...client,
         findIssueByMarker: async (marker) => {
           client.calls.findIssueByMarker.push(marker);
-          return { issueNumber: 7, issueUrl: 'https://github.com/Riloox/fleetdeck-open/issues/7' };
+          return { issueNumber: 7, issueUrl: 'https://github.com/Riloox/hostkind-open/issues/7' };
         },
       },
       backoffBaseMs: 0,
@@ -327,7 +327,7 @@ tests.push(async () => {
     const client = fakeGithub({
       onCreate: (input) => {
         if (input.title === 'bad') throw nonRetryableError('GitHub API error 422: validation failed');
-        return okIssue({ issueNumber: 43, issueUrl: 'https://github.com/Riloox/fleetdeck-open/issues/43' });
+        return okIssue({ issueNumber: 43, issueUrl: 'https://github.com/Riloox/hostkind-open/issues/43' });
       },
     });
     const worker = createQueueWorker({ store, client });

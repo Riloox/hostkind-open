@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-#  Fleetdeck - Minecraft server panel launcher (Linux / macOS)
+#  Hostkind - Minecraft server panel launcher (Linux / macOS)
 #  Run ./start-panel.sh to start the web panel.
 #
 #  Checks the dependencies the panel needs and offers to install
@@ -91,7 +91,7 @@ if ! command -v node >/dev/null 2>&1; then
   exit 1
 fi
 if [ "$(node_major)" -lt 22 ] 2>/dev/null; then
-  echo "[ERROR] Node $(node -v) is unsupported. Fleetdeck requires Node.js 22+ for its SQLite foundation."
+  echo "[ERROR] Node $(node -v) is unsupported. Hostkind requires Node.js 22+ for its SQLite foundation."
   echo "        Install a current Node LTS release, then re-run this launcher."
   exit 1
 fi
@@ -193,7 +193,7 @@ if [ -n "$OLD_PIDS" ]; then
 fi
 
 echo
-echo "Starting Fleetdeck panel..."
+echo "Starting Hostkind panel..."
 echo "Open http://localhost:$PORT in your browser (default port)."
 echo "Press Ctrl+C to stop the panel."
 echo

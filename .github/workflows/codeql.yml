@@ -13,6 +13,7 @@ permissions:
 jobs:
   analyze:
     name: Analyze (${{ matrix.language }})
+    if: github.repository == 'Riloox/hostkind-open'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -27,8 +28,45 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4
+
+  analyze-open-snapshot:
+    name: Analyze generated open edition
+    if: github.repository == 'Riloox/hostkind'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Generate the public snapshot
+        run: |
+          node scripts/strip-open.cjs
+          mv .open-staging open-staging
+      - name: Initialize CodeQL for the public snapshot
+        uses: github/codeql-action/init@v4
+        with:
+          languages: javascript-typescript
+          source-root: open-staging
+      - name: Analyze the public snapshot
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: /language:javascript-typescript/open-snapshot
+          output: open-snapshot-sarif
+          upload: never
+      - name: Preserve the report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: open-snapshot-codeql-sarif
+          path: open-snapshot-sarif
+          if-no-files-found: warn
+      - name: Reject a snapshot with CodeQL findings
+        run: node scripts/assert-clean-sarif.cjs open-snapshot-sarif

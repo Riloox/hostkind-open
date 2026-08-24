@@ -1,6 +1,6 @@
 # Valheim fixture provenance
 
-These are sanitized, minimal excerpts used to freeze Fleetdeck's phase-0
+These are sanitized, minimal excerpts used to freeze Hostkind's phase-0
 console contract. They contain no player names, addresses, tokens, passwords,
 or machine paths.
 

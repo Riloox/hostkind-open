@@ -38,7 +38,7 @@ test.describe('console', () => {
     await expect(consoleArea(page)).toContainText('[fake] booting');
     await expect(consoleArea(page)).toContainText('[fake] ready');
     // The panel narrates the launch itself, above the process's own output.
-    await expect(consoleArea(page)).toContainText('[Fleetdeck] Starting "Worker"');
+    await expect(consoleArea(page)).toContainText('[Hostkind] Starting "Worker"');
   });
 
   test('sends a command and shows the reply', async ({ page, newApp }) => {

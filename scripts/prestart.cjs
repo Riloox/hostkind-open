@@ -13,7 +13,7 @@ const path = require('path');
 
 const index = path.join(__dirname, '..', 'public', 'index.html');
 if (!fs.existsSync(index)) {
-  console.error('Fleetdeck: public/index.html is missing - the SPA has not been built.');
+  console.error('Hostkind: public/index.html is missing - the SPA has not been built.');
   console.error('Run `npm run build` first, then start the panel again.');
   process.exit(1);
 }

@@ -1,10 +1,10 @@
-# Fleetdeck Upstream Bug Report Relay
+# Hostkind Upstream Bug Report Relay
 
 A small, standalone relay service that accepts validated bug-report payloads
-from Fleetdeck instances and creates issues in a **fixed** upstream GitHub
-repository (`Riloox/fleetdeck-open`) using a server-side credential.
+from Hostkind instances and creates issues in a **fixed** upstream GitHub
+repository (`Riloox/hostkind-open`) using a server-side credential.
 
-The relay is deliberately separate from the Fleetdeck panel: it runs as an
+The relay is deliberately separate from the Hostkind panel: it runs as an
 independent service, owns its own SQLite queue, and is exposed only through a
 separately managed edge layer. See `THREAT-MODEL.md` for the adversary model
 this design defends against.
@@ -41,7 +41,7 @@ every other field is optional and trimmed (empty strings normalize to
 | `view` | string | 500 | panel view name |
 | `route` | string | 500 | panel route, e.g. `/servers` |
 | `userAgent` | string | 1 000 | browser user agent |
-| `version` | string | 500 | Fleetdeck version |
+| `version` | string | 500 | Hostkind version |
 | `clientKey` | string | 8–100 | optional client idempotency key; `[A-Za-z0-9._-]` only |
 
 There is **no credential field** and **no client-selected repository, URL,
@@ -104,7 +104,7 @@ npm run test --prefix relay
 # Production start (the process entry point — binds 127.0.0.1 only):
 RELAY_GITHUB_TOKEN=... \
 RELAY_GITHUB_OWNER=Riloox \
-RELAY_GITHUB_REPO=fleetdeck-open \
+RELAY_GITHUB_REPO=hostkind-open \
 RELAY_DATA_DIR=/var/lib/fleetdeck-relay \
 node relay/server.cjs
 ```
@@ -115,7 +115,7 @@ Environment:
 | --- | --- | --- |
 | `RELAY_GITHUB_TOKEN` | — (required) | fine-grained PAT; the relay **fails closed** at startup when missing |
 | `RELAY_GITHUB_OWNER` | `Riloox` | fixed destination owner |
-| `RELAY_GITHUB_REPO` | `fleetdeck-open` | fixed destination repository |
+| `RELAY_GITHUB_REPO` | `hostkind-open` | fixed destination repository |
 | `RELAY_GITHUB_BASE_URL` | `https://api.github.com` | API base (tests / enterprise) |
 | `RELAY_GITHUB_TIMEOUT_MS` | `15000` | GitHub request timeout |
 | `RELAY_DATA_DIR` | `relay/data` | SQLite data directory |

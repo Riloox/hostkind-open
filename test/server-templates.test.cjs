@@ -52,7 +52,7 @@ function seedSource() {
   const root = seedSource();
   const server = { id: 'source-1', name: 'Survival ñ', dir: root, loader: 'paper', mcVersion: '1.21.4', worlds: ['world'] };
 
-  // The plugin was installed by Fleetdeck, so it has provenance: the template
+  // The plugin was installed by Hostkind, so it has provenance: the template
   // must carry the reference, never the jar.
   const pluginSha = templates.sha256File(path.join(root, 'plugins', 'EssentialsX.jar'));
   open().prepare('INSERT INTO content_provenance VALUES (?,?,?,?,?,?,?,?,?,?,?)')
@@ -186,7 +186,7 @@ function seedSource() {
 
   const future = path.join(TMP_ROOT, 'evil-schema.zip');
   await zipOf(future, { 'manifest.json': '{"schemaVersion":99,"files":[],"entries":[]}' });
-  await assert.rejects(() => templates.importPreview(future, 'admin'), /newer than this Fleetdeck version/);
+  await assert.rejects(() => templates.importPreview(future, 'admin'), /newer than this Hostkind version/);
 
   const secretly = path.join(TMP_ROOT, 'evil-secret.zip');
   const body = 'token: eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.signature\n';

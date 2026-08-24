@@ -130,7 +130,7 @@ function vanillaZip(dest, root = 'release-XYZ') {
 }
 
 // Mirrors the real package: tModLoader.dll plus its runtimeconfig at the root,
-// next to the wrapper scripts Fleetdeck must not execute.
+// next to the wrapper scripts Hostkind must not execute.
 function tmodloaderZip(dest) {
   return makeZip(dest, [
     { name: 'tModLoader.dll', data: 'managed-entrypoint' },
@@ -394,7 +394,7 @@ test('a bundled runtime wins over PATH, and no runtime fails with a readable mes
 
   // Without a runtime the package is refused, and the message names the exact
   // .NET version the package asked for - read from its runtimeconfig, not from
-  // a constant in Fleetdeck.
+  // a constant in Hostkind.
   const naked = path.join(root, 'naked-package');
   fs.mkdirSync(naked, { recursive: true });
   fs.writeFileSync(path.join(naked, 'tModLoader.dll'), 'entry');

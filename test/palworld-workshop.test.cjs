@@ -6,9 +6,10 @@ const os = require('os');
 const path = require('path');
 const workshop = require('../lib/palworld-workshop.cjs');
 
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'fleetdeck-palworld-workshop-'));
+async function main() {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'fleetdeck-palworld-workshop-'));
 
-try {
+  try {
   const libraries = workshop.parseVdfLibraries(`
     "libraryfolders"
     {
@@ -77,7 +78,7 @@ try {
   assert(settings.content.includes('[Other]'));
 
   // The server's own install folder is a Workshop source too: SteamCMD writes
-  // workshop_download_item output there, and nothing Fleetdeck installs on a
+  // workshop_download_item output there, and nothing Hostkind installs on a
   // dedicated server is otherwise reachable through a host Steam client.
   const serverDir = path.join(root, 'installed-server');
   const itemDir = path.join(serverDir, 'steamapps', 'workshop', 'content', '1623730', '777');
@@ -95,7 +96,34 @@ try {
   const preferred = workshop.discoverLibraries({ manualPaths: [serverDir], serverDir });
   assert(preferred.some((library) => library.source === 'manual' && library.root === path.resolve(serverDir)));
 
+  const previewServer = { id: 'pal-preview', dir: path.join(root, 'preview-server') };
+  const previewItem = path.join(previewServer.dir, 'steamapps', 'workshop', 'content', '1623730', '888');
+  fs.mkdirSync(previewItem, { recursive: true });
+  fs.writeFileSync(path.join(previewItem, 'Info.json'), JSON.stringify({
+    PackageName: 'NeedsRevision', Version: '1.0', MinRevision: 900000,
+    InstallRule: [{ Type: 'Paks', IsServer: true, Targets: ['./NeedsRevision.pak'] }],
+  }));
+  fs.writeFileSync(path.join(previewItem, 'NeedsRevision.pak'), 'pak');
+  await assert.rejects(
+    () => workshop.preview({ server: previewServer, manager: { status: 'offline' }, actorId: 'u', workshopId: '888' }),
+    (error) => error.code === 'revision_unknown',
+  );
+  const unknown = await workshop.preview({
+    server: previewServer, manager: { status: 'offline' }, actorId: 'u', workshopId: '888', allowUnknownRevision: true,
+  });
+  assert.equal(unknown.plan.revisionState, 'unknown');
+
+  const i18n = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'i18n.json'), 'utf8'));
+  assert.equal(typeof i18n.dictionaries.en.palworldMods.official.revisionUnknown, 'string');
+  assert.equal(typeof i18n.dictionaries.es.palworldMods.official.revisionUnknown, 'string');
+
   console.log('palworld workshop tests passed');
 } finally {
   fs.rmSync(root, { recursive: true, force: true });
 }
+}
+
+main().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});

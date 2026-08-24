@@ -36,7 +36,7 @@ Choose world evil:
 Terraria Server v1.4.5.6
 
 Enter world name: 
-> Fleetdeck Test
+> Hostkind Test
 Terraria Server v1.4.5.6
 
 Enter Seed (Leave Blank For Random):
@@ -394,7 +394,7 @@ Creating world - Seed: fleetdeck, Width: 4200, Height: 1200, Evil: -1, Difficult
 100.0% - Finalizing world - 0.0%
 Terraria Server v1.4.5.6
 
-1		Fleetdeck Test
+1		Hostkind Test
 n		New World
 d <number>	Delete World
 

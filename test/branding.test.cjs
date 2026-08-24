@@ -5,10 +5,10 @@ const branding = require('../lib/branding.cjs');
 
 const tests = [];
 
-// 1. An unbranded panel is still Fleetdeck, and every field is present.
+// 1. An unbranded panel is still Hostkind, and every field is present.
 tests.push(() => {
   const resolved = branding.resolve({});
-  assert.strictEqual(resolved.name, 'Fleetdeck');
+  assert.strictEqual(resolved.name, 'Hostkind');
   assert.strictEqual(resolved.logoUrl, '');
   assert.strictEqual(resolved.faviconUrl, '');
   assert.strictEqual(resolved.supportUrl, '');

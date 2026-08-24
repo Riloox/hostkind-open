@@ -53,7 +53,7 @@ function fakeGithub({ onCreate } = {}) {
     async createIssue(input) {
       calls.createIssue.push(input);
       if (onCreate) return onCreate(input);
-      return { issueNumber: 42, issueUrl: 'https://github.com/Riloox/fleetdeck-open/issues/42' };
+      return { issueNumber: 42, issueUrl: 'https://github.com/Riloox/hostkind-open/issues/42' };
     },
     async findIssueByMarker(marker) {
       calls.findIssueByMarker.push(marker);
@@ -155,7 +155,7 @@ tests.push(async () => {
     const { status, json } = await post(h.base, PAYLOAD);
     assert.strictEqual(status, 201, `expected 201 when issue created synchronously, got ${status}`);
     assert.strictEqual(json.status, 'synced');
-    assert.strictEqual(json.issueUrl, 'https://github.com/Riloox/fleetdeck-open/issues/42');
+    assert.strictEqual(json.issueUrl, 'https://github.com/Riloox/hostkind-open/issues/42');
     assert.strictEqual(json.issueNumber, 42);
     assert.strictEqual(client.calls.createIssue.length, 1);
     const fresh = h.store.get(json.id);
@@ -173,7 +173,7 @@ tests.push(async () => {
   const client = fakeGithub({
     onCreate: () => {
       sawRow = h2.store.counts().total === 1;
-      return { issueNumber: 1, issueUrl: 'https://github.com/Riloox/fleetdeck-open/issues/1' };
+      return { issueNumber: 1, issueUrl: 'https://github.com/Riloox/hostkind-open/issues/1' };
     },
   });
   const h2 = await boot({ client });

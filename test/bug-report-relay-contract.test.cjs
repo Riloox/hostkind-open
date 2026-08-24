@@ -35,7 +35,7 @@ tests.push(() => {
   assert.ok(readme.includes('POST /v1/reports'), 'README must document the submission endpoint');
   assert.ok(readme.includes('/healthz'), 'README must document the health endpoint');
   assert.ok(readme.includes('32 KiB'), 'README must document the body limit');
-  assert.ok(readme.includes('fleetdeck-open'), 'README must fix the upstream repository');
+  assert.ok(readme.includes('hostkind-open'), 'README must fix the upstream repository');
   assert.ok(readme.includes('no credential field') || readme.includes('no credential'), 'README must state the no-credential rule');
   assert.ok(readme.includes('unknown fields are rejected') || readme.includes('Unknown fields'), 'README must state unknown-field rejection');
   console.log('ok  relay-contract README: endpoint, limits, fixed repo, no credential');
@@ -43,7 +43,7 @@ tests.push(() => {
 
 tests.push(() => {
   const threat = read('relay/THREAT-MODEL.md');
-  assert.ok(threat.includes('Riloox/fleetdeck-open'), 'threat model must name the fixed upstream repo');
+  assert.ok(threat.includes('Riloox/hostkind-open'), 'threat model must name the fixed upstream repo');
   assert.ok(/credential/i.test(threat), 'threat model must cover the credential asset');
   assert.ok(/prompt injection/i.test(threat), 'threat model must cover prompt injection');
   assert.ok(/rate limit/i.test(threat), 'threat model must cover abuse controls');
@@ -127,7 +127,7 @@ tests.push(async () => {
     const client = {
       async createIssue() {
         clientSawRow = store.getByMarker('m-contract') !== null;
-        return { issueNumber: 1, issueUrl: 'https://github.com/Riloox/fleetdeck-open/issues/1' };
+        return { issueNumber: 1, issueUrl: 'https://github.com/Riloox/hostkind-open/issues/1' };
       },
       async findIssueByMarker() { return null; },
     };

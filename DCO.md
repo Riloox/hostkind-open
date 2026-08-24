@@ -1,6 +1,6 @@
 # Developer Certificate of Origin (DCO)
 
-Fleetdeck requires every contribution to carry the Developer Certificate of Origin.
+Hostkind requires every contribution to carry the Developer Certificate of Origin.
 By signing off a commit you certify that you wrote it, or that you have the right to
 contribute it under the project's license (AGPL-3.0-only, or the commercial license
 for licensed distribution). You are not asked to transfer copyright, only to vouch

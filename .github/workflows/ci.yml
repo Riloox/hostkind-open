@@ -148,8 +148,8 @@ jobs:
       - name: Publish GitHub release
         run: >-
           gh release create "$GITHUB_REF_NAME"
-          dist/fleetdeck-*.zip
-          dist/fleetdeck-*.zip.sha256
+          dist/hostkind-*.zip
+          dist/hostkind-*.zip.sha256
           dist/SHA256SUMS
           --generate-notes
         env:

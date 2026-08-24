@@ -294,8 +294,8 @@ test('names with spaces and non-ASCII characters round-trip', () => {
   const lines = serverLines('vanilla-players.log');
   const upToRoster = lines.slice(0, lines.findIndex((line) => /\d+ players? connected\./.test(line)) + 1);
   replay(terraria, manager, upToRoster);
-  assert.deepEqual(terraria.listPlayers(manager).map((p) => p.name), ['Fleetdeck Guest', 'Zoë Müller']);
-  assert.deepEqual(terraria.statusFields(manager).players, ['Fleetdeck Guest', 'Zoë Müller']);
+  assert.deepEqual(terraria.listPlayers(manager).map((p) => p.name), ['Hostkind Guest', 'Zoë Müller']);
+  assert.deepEqual(terraria.statusFields(manager).players, ['Hostkind Guest', 'Zoë Müller']);
   assert.equal(terraria.statusFields(manager).playerCount, 2);
 });
 
@@ -313,14 +313,14 @@ test('a playing reply reconciles a roster a leave line never corrected', () => {
   manager.status = 'online';
   terraria.onOnline(manager);
   // Two players join; one drops without the server ever printing a leave line.
-  terraria.inspectLine('Fleetdeck Guest has joined.', manager);
+  terraria.inspectLine('Hostkind Guest has joined.', manager);
   terraria.inspectLine('Zoë Müller has joined.', manager);
   assert.equal(terraria.listPlayers(manager).length, 2);
 
   assert.deepEqual(terraria.pollCommands(manager), ['playing']);
-  terraria.inspectLine('Fleetdeck Guest ([REDACTED_IP]:44768)', manager);
+  terraria.inspectLine('Hostkind Guest ([REDACTED_IP]:44768)', manager);
   terraria.inspectLine('1 player connected.', manager);
-  assert.deepEqual(terraria.listPlayers(manager).map((p) => p.name), ['Fleetdeck Guest']);
+  assert.deepEqual(terraria.listPlayers(manager).map((p) => p.name), ['Hostkind Guest']);
 });
 
 test('an empty playing reply empties the roster', () => {
@@ -349,7 +349,7 @@ test('TShock parses its own roster shape and its two join lines', () => {
   manager.status = 'online';
   terraria.onOnline(manager);
   for (const line of upToRoster) terraria.inspectLine(line, manager);
-  assert.deepEqual(terraria.listPlayers(manager).map((p) => p.name), ['Fleetdeck Guest', 'Zoë Müller']);
+  assert.deepEqual(terraria.listPlayers(manager).map((p) => p.name), ['Hostkind Guest', 'Zoë Müller']);
   // "Online Players (2/8)" is also where the player limit comes from.
   assert.equal(terraria.statusFields(manager).maxPlayers, 8);
 });
@@ -421,7 +421,7 @@ test('stop issues exit for every variant', () => {
   for (const variant of VARIANTS) {
     assert.deepEqual(terraria.buildStopSequence(fakeManager({ terrariaVariant: variant })), { command: 'exit' });
   }
-  // `exit` saves; `exit-nosave` does not, and Fleetdeck never sends it.
+  // `exit` saves; `exit-nosave` does not, and Hostkind never sends it.
   assert.equal(SERVER_JS.includes('exit-nosave'), false);
 });
 
@@ -462,7 +462,7 @@ test('a restart reaches online again with the same descriptor', () => {
   const manager = fakeManager(desc);
   replay(terraria, manager, serverLines('vanilla-start.log'));
   assert.equal(manager.status, 'online');
-  terraria.inspectLine('Fleetdeck Guest has joined.', manager);
+  terraria.inspectLine('Hostkind Guest has joined.', manager);
   assert.equal(terraria.listPlayers(manager).length, 1);
 
   // Stop, then start again through the same module state the manager reuses.

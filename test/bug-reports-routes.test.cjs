@@ -10,7 +10,7 @@
  *   module.exports = function bugReportsRouter(deps) { ... }  // express.Router()
  *
  * server.js is expected to mount it WITHOUT server scoping:
- *   app.use('/api', bugReportsRouter({ ...deps }))            // no X-Fleetdeck-Server-Id
+ *   app.use('/api', bugReportsRouter({ ...deps }))            // no X-Hostkind-Server-Id
  *
  * Routes (relative to the /api mount):
  *   POST /bug-reports            create a report (authenticated, per-user throttled)
@@ -114,7 +114,7 @@ const bugReports = {
 // shared redactor BEFORE they reach the stored row or the response, so a
 // token-shaped error can never leak into report.lastError / sync.error.
 const { redactString } = require('../lib/redact.cjs');
-let syncBehavior = async () => ({ state: 'synced', issueNumber: 1, issueUrl: 'https://github.com/Riloox/fleetdeck-open/issues/1', error: null });
+let syncBehavior = async () => ({ state: 'synced', issueNumber: 1, issueUrl: 'https://github.com/Riloox/hostkind-open/issues/1', error: null });
 const syncReport = async (report) => {
   callOrder.push('sync');
   const rowAtEntry = rows.get(report.id);
@@ -147,7 +147,7 @@ let normalizeConfig = (input = {}, env = {}) => {
   return {
     enabled: input.enabled === true && errors.length === 0,
     owner: owner || 'Riloox',
-    repo: repo || 'fleetdeck-open',
+    repo: repo || 'hostkind-open',
     labels: Array.isArray(input.labels) ? input.labels.filter((l) => typeof l === 'string' && l.trim()) : ['bug'],
     token: env.FLEETDECK_GITHUB_TOKEN || (typeof input.token === 'string' && input.token.trim()) || null,
     errors,
@@ -160,7 +160,7 @@ try {
   if (typeof real.redactConfig === 'function') redactConfig = real.redactConfig;
 } catch { /* fall back to the stand-ins above */ }
 
-let currentConfigBlock = { enabled: false, owner: 'Riloox', repo: 'fleetdeck-open', labels: ['bug'] };
+let currentConfigBlock = { enabled: false, owner: 'Riloox', repo: 'hostkind-open', labels: ['bug'] };
 let savedConfig = null;
 const deps = {
   bugReports,
@@ -244,7 +244,7 @@ tests.push({ name: 'unauthenticated GET and PUT are rejected with 401', fn: asyn
 tests.push({ name: 'valid report: persisted BEFORE sync, returns { report, sync } with synced state', fn: async (h) => {
   h.state.user = freshUser();
   callOrder.length = 0; syncEntryStates.length = 0;
-  syncBehavior = async () => ({ state: 'synced', issueNumber: 42, issueUrl: 'https://github.com/Riloox/fleetdeck-open/issues/42', error: null });
+  syncBehavior = async () => ({ state: 'synced', issueNumber: 42, issueUrl: 'https://github.com/Riloox/hostkind-open/issues/42', error: null });
   const res = await fetch(`${h.base}/api/bug-reports`, {
     method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(validBody()),
   });
@@ -258,7 +258,7 @@ tests.push({ name: 'valid report: persisted BEFORE sync, returns { report, sync 
   assert.deepStrictEqual(syncEntryStates, ['pending'], 'the row must already be durable (pending) when sync starts');
   assert.strictEqual(body.sync.state, 'synced');
   assert.strictEqual(body.sync.issueNumber, 42);
-  assert.strictEqual(body.sync.issueUrl, 'https://github.com/Riloox/fleetdeck-open/issues/42');
+  assert.strictEqual(body.sync.issueUrl, 'https://github.com/Riloox/hostkind-open/issues/42');
   assert.strictEqual(body.report.syncState, 'synced', 'report.syncState must mirror the sync outcome');
 }});
 
@@ -268,7 +268,7 @@ tests.push({ name: 'server-scope header is NOT required and is ignored', fn: asy
   let res = await fetch(`${h.base}/api/bug-reports`, {
     method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(validBody({ title: 'No server header' })),
   });
-  assert.strictEqual(res.status, 201, 'POST without X-Fleetdeck-Server-Id must succeed');
+  assert.strictEqual(res.status, 201, 'POST without X-Hostkind-Server-Id must succeed');
   let body = await res.json();
   assert.ok(!('serverId' in body.report), 'reports are not tied to a game server');
 
@@ -277,7 +277,7 @@ tests.push({ name: 'server-scope header is NOT required and is ignored', fn: asy
     headers: { 'content-type': 'application/json', 'x-fleetdeck-server-id': 'some-server-1' },
     body: JSON.stringify(validBody({ title: 'With server header' })),
   });
-  assert.strictEqual(res.status, 201, 'an X-Fleetdeck-Server-Id header must not scope the report');
+  assert.strictEqual(res.status, 201, 'an X-Hostkind-Server-Id header must not scope the report');
   body = await res.json();
   assert.ok(!('serverId' in body.report));
 }});
@@ -362,7 +362,7 @@ tests.push({ name: 'raw body over the mount limit is rejected (413, harness-leve
 
 tests.push({ name: 'per-user throttling: 4th authenticated POST within the window -> 429 rate_limited', fn: async (h) => {
   h.state.user = freshUser();
-  syncBehavior = async () => ({ state: 'synced', issueNumber: 7, issueUrl: 'https://github.com/Riloox/fleetdeck-open/issues/7', error: null });
+  syncBehavior = async () => ({ state: 'synced', issueNumber: 7, issueUrl: 'https://github.com/Riloox/hostkind-open/issues/7', error: null });
   for (let i = 1; i <= deps.throttleLimits.max; i++) {
     const res = await fetch(`${h.base}/api/bug-reports`, {
       method: 'POST', headers: { 'content-type': 'application/json' },
@@ -420,6 +420,31 @@ tests.push({ name: 'sync crash (rejected promise) never fails the request after 
   assert.ok(body.sync.error, 'the failure reason should be present for retry diagnostics');
 }});
 
+tests.push({ name: 'not_configured sync response carries the trackerUrl fallback link', fn: async (h) => {
+  h.state.user = freshUser();
+  syncBehavior = async () => ({ state: 'pending', reason: 'not_configured', trackerUrl: 'https://github.com/Riloox/hostkind-open/issues/new/choose', issueUrl: null, issueNumber: null, error: null, message: 'Bug-report sync is not configured.' });
+  const res = await fetch(`${h.base}/api/bug-reports`, {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(validBody({ title: 'No relay configured' })),
+  });
+  assert.strictEqual(res.status, 201);
+  const body = await res.json();
+  assert.strictEqual(body.sync.state, 'pending');
+  assert.strictEqual(body.sync.reason, 'not_configured');
+  assert.strictEqual(body.sync.trackerUrl, 'https://github.com/Riloox/hostkind-open/issues/new/choose');
+  assert.ok(!JSON.stringify(body).includes('token'), 'no secret-shaped text in the response');
+}});
+
+tests.push({ name: 'sync response omits trackerUrl when the summary has none', fn: async (h) => {
+  h.state.user = freshUser();
+  syncBehavior = async () => ({ state: 'pending', reason: 'not_configured', issueUrl: null, issueNumber: null, error: null });
+  const res = await fetch(`${h.base}/api/bug-reports`, {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(validBody({ title: 'No tracker link' })),
+  });
+  assert.strictEqual(res.status, 201);
+  const body = await res.json();
+  assert.strictEqual(body.sync.trackerUrl, null);
+}});
+
 tests.push({ name: 'no token (or secret-shaped key) appears in any POST response', fn: async (h) => {
   h.state.user = freshUser();
   syncBehavior = async () => ({ state: 'failed', error: `token ${FAKE_TOKEN} leaked?`, issueUrl: null, issueNumber: null });
@@ -435,7 +460,7 @@ tests.push({ name: 'no token (or secret-shaped key) appears in any POST response
 
 tests.push({ name: 'audit: bug_report.created recorded with reportId, no report body or secrets', fn: async (h) => {
   h.state.user = users.alice;
-  syncBehavior = async () => ({ state: 'synced', issueNumber: 9, issueUrl: 'https://github.com/Riloox/fleetdeck-open/issues/9', error: null });
+  syncBehavior = async () => ({ state: 'synced', issueNumber: 9, issueUrl: 'https://github.com/Riloox/hostkind-open/issues/9', error: null });
   const payload = validBody({ title: 'Audit me', description: 'super-secret-description-text-xyz' });
   const res = await fetch(`${h.base}/api/bug-reports`, {
     method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload),
@@ -503,7 +528,7 @@ tests.push({ name: 'PUT /config/bug-reports is admin-only (operator -> 403)', fn
   h.state.user = freshUser(); // operator role by default
   const res = await fetch(`${h.base}/api/config/bug-reports`, {
     method: 'PUT', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ enabled: true, owner: 'Riloox', repo: 'fleetdeck-open' }),
+    body: JSON.stringify({ enabled: true, owner: 'Riloox', repo: 'hostkind-open' }),
   });
   assert.strictEqual(res.status, 403);
   assert.strictEqual((await res.json()).error, 'forbidden');
@@ -546,7 +571,7 @@ tests.push({ name: 'PUT /config/bug-reports: token in body is ignored (env-drive
   savedConfig = null;
   const res = await fetch(`${h.base}/api/config/bug-reports`, {
     method: 'PUT', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ enabled: true, owner: 'Riloox', repo: 'fleetdeck-open', token: FAKE_TOKEN }),
+    body: JSON.stringify({ enabled: true, owner: 'Riloox', repo: 'hostkind-open', token: FAKE_TOKEN }),
   });
   assert.strictEqual(res.status, 200);
   const body = await res.json();
@@ -562,7 +587,7 @@ tests.push({ name: 'PUT /config/bug-reports: response redacts an env-configured 
   savedConfig = null;
   const res = await fetch(`${h.base}/api/config/bug-reports`, {
     method: 'PUT', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ enabled: true, owner: 'Riloox', repo: 'fleetdeck-open' }),
+    body: JSON.stringify({ enabled: true, owner: 'Riloox', repo: 'hostkind-open' }),
   });
   assert.strictEqual(res.status, 200);
   const body = await res.json();

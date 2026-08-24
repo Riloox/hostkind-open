@@ -16,7 +16,7 @@ if (process.platform !== 'win32') fs.chmodSync(executable, 0o755);
 function descriptor(overrides = {}) {
   return {
     id: 'valheim-1', type: 'valheim', valheimSchema: 1, dir: root, cwd: root,
-    executable, args: [], port: 2456, serverName: 'Fleetdeck server',
+    executable, args: [], port: 2456, serverName: 'Hostkind server',
     worldName: 'Dedicated', password: 'secret5', valheimSaveDir: 'data',
     valheimBackend: 'steam', valheimPublic: true, valheimInstanceId: null,
     valheimBuildId: null, stopTimeoutSeconds: 90, valheimSettings: {},
@@ -54,7 +54,7 @@ try {
     observedIdentitiesStale: true, readyEvidence: 'Game server connected',
     readinessTimedOut: false, integrityWarning: null, lifecycleEvidence: null, commandInput: false,
     degraded: true,
-    degradedReason: 'Valheim port-span evidence is not settled; Fleetdeck reserves three ports conservatively.',
+    degradedReason: 'Valheim port-span evidence is not settled; Hostkind reserves three ports conservatively.',
   });
 
   const launched = mod.buildLaunch(descriptor());
@@ -62,7 +62,7 @@ try {
   assert.equal(launched.cwd, root);
   assert.equal(Object.hasOwn(launched, 'command'), false);
   assert.deepEqual(launched.args.slice(0, 14), [
-    '-name', 'Fleetdeck server', '-port', '2456', '-world', 'Dedicated',
+    '-name', 'Hostkind server', '-port', '2456', '-world', 'Dedicated',
     '-password', 'secret5', '-savedir', path.join(root, 'data'),
     '-public', '1', '-nographics', '-batchmode',
   ]);

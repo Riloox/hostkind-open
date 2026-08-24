@@ -6,7 +6,7 @@
  *   Linux   disables and stops the systemd unit, then deletes its file
  *   Windows deletes the Task Scheduler task
  *
- * Usage: node scripts/uninstall-service.cjs [--name fleetdeck]
+ * Usage: node scripts/uninstall-service.cjs [--name hostkind]
  */
 
 const fs = require('fs');

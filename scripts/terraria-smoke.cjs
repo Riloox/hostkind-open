@@ -90,13 +90,13 @@ async function main() {
     const runtime = await terrariaInstall.install(variant, {
       destination,
       versionId: version.id || version.versionId,
-      worldName: 'FleetdeckSmoke',
+      worldName: 'HostkindSmoke',
       worldSize: 1,
       difficulty: 0,
       maxPlayers: 2,
       port,
       password: '',
-      motd: 'Fleetdeck disposable smoke test',
+      motd: 'Hostkind disposable smoke test',
     }, { download });
     timings.installMs = elapsed(started);
 

@@ -47,7 +47,7 @@ test('the home root is protected but folders inside it are not', () => {
   assert.strictEqual(pathSafety.protectedReason(path.join(os.homedir(), 'servers', 'pal'), {}), null);
 });
 
-test('the Fleetdeck data directory is protected including everything below it', () => {
+test('the Hostkind data directory is protected including everything below it', () => {
   const { dataDir } = require('../lib/db.cjs');
   assert.strictEqual(pathSafety.protectedReason(dataDir(), {}).reason, 'fleetdeck_data');
   assert.strictEqual(pathSafety.protectedReason(path.join(dataDir(), 'anything'), {}).reason, 'fleetdeck_data');
@@ -290,7 +290,7 @@ test('presentation rejects unsupported types, oversized images, and bad accents'
   assert.strictEqual(presentation.setAccent({ serverId: id, accent: '#AABBCC' }).accent, '#aabbcc');
 });
 
-test('presentation resets back to Fleetdeck defaults', () => {
+test('presentation resets back to Hostkind defaults', () => {
   const id = 'present-3';
   presentation.setAsset({ serverId: id, kind: 'icon', buffer: pngWithMetadata() });
   presentation.setAccent({ serverId: id, accent: '#123456' });

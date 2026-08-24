@@ -61,7 +61,7 @@ const { createSyncWorker } = require('../lib/bug-report-sync.cjs');
 
 const T0 = 1_700_000_000_000;
 const TOKEN = 'ghp_sync_test_token_1234567890';
-const ISSUE_URL_BASE = 'https://github.com/Riloox/fleetdeck-open/issues/';
+const ISSUE_URL_BASE = 'https://github.com/Riloox/hostkind-open/issues/';
 
 function fresh() {
   close();
@@ -126,7 +126,7 @@ function makeContext({ responses = [], workerOverrides = {}, clientOverrides = {
   const client = createGitHubClient({
     token: TOKEN,
     owner: 'Riloox',
-    repo: 'fleetdeck-open',
+    repo: 'hostkind-open',
     fetch,
     ...clientOverrides,
   });
@@ -388,7 +388,7 @@ tests.push(async () => {
   const client = createGitHubClient({
     token: TOKEN,
     owner: 'Riloox',
-    repo: 'fleetdeck-open',
+    repo: 'hostkind-open',
     fetch: async () => {
       postCalls++;
       await gate;

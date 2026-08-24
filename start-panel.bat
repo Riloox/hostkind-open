@@ -1,13 +1,13 @@
 @echo off
 REM ============================================================
-REM  Fleetdeck - Minecraft server panel launcher (Windows)
+REM  Hostkind - Minecraft server panel launcher (Windows)
 REM  Double-click this file to start the web panel.
 REM ============================================================
 
 REM Move to the folder where this .bat lives (handles spaces and "N").
 cd /d "%~dp0"
 
-title Fleetdeck Panel
+title Hostkind Panel
 
 REM --- Determine the panel port (env override, else the default 2121) ---
 set "PORT=2121"
@@ -26,7 +26,7 @@ if errorlevel 1 (
 
 for /f %%v in ('node -p "process.versions.node.split('.')[0]"') do set "NODE_MAJOR=%%v"
 if %NODE_MAJOR% LSS 22 (
-  echo [ERROR] Node.js %NODE_MAJOR% is unsupported. Fleetdeck requires Node.js 22+ for its SQLite foundation.
+  echo [ERROR] Node.js %NODE_MAJOR% is unsupported. Hostkind requires Node.js 22+ for its SQLite foundation.
   echo Install a current Node LTS release, then re-run this launcher.
   echo.
   pause
@@ -116,7 +116,7 @@ for /l %%i in (1,1,10) do (
 :portfree
 
 echo.
-echo Starting Fleetdeck panel...
+echo Starting Hostkind panel...
 echo Open http://localhost:%PORT% in your browser ^(default port^).
 echo Press Ctrl+C in this window to stop the panel.
 echo.

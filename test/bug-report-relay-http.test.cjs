@@ -38,7 +38,7 @@ const VALID = {
   description: 'The server crashes when loading the world.',
   reproSteps: '1. Start server\n2. Load world',
   expected: 'World loads without crashing',
-  userAgent: 'Fleetdeck/0.1.0',
+  userAgent: 'Hostkind/0.1.0',
   version: '0.1.0',
 };
 
@@ -191,13 +191,13 @@ tests.push({ name: 'POST /v1/reports: valid payload -> 202 queued, narrow body, 
 
 tests.push({ name: 'POST /v1/reports: synchronous sync -> 201 with public issue URL', fn: async () => {
   const h = await boot({
-    enqueue: async () => ({ id: 'rep-1', state: 'synced', issueUrl: 'https://github.com/Riloox/fleetdeck-open/issues/12' }),
+    enqueue: async () => ({ id: 'rep-1', state: 'synced', issueUrl: 'https://github.com/Riloox/hostkind-open/issues/12' }),
   });
   try {
     const { res, json } = await request(h.base, '/v1/reports', { body: VALID });
     assert.strictEqual(res.status, 201);
     assert.strictEqual(json.state, 'synced');
-    assert.strictEqual(json.issueUrl, 'https://github.com/Riloox/fleetdeck-open/issues/12');
+    assert.strictEqual(json.issueUrl, 'https://github.com/Riloox/hostkind-open/issues/12');
     assert.strictEqual(json.id, 'rep-1');
   } finally { await h.close(); }
 }});

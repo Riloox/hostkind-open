@@ -29,7 +29,7 @@ export function ValheimUpdatesView() {
     try {
       const result = await api(force ? '/api/valheim/updates/check' : '/api/valheim/updates', {
         method: force ? 'POST' : 'GET',
-        headers: { 'X-Fleetdeck-Server-Id': activeServerId },
+        headers: { 'X-Hostkind-Server-Id': activeServerId },
       });
       setUpdate(result.update);
       setPlan(null);
@@ -44,7 +44,7 @@ export function ValheimUpdatesView() {
     try {
       const result = await api('/api/valheim/updates/preview', {
         method: 'POST',
-        headers: { 'X-Fleetdeck-Server-Id': activeServerId },
+        headers: { 'X-Hostkind-Server-Id': activeServerId },
         body: { restart: true },
       });
       setPlan(result.plan);
@@ -59,7 +59,7 @@ export function ValheimUpdatesView() {
     try {
       const result = await api('/api/valheim/updates/apply', {
         method: 'POST',
-        headers: { 'X-Fleetdeck-Server-Id': activeServerId, 'Idempotency-Key': crypto.randomUUID() },
+        headers: { 'X-Hostkind-Server-Id': activeServerId, 'Idempotency-Key': crypto.randomUUID() },
         body: { previewToken: plan.previewToken, restart: plan.restart },
       });
       setRollbackId(result.rollbackId);
@@ -74,7 +74,7 @@ export function ValheimUpdatesView() {
     try {
       await api(`/api/valheim/updates/${rollbackId}/rollback`, {
         method: 'POST',
-        headers: { 'X-Fleetdeck-Server-Id': activeServerId },
+        headers: { 'X-Hostkind-Server-Id': activeServerId },
         body: { restart: false },
       });
       setRollbackId(null);

@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Fleetdeck are documented here. This project follows
+All notable changes to Hostkind are documented here. This project follows
 [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]

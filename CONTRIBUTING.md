@@ -1,6 +1,6 @@
-# Contributing to Fleetdeck
+# Contributing to Hostkind
 
-Thanks for considering a contribution. Fleetdeck is dual-licensed: the code is
+Thanks for considering a contribution. Hostkind is dual-licensed: the code is
 `AGPL-3.0-only` (see `LICENSE`), and a separate commercial license exists for
 hosting providers and OEM redistribution . By
 contributing you keep the project clean enough to keep that promise — in practice
@@ -103,7 +103,7 @@ The repository ships under AGPL and commercially, so its art must be clean:
   and provenance in `THIRD_PARTY_NOTICES.md` in the same PR — source, author, licence,
   and a link — and confirm the licence permits bundling and (for the dual license)
   commercial redistribution.
-- **Prefer generated or self-authored art** for panel and README graphics. Fleetdeck
+- **Prefer generated or self-authored art** for panel and README graphics. Hostkind
   ships neutral, procedurally generated placeholders for exactly this reason (see
   `THIRD_PARTY_NOTICES.md`).
 - **Preferred license list.** For libraries and fonts, prefer permissive or

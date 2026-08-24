@@ -17,7 +17,7 @@ import { useServer } from '@/context/ServerContext';
 import { useT } from '@/context/I18nContext';
 import { cn, fmtBytes, fmtBytesRaw } from '@/lib/utils';
 
-// How Fleetdeck knows each connectivity fact. The badge tone is the whole
+// How Hostkind knows each connectivity fact. The badge tone is the whole
 // point of the panel: an operator must be able to tell a measurement from an
 // inference from an instruction at a glance.
 const EVIDENCE_TONE = {
@@ -58,7 +58,7 @@ function CopyEndpoint({ value, t }) {
   );
 }
 
-// Checklist facts Fleetdeck can verify itself, keyed by the state the report
+// Checklist facts Hostkind can verify itself, keyed by the state the report
 // assigns them. Colour is always paired with an icon, never alone.
 const CHECK_TONE = {
   ok: { Icon: Check, className: 'text-status-online' },
@@ -90,7 +90,7 @@ function ConnectivityTab({ server }) {
   const load = useCallback(async () => {
     setBusy(true);
     try {
-      setReport(await api('/api/palworld/connectivity', { headers: { 'X-Fleetdeck-Server-Id': server.id } }));
+      setReport(await api('/api/palworld/connectivity', { headers: { 'X-Hostkind-Server-Id': server.id } }));
     } catch (error) { toast.error(error.message); }
     finally { setBusy(false); }
   }, [api, server.id]);
@@ -109,7 +109,7 @@ function ConnectivityTab({ server }) {
     try {
       setProbe(await api('/api/palworld/connectivity/test', {
         method: 'POST',
-        headers: { 'X-Fleetdeck-Server-Id': server.id },
+        headers: { 'X-Hostkind-Server-Id': server.id },
         body: { host, port: Number(port) },
       }));
     } catch (error) { toast.error(error.message); }
@@ -127,7 +127,7 @@ function ConnectivityTab({ server }) {
   const publicEndpoint = formatEndpoint(report.publicAddress.value, gamePort);
   const lanInfo = report.checklist.find((item) => item.id === 'lan_address');
   // Instructions are the operator's to-do list; everything else is a fact
-  // Fleetdeck established. server_running, port_mismatch and lan_address get
+  // Hostkind established. server_running, port_mismatch and lan_address get
   // louder or more useful treatments (the status pill / the alerts / the LAN
   // caption) and are not repeated here.
   const steps = report.checklist.filter((item) => item.evidence === 'instruction');
@@ -288,7 +288,7 @@ function ProfileTab({ server }) {
     setBusy(true);
     try {
       setPreview(await api(`/api/palworld/profile/preview?selection=${encodeURIComponent(value)}`, {
-        headers: { 'X-Fleetdeck-Server-Id': server.id },
+        headers: { 'X-Hostkind-Server-Id': server.id },
       }));
     } catch (error) { toast.error(error.message); }
     finally { setBusy(false); }
@@ -301,7 +301,7 @@ function ProfileTab({ server }) {
     try {
       const data = await api('/api/palworld/profile/export', {
         method: 'POST',
-        headers: { 'X-Fleetdeck-Server-Id': server.id },
+        headers: { 'X-Hostkind-Server-Id': server.id },
         body: { selection },
       });
       setResult(data);

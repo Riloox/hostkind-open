@@ -9,7 +9,7 @@ import { useBranding } from '@/context/AuthContext';
  *
  * Both halves are overridable from config.json so a hosting provider can ship
  * the panel under their own name without editing a translation file. The
- * built-in Fleetdeck mark is what renders when they have not.
+ * built-in Hostkind mark is what renders when they have not.
  *
  * @param {boolean}  collapsed  When true, only the icon is rendered.
  * @param {function} onClick    Optional click handler (e.g. go to all games).

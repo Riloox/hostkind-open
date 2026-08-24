@@ -85,3 +85,15 @@ public/
 # Python bytecode
 __pycache__/
 *.pyc
+
+# ephemeral research scrapes - never commit or publish
+/devreq.html
+/off_sitemap.xml
+/pmk_tree.json
+/rel.html
+/ue_req.html
+/ws_browse.html
+/.hermes/
+
+# understand-anything analysis data
+.ua/

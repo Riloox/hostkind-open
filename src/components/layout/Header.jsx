@@ -48,7 +48,7 @@ export function Header({ currentView, onOpenSettings }) {
   // Every captured page otherwise reports the same title, which makes browser
   // tabs and window lists useless for telling two game panels apart. The suffix
   // is the panel's configured name, not a literal - a white-labelled panel that
-  // still says "Fleetdeck" in the tab has not been white-labelled.
+  // still says "Hostkind" in the tab has not been white-labelled.
   useEffect(() => {
     document.title = gameLabel ? `${gameLabel} · ${viewLabel} — ${panelName}` : panelName;
   }, [gameLabel, viewLabel, panelName]);

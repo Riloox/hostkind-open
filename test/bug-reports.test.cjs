@@ -342,7 +342,7 @@ tests.push(() => {
   const r3 = createSample({ marker: 'm-c' }, { id: 'r-c', now: T0 + 2 });
   assert.strictEqual(r1.sync_state, 'pending');
   // mark r-b synced -> excluded
-  bugReports.markSynced(r2.id, { issueNumber: 2, issueUrl: 'https://github.com/Riloox/fleetdeck-open/issues/2' }, { now: T0 + 3 });
+  bugReports.markSynced(r2.id, { issueNumber: 2, issueUrl: 'https://github.com/Riloox/hostkind-open/issues/2' }, { now: T0 + 3 });
   // mark r-c failed at T0+2 -> eligible again after its 60s backoff (T0+62_000)
   bugReports.markFailed(r3.id, { error: 'boom', attempts: 1 }, { now: T0 + 2 });
 
@@ -419,12 +419,12 @@ tests.push(() => {
   bugReports.markFailed('r-syn', { error: 'ghp_abcdefghijklmnopqrstuvwxyz boom', attempts: 1 }, { now: T0 + 1 });
   const row = bugReports.markSynced('r-syn', {
     issueNumber: 42,
-    issueUrl: 'https://github.com/Riloox/fleetdeck-open/issues/42',
+    issueUrl: 'https://github.com/Riloox/hostkind-open/issues/42',
   }, { now: T0 + 2 });
 
   assert.strictEqual(row.sync_state, 'synced');
   assert.strictEqual(row.issue_number, 42);
-  assert.strictEqual(row.issue_url, 'https://github.com/Riloox/fleetdeck-open/issues/42');
+  assert.strictEqual(row.issue_url, 'https://github.com/Riloox/hostkind-open/issues/42');
   assert.strictEqual(row.last_error, null, 'last_error must be cleared on success');
   assert.strictEqual(row.updated_at, T0 + 2);
   assert.strictEqual(row.attempts, 1, 'attempts history preserved');
@@ -474,7 +474,7 @@ tests.push(() => {
     'failed report is retryable after its 60s backoff',
   );
 
-  bugReports.markSynced('r-rt', { issueNumber: 7, issueUrl: 'https://github.com/Riloox/fleetdeck-open/issues/7' }, { now: T0 + 61_001 });
+  bugReports.markSynced('r-rt', { issueNumber: 7, issueUrl: 'https://github.com/Riloox/hostkind-open/issues/7' }, { now: T0 + 61_001 });
   const done = bugReports.get('r-rt');
   assert.strictEqual(done.sync_state, 'synced');
   assert.strictEqual(done.issue_number, 7);

@@ -113,7 +113,7 @@ function buildIssueBody(input = {}) {
     '## Timestamp',
     valueOrDash(input.timestamp),
     '',
-    '## Fleetdeck version',
+    '## Hostkind version',
     valueOrDash(input.version),
     '',
     '## Browser',
@@ -129,7 +129,7 @@ function buildIssueBody(input = {}) {
   parts.push(
     '',
     '---',
-    '*This report was filed through the Fleetdeck in-app reporter.*',
+    '*This report was filed through the Hostkind in-app reporter.*',
   );
   if (input.marker) {
     parts.push('', `<!-- fleetdeck-report-marker: ${input.marker} -->`);
@@ -147,7 +147,7 @@ function createGitHubClient(deps = {}) {
   const baseUrl = String(deps.baseUrl || DEFAULT_BASE_URL).replace(/\/+$/, '');
   const fetchImpl = typeof deps.fetch === 'function' ? deps.fetch : globalThis.fetch;
   const timeoutMs = deps.timeoutMs !== undefined ? deps.timeoutMs : DEFAULT_TIMEOUT_MS;
-  const userAgent = `FleetdeckRelay/${deps.version || '1.0'} (bug-report relay)`;
+  const userAgent = `HostkindRelay/${deps.version || '1.0'} (bug-report relay)`;
 
   const headers = {
     Authorization: `Bearer ${token}`,
@@ -277,7 +277,7 @@ function createGitHubClient(deps = {}) {
 function githubClientFromEnv(env = process.env) {
   const token = env.RELAY_GITHUB_TOKEN;
   const owner = env.RELAY_GITHUB_OWNER || 'Riloox';
-  const repo = env.RELAY_GITHUB_REPO || 'fleetdeck-open';
+  const repo = env.RELAY_GITHUB_REPO || 'hostkind-open';
   return createGitHubClient({
     token,
     owner,

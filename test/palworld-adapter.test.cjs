@@ -45,12 +45,12 @@ assert.equal(noXY[0].location, null);
 
 const health = healthy(initialHealth(true), sampledAt);
 const status = normalizeStatus(
-  { version: 'v0.6', servername: 'Fleetdeck', description: 'Fixture' },
+  { version: 'v0.6', servername: 'Hostkind', description: 'Fixture' },
   { days: 5, uptime: 100, currentplayernum: 1, maxplayernum: 32, serverfps: 60, serverframetime: 16.6, basecampnum: 2 },
   players, health, sampledAt,
 );
 assert.equal(status.adapterVersion, 1);
-assert.equal(status.serverName, 'Fleetdeck');
+assert.equal(status.serverName, 'Hostkind');
 assert.equal(status.playerCount, 1);
 assert.equal(status.restHealth.state, 'healthy');
 assert.throws(() => normalizePlayers({ players: [{}] }), (error) => error instanceof PalworldRestError && error.state === 'malformed');

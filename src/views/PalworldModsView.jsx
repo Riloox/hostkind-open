@@ -469,12 +469,22 @@ export function PalworldModsView() {
         open={!!plan}
         onOpenChange={(open) => { if (!open) setPlan(null); }}
         title={t('palworldMods.official.confirmTitle')}
-        description={plan ? t('palworldMods.official.confirmBody', {
-          packageName: plan.plan.packageName,
-          version: plan.plan.version,
-          files: plan.plan.fileCount,
-          size: fmtBytes(plan.plan.sizeBytes),
-        }) : ''}
+        description={plan ? (
+          <div className="space-y-3">
+            <p>{t('palworldMods.official.confirmBody', {
+              packageName: plan.plan.packageName,
+              version: plan.plan.version,
+              files: plan.plan.fileCount,
+              size: fmtBytes(plan.plan.sizeBytes),
+            })}</p>
+            {plan.plan.revisionState === 'unknown' && (
+              <Alert variant="warn">
+                <ShieldAlert className="h-4 w-4 shrink-0" />
+                {t('palworldMods.official.revisionUnknown')}
+              </Alert>
+            )}
+          </div>
+        ) : ''}
         confirmLabel={t('palworldMods.official.install')}
         onConfirm={install}
       />
@@ -484,7 +494,7 @@ export function PalworldModsView() {
         title={t('palworldMods.removeTitle')}
         description={pendingRemove ? t('palworldMods.removeBody', { name: pendingRemove.packageName }) : ''}
         confirmLabel={t('palworldMods.remove')}
-        variant="destructive"
+        destructive
         onConfirm={() => {
           const current = pendingRemove;
           setPendingRemove(null);

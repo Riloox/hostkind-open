@@ -136,7 +136,7 @@ function worldWithHeaderSection({
 }
 
 const CONFIG_TEXT = [
-  '# Fleetdeck test config',
+  '# Hostkind test config',
   'world=WORLDPATH/World.wld',
   'worldpath=WORLDPATH',
   'autocreate=2',
@@ -322,7 +322,7 @@ test('the header accepts a world and refuses everything that is not one', () => 
 });
 
 test('the header section yields the world name, game mode and size', () => {
-  // The four difficulties Fleetdeck offers, in the order Terraria stores them.
+  // The four difficulties Hostkind offers, in the order Terraria stores them.
   // Confirmed against real generated worlds: classic 0, expert 1, master 2,
   // journey 3 - the same order `DIFFICULTIES` uses.
   const modes = ['classic', 'expert', 'master', 'journey'];

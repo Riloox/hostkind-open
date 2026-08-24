@@ -17,7 +17,7 @@
  *   }
  *
  * Contract rules pinned here (from the plan):
- *   - Defaults: disabled, destination Riloox/fleetdeck-open, labels ['bug'].
+ *   - Defaults: disabled, destination Riloox/hostkind-open, labels ['bug'].
  *   - The GitHub token is server-side only and comes from the environment
  *     (FLEETDECK_GITHUB_TOKEN) with a config-block string as fallback; it is
  *     never required for normalization and is stripped by redactConfig().
@@ -48,19 +48,19 @@ const { DEFAULTS, GITHUB_TOKEN_ENV, normalizeConfig, redactConfig } = config;
 const tests = [];
 
 // 1. Empty input normalizes to safe defaults, disabled, default destination.
-tests.push({ name: 'defaults: disabled, Riloox/fleetdeck-open, [bug], no token', fn: () => {
+tests.push({ name: 'defaults: disabled, Riloox/hostkind-open, [bug], no token', fn: () => {
   const r = normalizeConfig({});
   assert.strictEqual(r.enabled, false);
   assert.strictEqual(r.owner, 'Riloox');
-  assert.strictEqual(r.repo, 'fleetdeck-open');
+  assert.strictEqual(r.repo, 'hostkind-open');
   assert.deepStrictEqual(r.labels, ['bug']);
   assert.strictEqual(r.token, null);
   assert.deepStrictEqual(r.errors, []);
 }});
 
 // 2. DEFAULTS export matches the documented defaults.
-tests.push({ name: 'DEFAULTS export is { enabled:false, owner:Riloox, repo:fleetdeck-open, labels:[bug] }', fn: () => {
-  assert.deepStrictEqual(DEFAULTS, { enabled: false, owner: 'Riloox', repo: 'fleetdeck-open', labels: ['bug'] });
+tests.push({ name: 'DEFAULTS export is { enabled:false, owner:Riloox, repo:hostkind-open, labels:[bug] }', fn: () => {
+  assert.deepStrictEqual(DEFAULTS, { enabled: false, owner: 'Riloox', repo: 'hostkind-open', labels: ['bug'] });
 }});
 
 // 3. Token comes from the environment when present.
@@ -102,7 +102,7 @@ tests.push({ name: 'invalid repo (slash) -> enabled forced false + error', fn: (
   const r = normalizeConfig({ enabled: true, repo: 'owner/repo' });
   assert.strictEqual(r.enabled, false);
   assert.ok(r.errors.includes('invalid_repo'), `expected invalid_repo in ${JSON.stringify(r.errors)}`);
-  assert.strictEqual(r.repo, 'fleetdeck-open');
+  assert.strictEqual(r.repo, 'hostkind-open');
 }});
 
 // 9. Over-long owner (GitHub usernames cap at 39 chars) is invalid.
@@ -147,11 +147,11 @@ tests.push({ name: 'enabled is strict boolean (1/"yes" do not enable)', fn: () =
 
 // 15. redactConfig strips the token entirely and does not mutate the source.
 tests.push({ name: 'redactConfig removes token key, preserves everything else, no mutation', fn: () => {
-  const withToken = { enabled: true, owner: 'Riloox', repo: 'fleetdeck-open', labels: ['bug'], token: 'ghp_never_show' };
+  const withToken = { enabled: true, owner: 'Riloox', repo: 'hostkind-open', labels: ['bug'], token: 'ghp_never_show' };
   const redacted = redactConfig(withToken);
   assert.ok(!('token' in redacted), 'redacted config must not expose a token key');
   assert.strictEqual(redacted.owner, 'Riloox');
-  assert.strictEqual(redacted.repo, 'fleetdeck-open');
+  assert.strictEqual(redacted.repo, 'hostkind-open');
   assert.strictEqual(redacted.enabled, true);
   assert.strictEqual(withToken.token, 'ghp_never_show', 'redactConfig must not mutate its input');
 }});
@@ -167,7 +167,7 @@ tests.push({ name: 'garbage input (null/string/array) normalizes to defaults wit
   assert.deepStrictEqual(normalizeConfig(null).errors, []);
   assert.strictEqual(normalizeConfig(null).enabled, false);
   assert.strictEqual(normalizeConfig('garbage').owner, 'Riloox');
-  assert.strictEqual(normalizeConfig([]).repo, 'fleetdeck-open');
+  assert.strictEqual(normalizeConfig([]).repo, 'hostkind-open');
 }});
 
 // 18. Missing token with enabled=true still normalizes (token optional); the

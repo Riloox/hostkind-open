@@ -164,7 +164,7 @@ test('discovery follows the apphost order, and only PATH needs DOTNET_ROOT', () 
 });
 
 // .NET's default roll-forward: a later minor or patch of the same major runs
-// the app, an earlier one does not, and another major never does. Fleetdeck
+// the app, an earlier one does not, and another major never does. Hostkind
 // must refuse exactly what the apphost refuses - no more.
 test('roll-forward matches the .NET default', () => {
   assert.equal(dotnetRuntime.satisfies('9.0.0', ['9.0.0']), true);

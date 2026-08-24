@@ -32,7 +32,7 @@ async function accentToken(page, token) {
 }
 
 test.describe('default branding', () => {
-  test('an unconfigured panel is Fleetdeck', async ({ page, app }) => {
+  test('an unconfigured panel is Hostkind', async ({ page, app }) => {
     await signInFast(page, app);
     await openView(page, 'minecraft', 'dashboard');
 
@@ -53,7 +53,7 @@ test.describe('a white-labelled panel', () => {
 
     await expect(brandMark(page).wordmark).toHaveText('Nimbus Hosting');
     // The tab suffix is the panel's name too - a white-labelled panel that
-    // still says "Fleetdeck" in the browser tab has not been white-labelled.
+    // still says "Hostkind" in the browser tab has not been white-labelled.
     await expect(page).toHaveTitle(/— Nimbus Hosting$/);
     await expect(page).not.toHaveTitle(new RegExp(en('brand.name')));
     await expect(brandMark(page).wordmark).not.toHaveText(en('brand.name'));
@@ -133,12 +133,12 @@ test.describe('a white-labelled panel', () => {
   test('serves the brand in the shell title before the bundle mounts', async ({ page, newApp }) => {
     const panel = await branded(newApp, { name: 'Nimbus Hosting' });
     // The SPA rewrites the title after mount, but the served shell already
-    // carries the brand, so a branded install never flashes "Fleetdeck" in the
+    // carries the brand, so a branded install never flashes "Hostkind" in the
     // tab or on the login screen while the bundle loads.
     const response = await page.request.get(`${panel.url}/games`);
     const html = await response.text();
     expect(html).toContain('<title>Nimbus Hosting</title>');
-    expect(html).not.toContain('<title>Fleetdeck</title>');
+    expect(html).not.toContain('<title>Hostkind</title>');
   });
 
   test('offers the provider helpdesk in the sidebar when one is configured', async ({ page, newApp }) => {
