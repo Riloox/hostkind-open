@@ -107,7 +107,7 @@ is mirrored to a GitHub Release on this repository with a zip archive, its
 SHA256 checksum, and a full manifest. Verify a download with:
 
 ```
-sha256sum -c fleetdeck-<version>.zip.sha256
+sha256sum -c hostkind-<version>.zip.sha256
 ```
 
 ## License

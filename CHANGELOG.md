@@ -60,7 +60,7 @@ artifact, and upgrades are documented and safe. The tag `v0.1.0` matches
   and the Playwright browser suite run on Node 22 for every push to `main` and
   every pull request. A tag-triggered `release` job rebuilds the SPA, packages
   the artifact, and publishes it to a GitHub Release with checksums.
-- **Packaging** (`npm run package`): produces `dist/fleetdeck-<version>.zip`
+- **Packaging** (`npm run package`): produces `dist/hostkind-<version>.zip`
   from the prebuilt `public/`, `server.js`, `lib/`, `i18n.*`, `resources/`,
   license, config, and README files, plus a generated `version.json`. Emits
   `dist/SHA256SUMS` and a per-file `SHA256SUMS` inside the archive. Refuses to

@@ -1,7 +1,7 @@
 # Upgrading Hostkind
 
 How to move an existing Hostkind installation from one release to the next.
-Releases ship as a single zip (`fleetdeck-<version>.zip`) with the SPA
+Releases ship as a single zip (`hostkind-<version>.zip`) with the SPA
 **prebuilt** — you never build the panel on the server, but you do need Node
 and npm (see [Requirements](#requirements)).
 
@@ -19,7 +19,7 @@ root (it also ships inside the zip).
 ## What is in the artifact
 
 ```
-fleetdeck-<version>.zip
+hostkind-<version>.zip
 ├── server.js                 the panel (Express + WebSocket)
 ├── lib/                      platform code and game modules
 ├── i18n.cjs, i18n.json       all user-facing strings
@@ -57,14 +57,14 @@ Every release publishes its sha256 sums. Check the zip before unpacking it:
 
 ```bash
 # Linux / macOS
-sha256sum -c fleetdeck-<version>.zip.sha256     # run from the folder holding both
+sha256sum -c hostkind-<version>.zip.sha256     # run from the folder holding both
 
 # Windows (PowerShell)
-Get-FileHash fleetdeck-<version>.zip -Algorithm SHA256
+Get-FileHash hostkind-<version>.zip -Algorithm SHA256
 ```
 
-Compare the output against the `<hash>  fleetdeck-<version>.zip` line in
-`fleetdeck-<version>.zip.sha256` (or in `SHA256SUMS`). The hash must match.
+Compare the output against the `<hash>  hostkind-<version>.zip` line in
+`hostkind-<version>.zip.sha256` (or in `SHA256SUMS`). The hash must match.
 
 ## 3. Replace the application files
 
@@ -80,7 +80,7 @@ Two layouts, both fine:
 After extracting, verify the tree against the shipped manifest:
 
 ```bash
-cd fleetdeck-<version>   # extraction root
+cd hostkind-<version>   # extraction root
 sha256sum -c SHA256SUMS  # must report every file as OK
 ```
 
@@ -123,7 +123,7 @@ Starting the panel calls `bootFoundation()` (`server.js`), which runs
 A healthy boot logs:
 
 ```
-[fleetdeck ...] foundation: ready (db=<path>...\fleetdeck.db, applied=N)
+[Hostkind ...] foundation: ready (db=<path>...\fleetdeck.db, applied=N)
 ```
 
 where `N` is the number of migrations applied on that boot. You can also check
