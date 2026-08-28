@@ -387,15 +387,12 @@
         "done": {
           "title": "You're all set",
           "body": "That's the tour. Register a server under Servers, then start it from the control bar. Repeat this walkthrough anytime from Settings."
-        },
-        "whatsnew": {
-          "title": "What's new",
-          "body": "Hostkind has been updated! Here's a quick look at what changed since your last visit.",
-          "done": {
-            "title": "All caught up",
-            "body": "That's everything new for now. Your workspace is ready — head to Servers to get started."
-          }
         }
+      },
+      "whatsNew": {
+        "title": "What's new",
+        "description": "Hostkind has been updated. Here is the complete changelog for this build.",
+        "version": "Build {version}"
       },
       "notifications": {
         "title": "Notifications",
@@ -2231,6 +2228,32 @@
         "notAccepted": "No"
       },
       "terraria": {
+        "players": {
+          "title": "Terraria players",
+          "description": "Players currently connected to this Terraria server.",
+          "connected": "Connected",
+          "server": "Server",
+          "noServer": "No server selected",
+          "rosterTitle": "Connected roster",
+          "rosterDescription": "Names reported by the Terraria server console.",
+          "online": "Online",
+          "emptyTitle": "No players connected",
+          "emptyOffline": "Start the server to see its connected players.",
+          "emptyOnline": "The server has not reported any connected players.",
+          "characterUnavailable": "Character preview unavailable for this server.",
+          "actionsUnavailable": "Player actions are available while the server is online.",
+          "kick": "Kick",
+          "ban": "Ban",
+          "kickSuccess": "Kicked {name}.",
+          "banSuccess": "Banned {name}.",
+          "actionFailed": "The player action could not be completed.",
+          "status": {
+            "online": "Online",
+            "offline": "Offline",
+            "starting": "Starting",
+            "stopping": "Stopping"
+          }
+        },
         "import": {
           "title": "Adopt an existing Terraria server",
           "intro": "Choose a server folder. Hostkind inspects its runtime, configuration, worlds and mods before anything is registered.",
@@ -2538,6 +2561,50 @@
           "internalName": "Internal name",
           "previewHelp": "Review the change to {name}. A verified safety snapshot is taken first.",
           "previewRestart": "The new mod set takes effect the next time tModLoader starts.",
+          "review": {
+            "importIntro": "Review the exact changes before Hostkind updates this server.",
+            "notApplied": "Nothing has changed yet.",
+            "reviewStep": "This is the final review. Hostkind will only write the files after you continue.",
+            "changeList": "Changes to apply",
+            "versionChange": "v{current} → v{next}",
+            "versionOnly": "v{version}",
+            "versionUnknown": "Version not reported",
+            "sourceWorkshop": "Steam Workshop",
+            "sourceLocal": "Local file",
+            "workshopItem": "Workshop item #{id}",
+            "replaceNotice": "An installed version will be replaced.",
+            "replaceHelp": "The new .tmod file will take the existing mod's place. The current mod folder is snapshotted first.",
+            "confirmReplaceLabel": "I understand that installed mod versions will be replaced",
+            "blockedTitle": "This modpack is not ready",
+            "blockedHelp": "Install the missing mods listed above, then review the modpack again.",
+            "snapshotTitle": "Protected before applying",
+            "snapshotHelp": "Hostkind creates and verifies a safety snapshot before changing the mod folder.",
+            "restartTitle": "Restart required",
+            "restartHelp": "tModLoader applies the new mod set the next time it starts.",
+            "summary": {
+              "added": "Added",
+              "replaced": "Replaced",
+              "missing": "Missing",
+              "removed": "Removed",
+              "enabled": "Enabled",
+              "disabled": "Disabled",
+              "changed": "Changed"
+            },
+            "change": {
+              "add": "Add",
+              "replace": "Replace",
+              "missing": "Missing",
+              "remove": "Remove",
+              "enable": "Enable",
+              "disable": "Disable"
+            },
+            "confirmImport": "Import mods",
+            "confirmImportReplace": "Import and replace",
+            "confirmPack": "Apply modpack",
+            "confirmRemove": "Move to quarantine",
+            "confirmEnable": "Enable mod",
+            "confirmDisable": "Disable mod"
+          },
           "preview": {
             "enable": "Enable mod",
             "disable": "Disable mod",
@@ -3162,16 +3229,13 @@
         },
         "done": {
           "title": "Todo listo",
-          "body": "Eso es todo. Registra un servidor en Servidores y arráncalo desde la barra de control. Repite este recorrido cuando quieras desde Ajustes."
-        },
-        "whatsnew": {
-          "title": "Novedades",
-          "body": "¡Hostkind se ha actualizado! Aquí tienes un vistazo rápido a lo que cambió desde tu última visita.",
-          "done": {
-            "title": "Todo al día",
-            "body": "Eso es todo por ahora. Tu espacio de trabajo está listo — ve a Servidores para comenzar."
-          }
+          "body": "Eso es todo. Registra un servidor en Servidores y arráncalo desde la barra de control. Repite este walkthrough cuando quieras desde Ajustes."
         }
+      },
+      "whatsNew": {
+        "title": "Novedades",
+        "description": "Hostkind se actualizó. Aquí tienes el changelog completo de esta versión.",
+        "version": "Build {version}"
       },
       "notifications": {
         "title": "Notificaciones",
@@ -5007,6 +5071,32 @@
         "notAccepted": "No"
       },
       "terraria": {
+        "players": {
+          "title": "Jugadores de Terraria",
+          "description": "Jugadores conectados actualmente a este servidor de Terraria.",
+          "connected": "Conectados",
+          "server": "Servidor",
+          "noServer": "No hay servidor seleccionado",
+          "rosterTitle": "Jugadores conectados",
+          "rosterDescription": "Nombres informados por la consola del servidor de Terraria.",
+          "online": "En línea",
+          "emptyTitle": "No hay jugadores conectados",
+          "emptyOffline": "Inicia el servidor para ver sus jugadores conectados.",
+          "emptyOnline": "El servidor todavía no informó jugadores conectados.",
+          "characterUnavailable": "La vista del personaje no está disponible para este servidor.",
+          "actionsUnavailable": "Las acciones de jugador están disponibles mientras el servidor está en línea.",
+          "kick": "Expulsar",
+          "ban": "Banear",
+          "kickSuccess": "{name} fue expulsado.",
+          "banSuccess": "{name} fue baneado.",
+          "actionFailed": "No se pudo completar la acción sobre el jugador.",
+          "status": {
+            "online": "En línea",
+            "offline": "Desconectado",
+            "starting": "Iniciando",
+            "stopping": "Deteniendo"
+          }
+        },
         "import": {
           "title": "Adoptar un servidor de Terraria existente",
           "intro": "Elige una carpeta de servidor. Hostkind inspecciona su runtime, configuración, mundos y mods antes de registrar nada.",
@@ -5314,6 +5404,50 @@
           "internalName": "Nombre interno",
           "previewHelp": "Revisa el cambio de {name}. Primero se crea una instantánea de seguridad verificada.",
           "previewRestart": "El nuevo conjunto de mods se aplicará la próxima vez que arranque tModLoader.",
+          "review": {
+            "importIntro": "Revisa los cambios exactos antes de que Hostkind actualice este servidor.",
+            "notApplied": "Todavía no se cambió nada.",
+            "reviewStep": "Esta es la revisión final. Hostkind solo escribirá los archivos cuando continúes.",
+            "changeList": "Cambios que se aplicarán",
+            "versionChange": "v{current} → v{next}",
+            "versionOnly": "v{version}",
+            "versionUnknown": "Versión no informada",
+            "sourceWorkshop": "Steam Workshop",
+            "sourceLocal": "Archivo local",
+            "workshopItem": "Elemento de Workshop #{id}",
+            "replaceNotice": "Se reemplazará una versión ya instalada.",
+            "replaceHelp": "El archivo .tmod nuevo ocupará el lugar del mod actual. Primero se crea una copia de seguridad de la carpeta de mods.",
+            "confirmReplaceLabel": "Entiendo que se reemplazarán versiones de mods instaladas",
+            "blockedTitle": "Este modpack todavía no está listo",
+            "blockedHelp": "Instala los mods que faltan y vuelve a revisar el modpack.",
+            "snapshotTitle": "Protegido antes de aplicar",
+            "snapshotHelp": "Hostkind crea y verifica una copia de seguridad antes de modificar la carpeta de mods.",
+            "restartTitle": "Requiere reinicio",
+            "restartHelp": "tModLoader aplicará el nuevo conjunto la próxima vez que arranque.",
+            "summary": {
+              "added": "Añadidos",
+              "replaced": "Reemplazados",
+              "missing": "Faltan",
+              "removed": "Quitados",
+              "enabled": "Habilitados",
+              "disabled": "Deshabilitados",
+              "changed": "Cambiados"
+            },
+            "change": {
+              "add": "Añadir",
+              "replace": "Reemplazar",
+              "missing": "Falta",
+              "remove": "Quitar",
+              "enable": "Habilitar",
+              "disable": "Deshabilitar"
+            },
+            "confirmImport": "Importar mods",
+            "confirmImportReplace": "Importar y reemplazar",
+            "confirmPack": "Aplicar modpack",
+            "confirmRemove": "Mover a cuarentena",
+            "confirmEnable": "Habilitar mod",
+            "confirmDisable": "Deshabilitar mod"
+          },
           "preview": {
             "enable": "Habilitar mod",
             "disable": "Deshabilitar mod",

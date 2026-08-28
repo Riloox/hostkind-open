@@ -20,6 +20,7 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { SettingsDialog } from '@/components/shared/SettingsDialog';
 import { BugReportButton } from '@/components/shared/BugReportButton';
 import { OnboardingTour } from '@/components/shared/OnboardingTour';
+import { ChangelogDialog } from '@/components/shared/ChangelogDialog';
 import { DashboardView } from '@/views/DashboardView';
 import { ServersView } from '@/views/ServersView';
 import { HealthView } from '@/views/HealthView';
@@ -233,16 +234,22 @@ function markTourSeen(userId, game) {
   }
 }
 
-// --- What's-new version tracking (idea 13) ---
-function tourVersionKey() {
+// --- Changelog version tracking ---
+function changelogVersionKey() {
+  return 'fleetdeck_changelog_version';
+}
+
+// Keep reading the pre-dialog marker so an existing install does not lose its
+// update history when the touring what's-new experience is replaced.
+function legacyTourVersionKey() {
   return 'fleetdeck_tour_version';
 }
 
 // Desktop launches can use a different loopback port each time. Cookies are
 // host-scoped, unlike localStorage, so keep the version there as well; the
 // localStorage fallback preserves state from older browser installs.
-function readTourVersionCookie() {
-  const prefix = `${tourVersionKey()}=`;
+function readVersionCookie(key) {
+  const prefix = `${key}=`;
   try {
     const entry = document.cookie.split(';').map((part) => part.trim()).find((part) => part.startsWith(prefix));
     return entry ? decodeURIComponent(entry.slice(prefix.length)) || null : null;
@@ -251,19 +258,27 @@ function readTourVersionCookie() {
   }
 }
 
-function readTourVersion() {
-  const cookieVersion = readTourVersionCookie();
-  if (cookieVersion) return cookieVersion;
-  try { return localStorage.getItem(tourVersionKey()) || null; } catch (_) { return null; }
+function readChangelogVersion() {
+  for (const key of [changelogVersionKey(), legacyTourVersionKey()]) {
+    const cookieVersion = readVersionCookie(key);
+    if (cookieVersion) return cookieVersion;
+    try {
+      const storageVersion = localStorage.getItem(key);
+      if (storageVersion) return storageVersion;
+    } catch (_) {}
+  }
+  return null;
 }
 
-function writeTourVersion(v) {
+function writeChangelogVersion(v) {
   const value = String(v || '');
-  try { localStorage.setItem(tourVersionKey(), value); } catch (_) {}
-  try {
-    const secure = window.location.protocol === 'https:' ? '; Secure' : '';
-    document.cookie = `${tourVersionKey()}=${encodeURIComponent(value)}; Path=/; Max-Age=31536000; SameSite=Lax${secure}`;
-  } catch (_) {}
+  const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+  for (const key of [changelogVersionKey(), legacyTourVersionKey()]) {
+    try { localStorage.setItem(key, value); } catch (_) {}
+    try {
+      document.cookie = `${key}=${encodeURIComponent(value)}; Path=/; Max-Age=31536000; SameSite=Lax${secure}`;
+    } catch (_) {}
+  }
 }
 
 // Current build version injected by Vite's define (guarded for SSR/build contexts).
@@ -285,8 +300,9 @@ function markDismissed(serverId) {
 
 // Anything layered over the workbench that already answers to Escape: Radix
 // dialogs, dropdown menus and selects, the server selector's own panel, and the
-// onboarding tour. All of them are mounted only while open, so finding one in
-// the document is the same as knowing something is over the desk.
+// onboarding tour and changelog dialog. All of them are mounted only while
+// open, so finding one in the document is the same as knowing something is over
+// the desk.
 const OPEN_OVERLAY = '[role="dialog"],[role="menu"],[role="listbox"]';
 
 function AppShell({ onLoggedIn }) {
@@ -363,30 +379,33 @@ function AppShell({ onLoggedIn }) {
   const [confirmRestart, setConfirmRestart] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
-  const [tourVariant, setTourVariant] = useState('full');
+  const [changelogOpen, setChangelogOpen] = useState(false);
   const awaitingFirstStart = useRef(false);
 
 
   // Open only after entering a game, once for each user/game pair.
-  // Existing users who already completed the full tour see a condensed
-  // "what's new" variant when the app version changes (idea 13).
+  // Existing users who already completed the full tour see the changelog once
+  // when the app version changes.
   useEffect(() => {
     if (!user?.id || showGames || !GAME_IDS.has(currentGame)) {
       setTourOpen(false);
+      setChangelogOpen(false);
       return;
     }
     const seen = hasSeenTour(user.id, currentGame);
     const appVer = currentAppVersion();
     if (!seen) {
-      // First-time user: full tour, variant resets to 'full'.
-      setTourVariant('full');
+      // First-time user: show the full tour, never the changelog.
+      setChangelogOpen(false);
       setTourOpen(true);
-    } else if (appVer && readTourVersion() !== appVer) {
-      // Existing user, new version: show condensed what's-new variant.
+    } else if (appVer && readChangelogVersion() !== appVer) {
+      // Existing user, new version: show the complete changelog in one dialog.
       // Store version immediately so it won't re-open on every mount.
-      writeTourVersion(appVer);
-      setTourVariant('whatsnew');
-      setTourOpen(true);
+      writeChangelogVersion(appVer);
+      setTourOpen(false);
+      setChangelogOpen(true);
+    } else {
+      setChangelogOpen(false);
     }
   }, [user?.id, currentGame, showGames]);
 
@@ -401,7 +420,7 @@ function AppShell({ onLoggedIn }) {
     if (showGames) return undefined;
     const onKey = (event) => {
       if (event.key !== 'Escape' || event.defaultPrevented) return;
-      if (settingsOpen || tourOpen || firstStart.open || confirmRestart) return;
+      if (settingsOpen || tourOpen || changelogOpen || firstStart.open || confirmRestart) return;
       const active = document.activeElement;
       if (active?.tagName === 'INPUT' || active?.tagName === 'TEXTAREA' || active?.isContentEditable) return;
       if (document.querySelector(OPEN_OVERLAY)) return;
@@ -410,26 +429,24 @@ function AppShell({ onLoggedIn }) {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [showGames, settingsOpen, tourOpen, firstStart.open, confirmRestart, showAllGames]);
+  }, [showGames, settingsOpen, tourOpen, changelogOpen, firstStart.open, confirmRestart, showAllGames]);
 
   function startTour() {
     setSettingsOpen(false);
+    setChangelogOpen(false);
     // Defer so the settings dialog's closing transition doesn't overlap the
     // spotlight measurement of the profile button underneath it.
     requestAnimationFrame(() => {
-      setTourVariant('full');
       setTourOpen(true);
     });
   }
 
   function closeTour() {
     if (user?.id) markTourSeen(user.id, currentGame);
-    // Store the app version when the full tour completes, so whatsnew
-    // detection can compare it on next boot (idea 13).
-    if (tourVariant === 'full') {
-      const appVer = currentAppVersion();
-      if (appVer) writeTourVersion(appVer);
-    }
+    // Store the app version when the full tour completes, so the changelog
+    // detector starts from the version the user has actually seen.
+    const appVer = currentAppVersion();
+    if (appVer) writeChangelogVersion(appVer);
     setTourOpen(false);
   }
 
@@ -456,14 +473,14 @@ function AppShell({ onLoggedIn }) {
             step: d.step ?? null,
             total: d.total ?? null,
             game: d.game || currentGame || null,
-            variant: d.variant || tourVariant || 'full',
+            variant: d.variant || 'full',
           }),
         }).catch(() => {});
       } catch (_) { /* recording failure must never break the tour */ }
     }
     window.addEventListener('fleetdeck:tour', onTourEvent);
     return () => window.removeEventListener('fleetdeck:tour', onTourEvent);
-  }, [user?.id, currentGame, tourVariant]);
+  }, [user?.id, currentGame]);
 
   // Central navigation entry point. Applies the no-server, admin, and
   // first-start guards, then shows the view and updates the URL.
@@ -806,7 +823,12 @@ function AppShell({ onLoggedIn }) {
         onStartNow={startFromFirstStart}
         onContinueAnyway={continueFromFirstStart}
       />
-      <OnboardingTour open={tourOpen && !showGames} onClose={closeTour} gameId={currentGame} variant={tourVariant} />
+      <OnboardingTour open={tourOpen && !showGames} onClose={closeTour} gameId={currentGame} />
+      <ChangelogDialog
+        open={changelogOpen && !showGames}
+        onOpenChange={setChangelogOpen}
+        version={currentAppVersion()}
+      />
       <ConfirmDialog
         open={confirmRestart}
         onOpenChange={setConfirmRestart}

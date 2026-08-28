@@ -1387,7 +1387,16 @@ app.use(helmet({
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", 'data:', 'blob:', 'https://cdn.modrinth.com', 'https://minotar.net'],
+      // Steam Workshop thumbnails are served from these Valve-owned image CDNs.
+      // Keep the allowlist host-specific rather than permitting arbitrary remote images.
+      imgSrc: [
+        "'self'", 'data:', 'blob:',
+        'https://cdn.modrinth.com',
+        'https://images.steamusercontent.com',
+        'https://steamuserimages-a.akamaihd.net',
+        'https://shared.fastly.steamstatic.com',
+        'https://minotar.net'
+      ],
       fontSrc: ["'self'", 'data:'],
       connectSrc: ["'self'", 'ws:', 'wss:'],
       objectSrc: ["'none'"],
@@ -1986,6 +1995,53 @@ app.get('/api/terraria/versions', async (req, res) => {
     res.json({ ok: true, ...list });
   } catch (error) {
     sendTerrariaError(res, error);
+  }
+});
+
+function terrariaPlayersTarget(req, res) {
+  const manager = targetManager(req);
+  const desc = manager && manager.desc();
+  if (!manager || !desc || desc.type !== 'terraria') {
+    res.status(404).json({ error: 'Terraria players are not available for this server.', code: 'not_supported' });
+    return null;
+  }
+  // TShock has its own REST-backed player surface and must not be mixed with
+  // the vanilla console roster or its action semantics.
+  if (String(desc.terrariaVariant || '').toLowerCase() === 'tshock') {
+    res.status(404).json({ error: 'Use the TShock player surface for this server.', code: 'not_supported' });
+    return null;
+  }
+  return manager;
+}
+
+app.get('/api/terraria/players', (req, res) => {
+  const manager = terrariaPlayersTarget(req, res);
+  if (!manager) return;
+  try {
+    const terraria = manager.module();
+    const fields = terraria.statusFields(manager);
+    const players = typeof terraria.listPlayers === 'function' ? terraria.listPlayers(manager) : [];
+    res.json({
+      ok: true,
+      players: players.map((player) => ({ ...player, characterImage: null })),
+      maxPlayers: Number(fields.maxPlayers) || 0,
+      source: 'console',
+      characterImageAvailable: false,
+    });
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message, code: error.code || 'invalid_action' });
+  }
+});
+
+app.post('/api/terraria/players/:action', (req, res) => {
+  const manager = terrariaPlayersTarget(req, res);
+  if (!manager) return;
+  const target = req.body?.target;
+  try {
+    const result = manager.module().playerAction(manager, req.params.action, target);
+    res.json(result);
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message, code: error.code || 'invalid_action' });
   }
 });
 

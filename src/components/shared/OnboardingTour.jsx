@@ -30,14 +30,6 @@ function allStepsFor(gameId) {
   ];
 }
 
-// Idea 13: condensed "what's new" variant for returning users. Three steps
-// keep it brisk: centred welcome, spotlight on header, centred done card.
-const WHATS_NEW_STEPS = [
-  { target: null, titleKey: 'tour.whatsnew.title', bodyKey: 'tour.whatsnew.body' },
-  { target: 'header', titleKey: 'tour.whatsnew.title', bodyKey: 'tour.whatsnew.body' },
-  { target: null, titleKey: 'tour.whatsnew.done.title', bodyKey: 'tour.whatsnew.done.body' },
-];
-
 const CARD_WIDTH = 425;
 const VIEWPORT_GUTTER = 12;
 const TARGET_PADDING = 8;
@@ -87,18 +79,16 @@ function dispatchTourEvent(type, { step, total, game, variant }) {
   } catch { /* listener errors must not break the tour */ }
 }
 
-export function OnboardingTour({ open, onClose, gameId, variant = 'full' }) {
+export function OnboardingTour({ open, onClose, gameId }) {
   const t = useT();
   const game = GAME_STATIONS[gameId] ? gameId : 'custom';
   const gameName = t(`games.${game}`);
+  const variant = 'full';
 
   // Idea 3: compute effective steps once per open. Skip steps whose
   // data-tour target is absent from the DOM — except the first (welcome)
   // and last (done) which always render as centred cards.
-  const allSteps = useMemo(() => {
-    if (variant === 'whatsnew') return WHATS_NEW_STEPS;
-    return allStepsFor(game);
-  }, [game, variant]);
+  const allSteps = useMemo(() => allStepsFor(game), [game]);
 
   const steps = useMemo(() => {
     return allSteps.filter((step, i) => {
@@ -386,7 +376,7 @@ export function OnboardingTour({ open, onClose, gameId, variant = 'full' }) {
         <div className="mb-1 flex items-center justify-between">
           <div className="flex items-center gap-2">
             {/* Idea 17: game icon accent in the card header */}
-            {gameId && variant === 'full' && (
+            {gameId && (
               <GameLogo
                 gameId={gameId}
                 className="h-4 w-auto max-w-5 shrink-0"

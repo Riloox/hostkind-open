@@ -704,37 +704,38 @@ test.describe('onboarding tour', () => {
     await expect(tour).toBeHidden();
   });
 
-  test("shows a condensed what's-new tour to returning users", async ({ page, app }) => {
+  test('shows a rendered changelog popup once after an update', async ({ page, app }) => {
     // signInFast marks the tour as seen for every game and plants the current
-    // build version. Overwrite that with a stale version once, on the first
-    // navigation only: that is what an upgrade looks like - the tour was
-    // seen, but the stored version predates the build, so the app opens the
-    // what's-new variant instead of the full tour. (addInitScript runs on
-    // every navigation, so guard it with a sessionStorage flag; a second
-    // navigation must look like a normal post-upgrade visit.)
+    // changelog version. Overwrite that with a stale version once, on the first
+    // navigation only: that is what an upgrade looks like - the tour was seen,
+    // but the stored version predates the build, so the app opens the
+    // changelog popup instead. (addInitScript runs on every navigation, so
+    // guard it with a sessionStorage flag; a second navigation must look like
+    // a normal post-upgrade visit.)
     await signInFast(page, app);
     await page.addInitScript(() => {
-      if (sessionStorage.getItem('tour_stale_planted')) return;
-      sessionStorage.setItem('tour_stale_planted', '1');
-      window.localStorage.setItem('fleetdeck_tour_version', '0.0.0');
+      if (sessionStorage.getItem('changelog_stale_planted')) return;
+      sessionStorage.setItem('changelog_stale_planted', '1');
+      window.localStorage.setItem('fleetdeck_changelog_version', '0.0.0');
     });
     await page.goto(`${app.url}/games/minecraft/dashboard`);
 
-    const tour = appShell(page).tour;
-    await expect(tour).toBeVisible();
-    await expect(tour).toContainText(en('tour.whatsnew.title'));
-    // Not the full welcome card.
-    await expect(tour).not.toContainText(en('tour.welcome.title'));
+    const changelog = appShell(page).changelog;
+    await expect(changelog).toBeVisible();
+    await expect(changelog.getByRole('heading', { name: en('whatsNew.title'), exact: true })).toBeVisible();
+    await expect(changelog).toContainText('Changelog');
+    await expect(changelog).toContainText('Windows desktop support');
+    await expect(appShell(page).tour).toBeHidden();
 
     // Once seen, it does not re-open on the next visit.
-    await page.keyboard.press('Escape');
-    await expect(tour).toBeHidden();
+    await changelog.getByRole('button', { name: en('common.close'), exact: true }).first().click();
+    await expect(changelog).toBeHidden();
     await page.goto(`${app.url}/games/minecraft/dashboard`);
     await expect(appShell(page).header).toBeVisible();
-    await expect(tour).toBeHidden();
+    await expect(changelog).toBeHidden();
   });
 
-  test("does not show what's-new again when the desktop port changes", async ({ page, newApp }) => {
+  test('does not show the changelog again when the desktop port changes', async ({ page, newApp }) => {
     // Desktop launches choose a fresh loopback port. Browser localStorage is
     // origin-scoped (and therefore port-scoped), while cookies are not. A
     // completed tour must remain dismissed across that boundary.
@@ -763,6 +764,7 @@ test.describe('onboarding tour', () => {
     await page.goto(`${second.url}/games/minecraft/dashboard`);
     await expect(appShell(page).header).toBeVisible();
     await expect(tour).toBeHidden();
+    await expect(appShell(page).changelog).toBeHidden();
   });
 });
 
