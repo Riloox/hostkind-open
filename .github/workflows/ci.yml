@@ -92,6 +92,13 @@ jobs:
       - name: Desktop source smoke test
         run: npm run desktop:smoke
 
+      - name: Rebuild better-sqlite3 for Node 22 tests
+        env:
+          npm_config_runtime: node
+        run: |
+          npm rebuild better-sqlite3 --foreground-scripts
+          node -e "require('better-sqlite3'); console.log('better-sqlite3 loaded for Node ' + process.versions.modules)"
+
       - name: Install Chromium
         run: npx playwright install chromium
 
