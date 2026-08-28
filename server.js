@@ -77,6 +77,11 @@ const healthRouter = require('./lib/routes/health.cjs');
 const worlds = require('./lib/worlds.cjs');
 const worldsRouter = require('./lib/routes/worlds.cjs');
 const templatesRouter = require('./lib/routes/templates.cjs');
+const productRouter = require('./lib/routes/product.cjs');
+const productStore = require('./lib/product-store.cjs');
+const applicationUpdateRouter = require('./lib/routes/application-update.cjs');
+const { createApplicationUpdateRuntime } = require('./lib/application-update-runtime.cjs');
+const { isPublicApiPath } = require('./lib/api-public.cjs');
 const { createRegistry } = require('./lib/modules/registry.cjs');
 const { createModuleGate } = require('./lib/modules/gating.cjs');
 const { validateManualRegistration } = require('./lib/modules/registration.cjs');
@@ -106,7 +111,6 @@ const palworldPlatform = require('./lib/palworld-platform.cjs');
 const palworldPortability = require('./lib/palworld-portability.cjs');
 const palworldConnectivity = require('./lib/palworld-connectivity.cjs');
 const minecraftPortabilityRouter = require('./lib/routes/minecraft-portability.cjs');
-const serverPresentation = require('./lib/serverPresentation.cjs');
 const trash = require('./lib/trash.cjs');
 const pathSafety = require('./lib/pathSafety.cjs');
 const automation = require('./lib/palworld-automation.cjs');
@@ -220,6 +224,13 @@ function loadConfig() {
 }
 
 let config = loadConfig();
+
+// The updater is deliberately constructed without checking the network. In a
+// source checkout it exposes a deterministic unsupported status; a packaged
+// Hostkind binary composes the signed release client and external bootstrapper.
+const applicationUpdateRuntime = createApplicationUpdateRuntime({ currentVersion: PANEL_VERSION });
+const applicationUpdater = applicationUpdateRuntime.service;
+const applicationUpdateScheduler = applicationUpdateRuntime.scheduler || null;
 
 function saveConfig(next) {
   config = next;
@@ -1376,7 +1387,7 @@ app.use(helmet({
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", 'data:', 'blob:'],
+      imgSrc: ["'self'", 'data:', 'blob:', 'https://cdn.modrinth.com', 'https://minotar.net'],
       fontSrc: ["'self'", 'data:'],
       connectSrc: ["'self'", 'ws:', 'wss:'],
       objectSrc: ["'none'"],
@@ -1719,7 +1730,7 @@ app.get('/api/auth-mode', (req, res) => {
 
 // Everything else under /api requires a token
 app.use('/api', (req, res, next) => {
-  if (req.path === '/login' || req.path === '/auth-mode') return next();
+  if (isPublicApiPath(req.path)) return next();
   return authMiddleware(req, res, next);
 });
 
@@ -1755,9 +1766,13 @@ function capabilityForRequest(req) {
   // Minting a machine principal is the same trust level as creating an account,
   // so it rides the same global capability rather than inventing a new one.
   if (/^\/api-keys(?:\/|$)/.test(p)) return foundationCapabilities.CAPABILITIES.USERS_MANAGE;
+  if (p === '/product/pairing/consume') return null;
+  // Product validation and BYOC-beta controls are global administrative surfaces.
+  // They remain behind the existing session/auth middleware and reuse the
+  // established account-management capability rather than inventing a second
+  // trust boundary.
+  if (/^\/product(?:\/|$)/.test(p)) return foundationCapabilities.CAPABILITIES.USERS_MANAGE;
   if (/^\/servers\/[^/]+\/clone(?:-preview)?$/.test(p)) return foundationCapabilities.CAPABILITIES.SERVER_MANAGE;
-  // Panel presentation is per-server cosmetics, not server registration.
-  if (/^\/servers\/[^/]+\/presentation(?:\/|$)/.test(p)) return method === 'GET' ? CAPABILITIES.SERVER_VIEW : CAPABILITIES.SERVER_MANAGE;
   // Recoverable deletion: listing trash is a read, restoring or purging is not.
   if (/^\/trash(?:\/|$)/.test(p)) return method === 'GET' ? CAPABILITIES.FILES_VIEW : CAPABILITIES.SERVER_MANAGE;
   if (/^\/portability(?:\/|$)/.test(p)) return foundationCapabilities.CAPABILITIES.SERVER_REGISTER;
@@ -1837,6 +1852,11 @@ app.use('/api', (req, res, next) => {
   }
   next();
 });
+
+// Application updates are global panel administration. Mount after the shared
+// audit middleware so every mutation gets the same audit treatment as the rest
+// of the authenticated API.
+app.use('/api', applicationUpdateRouter({ service: applicationUpdater }));
 
 app.get('/api/modules', (req, res) => {
   res.json({ modules: moduleRegistry.list() });
@@ -3583,6 +3603,20 @@ const templateDeps = {
 app.use('/api/templates', templatesRouter.router(templateDeps));
 app.use('/api/servers', templatesRouter.cloneRouter(templateDeps));
 
+// Edge product foundation: portable manifests, lifecycle depth, provider-neutral
+// BYOC targets, one-time pairing, and privacy-safe beta validation events. The
+// router is authenticated by the /api middleware above and uses the durable
+// store backed by migration 15.
+app.use('/api/product', productRouter({
+  findServer,
+  listModules: () => moduleRegistry.list().map((entry) => ({
+    id: entry.id,
+    module: moduleRegistry.get(entry.id),
+    descriptor: { type: entry.type, capabilities: entry.capabilities },
+  })),
+  store: productStore,
+}));
+
 // Foundation status: lightweight endpoint that reports the database path,
 // applied migrations, and aggregate row counts. Useful for diagnosing
 // "did the foundation actually boot?" without scraping logs.
@@ -4365,7 +4399,6 @@ app.delete('/api/servers/:id', requireAdmin, (req, res) => {
     config.activeServerId = config.servers.length ? config.servers[0].id : null;
   }
   saveConfig(config);
-  try { serverPresentation.reset(s.id); } catch (err) { log('presentation: cleanup failed for', s.id, err.message); }
   const filesDeleted = !!trashed;
   foundationAudit.record({
     actorId: req.user.id,
@@ -4448,57 +4481,6 @@ app.delete('/api/trash/:id', requireAdmin, (req, res) => {
       metadata: { label: entry?.label || null, permanent: true },
     });
     res.json(result);
-  } catch (error) { sendPortabilityError(res, error); }
-});
-
-// --- Panel-only server presentation ----------------------------------------
-
-const presentationUpload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 6 * 1024 * 1024, files: 1 },
-});
-
-app.get('/api/servers/:id/presentation', (req, res) => {
-  const s = findServer(req.params.id);
-  if (!s) return res.status(404).json({ error: tErr(req.user, 'errors.serverNotFound') });
-  res.json(serverPresentation.get(s.id));
-});
-
-app.get('/api/servers/:id/presentation/:kind/image', (req, res) => {
-  const s = findServer(req.params.id);
-  if (!s) return res.status(404).json({ error: tErr(req.user, 'errors.serverNotFound') });
-  try {
-    const asset = serverPresentation.assetFile(s.id, req.params.kind);
-    res.type(asset.mime);
-    res.setHeader('Cache-Control', 'private, max-age=60');
-    res.sendFile(asset.file);
-  } catch (error) { sendPortabilityError(res, error); }
-});
-
-app.post('/api/servers/:id/presentation/:kind', requireAdmin, presentationUpload.single('image'), (req, res) => {
-  const s = findServer(req.params.id);
-  if (!s) return res.status(404).json({ error: tErr(req.user, 'errors.serverNotFound') });
-  if (!req.file) return res.status(400).json({ error: 'An image file is required.', code: 'empty_upload' });
-  try {
-    res.json(serverPresentation.setAsset({ serverId: s.id, kind: req.params.kind, buffer: req.file.buffer }));
-  } catch (error) { sendPortabilityError(res, error); }
-});
-
-app.delete('/api/servers/:id/presentation/:kind', requireAdmin, (req, res) => {
-  const s = findServer(req.params.id);
-  if (!s) return res.status(404).json({ error: tErr(req.user, 'errors.serverNotFound') });
-  try {
-    res.json(req.params.kind === 'all'
-      ? serverPresentation.reset(s.id)
-      : serverPresentation.clearAsset({ serverId: s.id, kind: req.params.kind }));
-  } catch (error) { sendPortabilityError(res, error); }
-});
-
-app.put('/api/servers/:id/presentation/accent', requireAdmin, (req, res) => {
-  const s = findServer(req.params.id);
-  if (!s) return res.status(404).json({ error: tErr(req.user, 'errors.serverNotFound') });
-  try {
-    res.json(serverPresentation.setAccent({ serverId: s.id, accent: req.body?.accent }));
   } catch (error) { sendPortabilityError(res, error); }
 });
 
@@ -8385,6 +8367,7 @@ if (require.main === module) {
   server.listen(config.panelPort, config.panelHost, () => {
     log(`${config.appName} listening on http://${config.panelHost}:${config.panelPort}`);
     log(`Registered servers: ${config.servers.length}`);
+    if (applicationUpdateScheduler) applicationUpdateScheduler.start({ runImmediately: true });
     logDefaultCredentials();
   });
 
@@ -8393,6 +8376,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+  app,
   requiredJavaMajor,
   resolveManagedJava,
   resolveJavaForServer,

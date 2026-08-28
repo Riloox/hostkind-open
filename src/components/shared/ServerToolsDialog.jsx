@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { AlertTriangle, Check, ChevronDown, Copy, Download, Image as ImageIcon, Info, Radio, RefreshCw, Trash2, Upload, X } from 'lucide-react';
+import { AlertTriangle, Check, ChevronDown, Copy, Download, Info, Radio, RefreshCw } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -10,12 +10,12 @@ import { Badge } from '@/components/ui/badge';
 import { Alert } from '@/components/ui/alert';
 import { NativeSelect } from '@/components/ui/native-select';
 import { StatusPill } from '@/components/shared/StatusPill';
-import { AccentField } from '@/components/shared/AccentField';
+
 import { useApi } from '@/hooks/useApi';
 import { useAuth } from '@/context/AuthContext';
 import { useServer } from '@/context/ServerContext';
 import { useT } from '@/context/I18nContext';
-import { cn, fmtBytes, fmtBytesRaw } from '@/lib/utils';
+import { cn, fmtBytes } from '@/lib/utils';
 
 // How Hostkind knows each connectivity fact. The badge tone is the whole
 // point of the panel: an operator must be able to tell a measurement from an
@@ -361,209 +361,25 @@ function ProfileTab({ server }) {
   );
 }
 
-// A transparent icon on a flat dark panel reads as "the upload lost its
-// edges". The checker says the transparency is the image's, not a rendering
-// bug, without needing an asset.
-const CHECKER = {
-  backgroundImage:
-    'linear-gradient(45deg, hsl(0 0% 100% / 0.04) 25%, transparent 25%, transparent 75%, hsl(0 0% 100% / 0.04) 75%),'
-    + 'linear-gradient(45deg, hsl(0 0% 100% / 0.04) 25%, transparent 25%, transparent 75%, hsl(0 0% 100% / 0.04) 75%)',
-  backgroundSize: '12px 12px',
-  backgroundPosition: '0 0, 6px 6px',
-};
-
-// The tile is the control: it is the drop target, the file picker, and the
-// preview of what is already stored. A bare "Choose image" button showed the
-// operator nothing about the asset they had just uploaded.
-function AssetTile({ kind, asset, src, busy, onFile, onClear }) {
-  const t = useT();
-  const inputRef = useRef(null);
-  const [dragging, setDragging] = useState(false);
-  const wide = kind === 'banner';
-
-  function drop(event) {
-    event.preventDefault();
-    setDragging(false);
-    onFile(event.dataTransfer.files?.[0]);
-  }
-
-  return (
-    <div className="space-y-1.5" data-asset={kind}>
-      <div className="flex items-center justify-between gap-2">
-        <Label>{t(`portability.${kind}`)}</Label>
-        {asset && (
-          <Button variant="ghost" size="xs" disabled={busy} onClick={onClear}>
-            <X className="h-3.5 w-3.5" />{t('common.remove')}
-          </Button>
-        )}
-      </div>
-      <div className={cn('flex gap-3', wide ? 'flex-col' : 'items-center')}>
-        <input
-          ref={inputRef}
-          className="hidden"
-          type="file"
-          accept="image/png,image/jpeg,image/webp"
-          onChange={(e) => { onFile(e.target.files?.[0]); e.target.value = ''; }}
-        />
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => inputRef.current?.click()}
-          onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-          onDragLeave={() => setDragging(false)}
-          onDrop={drop}
-          aria-label={t('portability.chooseImage')}
-          className={cn(
-            'group relative flex shrink-0 items-center justify-center overflow-hidden rounded-sm border-2 border-dashed border-border',
-            'text-muted-foreground transition-[border-color,background-color,color]',
-            'hover:border-primary/60 hover:bg-primary/5 hover:text-primary',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-            'disabled:pointer-events-none disabled:opacity-50',
-            asset && 'border-solid bg-background',
-            dragging && 'border-primary bg-primary/10 text-primary',
-            wide ? 'h-24 w-full' : 'h-20 w-20',
-          )}
-        >
-          {asset ? (
-            <>
-              <img alt="" src={src} style={CHECKER} className="h-full w-auto max-w-full object-contain" />
-              <span className={cn(
-                'absolute inset-0 flex items-center justify-center gap-1.5 bg-background/85 text-label font-bold uppercase tracking-wider text-primary',
-                'opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100',
-              )}>
-                <Upload className="h-3.5 w-3.5" />{t('portability.replaceImage')}
-              </span>
-            </>
-          ) : (
-            <span className="flex flex-col items-center gap-1.5 px-2 text-center">
-              <ImageIcon className="h-5 w-5" aria-hidden="true" />
-              {/* The square is too narrow to hold the words without wrapping
-                  them to three lines; the tile's aria-label still carries it. */}
-              {wide && <span className="text-label font-bold uppercase tracking-wider">{t('portability.chooseImage')}</span>}
-            </span>
-          )}
-        </button>
-        <div className={cn('min-w-0 space-y-0.5', wide ? '' : 'flex-1')}>
-          <p className="text-label leading-snug text-muted-foreground">{t(`portability.${kind}Hint`)}</p>
-          <p className="text-label leading-snug text-muted-foreground/70">
-            {asset
-              ? `${asset.width}×${asset.height} · ${fmtBytesRaw(asset.bytes)} · ${t('portability.metadataStripped')}`
-              : t('portability.imageDropHint')}
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function PresentationTab({ server }) {
-  const api = useApi();
-  const t = useT();
-  const { token } = useAuth();
-  const [state, setState] = useState(null);
-  const [busy, setBusy] = useState(false);
-  const [version, setVersion] = useState(0);
-
-  const load = useCallback(async () => {
-    try { setState(await api(`/api/servers/${server.id}/presentation`)); }
-    catch (error) { toast.error(error.message); }
-  }, [api, server.id]);
-
-  useEffect(() => { load(); }, [load]);
-
-  async function upload(kind, file) {
-    if (!file) return;
-    setBusy(true);
-    try {
-      const body = new FormData();
-      body.append('image', file);
-      setState(await api(`/api/servers/${server.id}/presentation/${kind}`, { method: 'POST', body }));
-      setVersion((value) => value + 1);
-      toast.success(t('portability.presentationSaved'));
-    } catch (error) { toast.error(error.message); }
-    finally { setBusy(false); }
-  }
-
-  async function clear(kind) {
-    setBusy(true);
-    try {
-      setState(await api(`/api/servers/${server.id}/presentation/${kind}`, { method: 'DELETE' }));
-      setVersion((value) => value + 1);
-    } catch (error) { toast.error(error.message); }
-    finally { setBusy(false); }
-  }
-
-  const saveAccent = useCallback(async (accent) => {
-    setBusy(true);
-    try { setState(await api(`/api/servers/${server.id}/presentation/accent`, { method: 'PUT', body: { accent } })); }
-    catch (error) { toast.error(error.message); }
-    finally { setBusy(false); }
-  }, [api, server.id]);
-
-  if (!state) return <p className="text-xs text-muted-foreground">{t('common.loading')}</p>;
-
-  const pristine = !state.icon && !state.banner && !state.accent;
-
-  return (
-    <div className="space-y-5">
-      <Alert variant="info">
-        <Info className="mt-px h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-        <span>{t('portability.presentationScope')}</span>
-      </Alert>
-
-      {/* Stacked, not side by side: a banner squeezed into half the dialog
-          previews at an aspect nothing will ever render it at. */}
-      <div className="space-y-5">
-        {['icon', 'banner'].map((kind) => (
-          <AssetTile
-            key={kind}
-            kind={kind}
-            asset={state[kind]}
-            busy={busy}
-            src={`/api/servers/${server.id}/presentation/${kind}/image?token=${encodeURIComponent(token)}&v=${version}`}
-            onFile={(file) => upload(kind, file)}
-            onClear={() => clear(kind)}
-          />
-        ))}
-      </div>
-
-      <AccentField accent={state.accent} busy={busy} onChange={saveAccent} />
-
-      <div className="flex justify-end border-t border-border pt-3">
-        <Button variant="ghost" size="sm" disabled={busy || pristine} onClick={() => clear('all')}>
-          <Trash2 className="h-3.5 w-3.5" />{t('portability.resetPresentation')}
-        </Button>
-      </div>
-    </div>
-  );
-}
-
 export function ServerToolsDialog({ open, onOpenChange, server }) {
   const t = useT();
-  const isPalworld = server?.type === 'palworld';
-  const [tab, setTab] = useState(isPalworld ? 'connectivity' : 'presentation');
+  const [tab, setTab] = useState('connectivity');
 
-  useEffect(() => { setTab(isPalworld ? 'connectivity' : 'presentation'); }, [isPalworld, server?.id]);
+  useEffect(() => { setTab('connectivity'); }, [server?.id]);
 
-  if (!server) return null;
+  if (!server || server.type !== 'palworld') return null;
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader><DialogTitle>{t('portability.toolsTitle', { name: server.name })}</DialogTitle></DialogHeader>
         <DialogBody>
           <Tabs value={tab} onValueChange={setTab}>
-            {/* A tab strip with one tab is a control that cannot do anything:
-                every game but Palworld gets presentation on its own. */}
-            {isPalworld && (
-              <TabsList className="flex-wrap">
-                <TabsTrigger value="connectivity">{t('portability.tabConnectivity')}</TabsTrigger>
-                <TabsTrigger value="profile">{t('portability.tabProfile')}</TabsTrigger>
-                <TabsTrigger value="presentation">{t('portability.tabPresentation')}</TabsTrigger>
-              </TabsList>
-            )}
-            {isPalworld && <TabsContent value="connectivity"><ConnectivityTab server={server} /></TabsContent>}
-            {isPalworld && <TabsContent value="profile"><ProfileTab server={server} /></TabsContent>}
-            <TabsContent value="presentation" className={cn(!isPalworld && 'mt-0')}><PresentationTab server={server} /></TabsContent>
+            <TabsList className="flex-wrap">
+              <TabsTrigger value="connectivity">{t('portability.tabConnectivity')}</TabsTrigger>
+              <TabsTrigger value="profile">{t('portability.tabProfile')}</TabsTrigger>
+            </TabsList>
+            <TabsContent value="connectivity"><ConnectivityTab server={server} /></TabsContent>
+            <TabsContent value="profile"><ProfileTab server={server} /></TabsContent>
           </Tabs>
         </DialogBody>
         <DialogFooter>

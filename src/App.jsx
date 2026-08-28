@@ -238,12 +238,32 @@ function tourVersionKey() {
   return 'fleetdeck_tour_version';
 }
 
+// Desktop launches can use a different loopback port each time. Cookies are
+// host-scoped, unlike localStorage, so keep the version there as well; the
+// localStorage fallback preserves state from older browser installs.
+function readTourVersionCookie() {
+  const prefix = `${tourVersionKey()}=`;
+  try {
+    const entry = document.cookie.split(';').map((part) => part.trim()).find((part) => part.startsWith(prefix));
+    return entry ? decodeURIComponent(entry.slice(prefix.length)) || null : null;
+  } catch (_) {
+    return null;
+  }
+}
+
 function readTourVersion() {
+  const cookieVersion = readTourVersionCookie();
+  if (cookieVersion) return cookieVersion;
   try { return localStorage.getItem(tourVersionKey()) || null; } catch (_) { return null; }
 }
 
 function writeTourVersion(v) {
-  try { localStorage.setItem(tourVersionKey(), v || ''); } catch (_) {}
+  const value = String(v || '');
+  try { localStorage.setItem(tourVersionKey(), value); } catch (_) {}
+  try {
+    const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+    document.cookie = `${tourVersionKey()}=${encodeURIComponent(value)}; Path=/; Max-Age=31536000; SameSite=Lax${secure}`;
+  } catch (_) {}
 }
 
 // Current build version injected by Vite's define (guarded for SSR/build contexts).

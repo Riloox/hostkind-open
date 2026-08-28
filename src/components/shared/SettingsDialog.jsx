@@ -11,6 +11,7 @@ import { useI18n, useT } from '@/context/I18nContext';
 import { useAuth } from '@/context/AuthContext';
 import { useApi } from '@/hooks/useApi';
 import { AccentField } from '@/components/shared/AccentField';
+import { ApplicationUpdateSection } from '@/components/shared/ApplicationUpdate';
 import { GAMES } from '@/lib/games';
 import { cn } from '@/lib/utils';
 
@@ -323,6 +324,7 @@ export function SettingsDialog({ open, onOpenChange, onStartTour }) {
             {!isGuest && <PasswordSection />}
             {!isGuest && user?.role === 'admin' && <WatchdogSection />}
             {!isGuest && user?.role === 'admin' && <GameColorsSection />}
+            {!isGuest && user?.role === 'admin' && <ApplicationUpdateSection />}
 
             {/* Language */}
             <section>

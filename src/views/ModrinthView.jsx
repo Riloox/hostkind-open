@@ -16,7 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Search, Download, Check, FolderOpen, Package } from 'lucide-react';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { Loading } from '@/components/shared/Loading';
-import { showModpackProgressToast, settleModpackProgressToast } from '@/components/shared/ModpackProgressToast';
+import { showModpackProgressToast, dismissModpackProgressToast } from '@/components/shared/ModpackProgressToast';
 
 function ModrinthResults({ compat, projectType, onInstalled }) {
   const api = useApi();
@@ -216,7 +216,7 @@ function ModpacksInstallDialog({ open, onOpenChange, projectId, compat, onInstal
       }
       progressToast = showModpackProgressToast(t);
       const r = await api('/api/modrinth/modpack/install', { method: 'POST', body });
-      settleModpackProgressToast(progressToast, t);
+      dismissModpackProgressToast(progressToast);
       if (installMode === 'create') {
         toast.success(t('minecraft.modrinth.modpackCreated', { name: name || r.name }));
       } else {

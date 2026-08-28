@@ -5,47 +5,53 @@ All notable changes to Hostkind are documented here. This project follows
 
 ## [Unreleased]
 
+No entries yet.
+
+## [0.1.2] - 2026-08-27
+
+This release makes Hostkind easier to install, move, update, and recover.
+
 ### Added
 
-- **Per-game custom colours** (`config.gameAccents` + Settings > Game colours):
-  each game implementation (minecraft, terraria, valheim, palworld, custom) can
-  take its own accent colour, either set by hand in `config.json` (one hex per
-  game, blank or invalid keeps the built-in theme) or picked in an admin-only
-  Settings section that applies immediately, no restart. The colour's hue
-  drives the whole ramp (ember/coal/ink), gamut-fitted per rung, and the online
-  status signal is rotated away when a hue would collide with it.
+- **Windows desktop support**: a packaged desktop path and launcher make it
+  easier to run Hostkind locally, with clearer startup failures and logs.
+- **In-app updates**: administrators can check for a release, review its notes,
+  download it, and explicitly approve installation before Hostkind restarts.
+- **Portable server definitions**: server setup can be described for moving to
+  another machine without carrying over machine paths, credentials, tokens,
+  binaries, or real network bindings.
+- **Verified recovery checks**: restore drills compare the complete file list,
+  sizes, and checksums instead of relying on a partial success signal.
+- **Safer optional remote connections**: one-time pairing and lifecycle checks
+  provide a clearer foundation for connecting and managing remote targets.
 
-- **Upgrade-drill test** (`test/upgrade-drill.test.cjs`): automated proof
-  that a v0.1.0-schema database (migrations 1–12) upgrades cleanly to the
-  current version.  Covers idempotent no-op upgrade, pending-migration
-  upgrade with snapshot creation, rollback-on-failure recovery, and full
-  schema-completeness assertion.
+### Improved
+
+- **Minecraft onboarding**: adopting an existing installation now has a folder
+  picker as well as the direct path option.
+- **Modpack installs**: background installation progress can be dismissed
+  without cancelling the install.
+- **Health incidents**: crash history is easier to scan, with clearer timing,
+  evidence, backup context, suggested checks, and next actions.
+- **Game colours**: each supported game can have its own accent colour in
+  Settings, applied immediately without a restart.
+- **Onboarding**: completing the tour in one game keeps it completed across the
+  other games, while replay from Settings remains available.
+- **Modrinth content**: project icons are now allowed to load in the panel.
+- **Upgrades**: existing snapshots using the older name remain usable after an
+  upgrade.
 
 ### Changed
 
-- **Onboarding tour completion is shared across games**: the per-game
-  walkthroughs are near-identical, so finishing (or dismissing) the tour in
-  one game now marks it seen in every game — entering another game never
-  reopens it. Existing users who completed a game before this change are
-  still treated as seen (their old per-game flag counts for all). Replay
-  from Settings > Replay tour still works.
+- **Server Tools** now focuses on Palworld connectivity and profile controls.
+  The former panel presentation controls are no longer shipped.
 
-- **Snapshot prefix renamed** (`lib/migrations.cjs`): `takeSnapshot()` now
-  writes `fleetdeck-<stamp>.db` instead of `lodestone-<stamp>.db`.
-  `pruneSnapshots()` and `listSnapshots()` accept **both** prefixes so
-  existing installations with `lodestone-*.db` snapshots continue to work.
+### Security and reliability
 
-### Notes
-
-- v0.2 will also include **node-cron@4** upgrade and **Minecraft
-  portability** work (owned by other agents; details deferred to their
-  changelog entries).
-
-- **No migration 13 was added.**  A thorough audit of query paths in
-  `lib/` against hot tables (metric\_samples, health\_alerts, api\_keys,
-  crash\_groups, audit\_events, backup\_manifests, template\_versions)
-  found no underserved index or missing column.  The upgrade path is a
-  valid idempotent no-op.
+- Exported definitions, update metadata, pairing, and restore checks now apply
+  stricter validation and keep sensitive machine details out of portable data.
+- Release packaging, startup, migration, and Windows service paths have broader
+  automated coverage so a release is less likely to fail after installation.
 
 ## [0.1.0] — 2026-08-11
 

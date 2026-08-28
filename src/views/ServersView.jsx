@@ -18,7 +18,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Play, Square, RotateCcw, Star, Pencil, Trash2, FolderOpen, Plus, Server, Package, Search, LayoutTemplate, Download, Upload, Copy, Wrench, FolderInput, MoreHorizontal } from 'lucide-react';
 import { Loading } from '@/components/shared/Loading';
-import { showModpackProgressToast, settleModpackProgressToast } from '@/components/shared/ModpackProgressToast';
+import { showModpackProgressToast, dismissModpackProgressToast } from '@/components/shared/ModpackProgressToast';
 import { cn } from '@/lib/utils';
 import { SERVER_NAME_MAX_LENGTH } from '@/lib/limits';
 import { gameForServer } from '@/lib/games';
@@ -497,7 +497,7 @@ function CreateFromModpackModal({ open, onOpenChange, onCreated }) {
         method: 'POST',
         body: { versionId: preview.versionId, mode: 'create', name, parentDir },
       });
-      settleModpackProgressToast(progressToast, t);
+      dismissModpackProgressToast(progressToast);
       toast.success(t('minecraft.modrinth.modpackCreated', { name: name || r.name }));
       onOpenChange(false);
       onCreated?.();
@@ -979,7 +979,7 @@ export function ServersView({ onSetActive, onRefresh, onNavigate }) {
                             <Button variant="ghost" size="icon-xs" title={t('servers.btnSetActive')} disabled={isActive} onClick={() => action('active', s)}><Star className={cn('h-3.5 w-3.5', isActive && 'text-primary fill-primary')} /></Button>
                             {isAdmin && s.type !== 'custom' && <Button variant="ghost" size="icon-xs" title={t('servers.btnEdit')} onClick={() => { setEditServer(s); setRegisterOpen(true); }}><Pencil className="h-3.5 w-3.5" /></Button>}
                             {isAdmin && <Button variant="ghost" size="icon-xs" title={t('servers.cloneWithoutWorlds')} onClick={() => { setTemplateSource(s); setTemplatesOpen(true); }}><Copy className="h-3.5 w-3.5" /></Button>}
-                            {isAdmin && <Button variant="ghost" size="icon-xs" title={t('portability.serverTools')} onClick={() => setToolsServer(s)}><Wrench className="h-3.5 w-3.5" /></Button>}
+                            {isAdmin && s.type === 'palworld' && <Button variant="ghost" size="icon-xs" title={t('portability.serverTools')} onClick={() => setToolsServer(s)}><Wrench className="h-3.5 w-3.5" /></Button>}
                             {isAdmin && <Button variant="ghost" size="icon-xs" title={t('servers.btnRemove')} onClick={() => setConfirmDelete(s)}><Trash2 className="h-3.5 w-3.5 text-status-error" /></Button>}
                           </div>
                         </td>

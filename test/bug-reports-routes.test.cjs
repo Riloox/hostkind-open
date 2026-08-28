@@ -181,6 +181,7 @@ function makeHarness() {
   app.use(express.json({ limit: '64kb' }));
   app.use((req, res, next) => { req.user = state.user; next(); });
   app.use('/api', bugReportsRouter(deps));
+  app.post('/api/image-upload', (req, res) => res.status(201).json({ ok: true }));
   // Body-parser errors (e.g. the 64kb limit) answer JSON instead of express's
   // noisy HTML error page, so the 413 test output stays deterministic.
   app.use((err, req, res, next) => {
@@ -349,6 +350,27 @@ tests.push({ name: 'oversized optional fields -> 400 field_too_long', fn: async 
     assert.strictEqual((await res.json()).error, 'field_too_long');
   }
   assert.strictEqual(rows.size, before);
+}});
+
+tests.push({ name: 'large multipart POSTs for other API endpoints are not rejected by the bug-report guard', fn: async (h) => {
+  h.state.user = freshUser();
+  const boundary = 'hostkind-regression-boundary';
+  const crlf = String.fromCharCode(13, 10);
+  const body = [
+    `--${boundary}`,
+    'Content-Disposition: form-data; name="image"; filename="banner.png"',
+    'Content-Type: image/png',
+    '',
+    'x'.repeat(1024 * 128),
+    `--${boundary}--`,
+    '',
+  ].join(crlf);
+  const res = await fetch(`${h.base}/api/image-upload`, {
+    method: 'POST',
+    headers: { 'content-type': `multipart/form-data; boundary=${boundary}` },
+    body,
+  });
+  assert.strictEqual(res.status, 201, 'an unrelated large multipart POST must reach its own upload handler instead of the bug-report guard');
 }});
 
 tests.push({ name: 'raw body over the mount limit is rejected (413, harness-level)', fn: async (h) => {

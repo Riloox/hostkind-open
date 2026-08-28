@@ -1,6 +1,6 @@
 {
   "name": "hostkind-open",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Self-hosted web panel for managing servers and long-running processes",
   "license": "AGPL-3.0-only",
   "author": "Federico Prunell Alza",
@@ -8,19 +8,29 @@
     "type": "git",
     "url": "git+https://github.com/Riloox/hostkind-open.git"
   },
-  "main": "server.js",
+  "main": "electron/main.cjs",
   "type": "commonjs",
   "scripts": {
     "prestart": "node scripts/prestart.cjs",
     "start": "node server.js",
     "package": "node scripts/package.cjs",
+    "desktop:dev": "npm run build && npm run desktop:install-app-deps && electron electron/main.cjs",
+    "desktop:install-app-deps": "electron-rebuild --force --which-module better-sqlite3 --sequential",
+    "desktop:pack": "npm run build && npm run desktop:install-app-deps && electron-builder --config packaging/windows/electron-builder.cjs --win dir --publish never",
+    "desktop:dist": "npm run build && npm run desktop:install-app-deps && electron-builder --config packaging/windows/electron-builder.cjs --win nsis --publish never",
+    "desktop:smoke": "npm run desktop:install-app-deps && node scripts/desktop-smoke.cjs",
+    "desktop:smoke:packaged": "node scripts/desktop-smoke.cjs --packaged",
+    "desktop:smoke:packaged-asar": "node scripts/desktop-smoke.cjs --packaged-asar",
     "service:install": "node scripts/install-service.cjs",
     "service:uninstall": "node scripts/uninstall-service.cjs",
     "test:anti-slop": "node test/anti-slop-rules.test.cjs",
+    "test:modrinth-icons": "node test/modrinth-icons.test.cjs",
+    "test:windows-distribution": "node test/windows-distribution.test.cjs",
+    "test:application-updater": "node test/application-update-apply.test.cjs && node test/application-update-audit-wiring.test.cjs && node test/application-update-manifest.test.cjs && node test/application-update-runtime.test.cjs && node test/application-update-workflow.test.cjs && node test/application-updater-core.test.cjs && node test/application-updater-bootstrap.test.cjs && node test/application-update-routes.test.cjs && node test/application-update-service-wrappers.test.cjs",
     "test:tshock": "node test/terraria-tshock.test.cjs",
     "test:terraria-import": "node test/terraria-import.test.cjs",
     "test:valheim": "node test/valheim-module.test.cjs && node test/valheim-lifecycle.test.cjs && node test/valheim-registration.test.cjs && node test/valheim-install.test.cjs && node test/valheim-updates.test.cjs && node test/valheim-worlds.test.cjs && node test/valheim-worlds-routes.test.cjs",
-    "test": "node test/dedicated-server-installer.test.cjs && node test/game-modules.test.cjs && node test/terraria-module.test.cjs && node test/terraria-dotnet.test.cjs && node test/terraria-install.test.cjs && node test/terraria-lifecycle.test.cjs && node test/terraria-worlds.test.cjs && node test/terraria-worlds-routes.test.cjs && node test/terraria-config.test.cjs && node test/terraria-backups.test.cjs && node test/terraria-mods.test.cjs && node test/terraria-tshock.test.cjs && node test/terraria-crashes.test.cjs && node test/terraria-import.test.cjs && node test/terraria-routes.test.cjs && node test/terraria-verification.test.cjs && node test/valheim-module.test.cjs && node test/valheim-lifecycle.test.cjs && node test/valheim-registration.test.cjs && node test/valheim-install.test.cjs && node test/valheim-updates.test.cjs && node test/valheim-worlds.test.cjs && node test/valheim-worlds-routes.test.cjs && node test/palworld-adapter.test.cjs && node test/palworld-verification.test.cjs && node test/palworld-map.test.cjs && node test/palworld-operations.test.cjs && node test/palworld-settings.test.cjs && node test/palworld-updates.test.cjs && node test/palworld-automation.test.cjs && node test/palworld-mods.test.cjs && node test/palworld-workshop.test.cjs && node test/palworld-portability.test.cjs && node test/portability-safety.test.cjs && node test/custom-process-module.test.cjs && node test/server-templates.test.cjs && node test/server-templates-routes.test.cjs && node test/modpack-lifecycle.test.cjs && node test/branding.test.cjs && node test/api-keys.test.cjs && node test/foundation-db.test.cjs && node test/foundation-audit.test.cjs && node test/foundation-capabilities.test.cjs && node test/foundation-operations.test.cjs && node test/foundation-snapshots-tx.test.cjs && node test/foundation-redact-archive.test.cjs && node test/foundation-downloads.test.cjs && node test/foundation-routes.test.cjs && node test/folder-picker.test.cjs && node test/foundation-boot.test.cjs && node test/health.test.cjs && node test/worlds.test.cjs && node test/worlds-routes.test.cjs && node test/server-create.test.cjs && node test/mrpack.test.cjs && node test/console-history.test.cjs && node test/foundation-ws-command.test.cjs && node test/foundation-server-list.test.cjs && node test/foundation-filemanager-safety.test.cjs && node test/install-resume.test.cjs && node test/service-wrappers.test.cjs && node test/foundation-ws-scope.test.cjs && node test/upgrade-drill.test.cjs && node test/minecraft-portability.test.cjs && node test/palworld-logfile.test.cjs && node test/bug-reports-config.test.cjs && node test/bug-reports-routes.test.cjs && node test/config-boot.test.cjs",
+    "test": "node test/player-head-csp.test.cjs && node test/modpack-progress-toast.test.cjs && node test/modrinth-icons.test.cjs && node test/panel-presentation-removed.test.cjs && node test/windows-distribution.test.cjs && node test/application-update-apply.test.cjs && node test/application-update-audit-wiring.test.cjs && node test/application-update-manifest.test.cjs && node test/application-update-runtime.test.cjs && node test/application-update-workflow.test.cjs && node test/application-updater-core.test.cjs && node test/application-updater-bootstrap.test.cjs && node test/application-update-routes.test.cjs && node test/application-update-service-wrappers.test.cjs && node test/dedicated-server-installer.test.cjs && node test/game-modules.test.cjs && node test/terraria-module.test.cjs && node test/terraria-dotnet.test.cjs && node test/terraria-install.test.cjs && node test/terraria-lifecycle.test.cjs && node test/terraria-worlds.test.cjs && node test/terraria-worlds-routes.test.cjs && node test/terraria-config.test.cjs && node test/terraria-backups.test.cjs && node test/terraria-mods.test.cjs && node test/terraria-tshock.test.cjs && node test/terraria-crashes.test.cjs && node test/terraria-import.test.cjs && node test/terraria-routes.test.cjs && node test/terraria-verification.test.cjs && node test/valheim-module.test.cjs && node test/valheim-lifecycle.test.cjs && node test/valheim-registration.test.cjs && node test/valheim-install.test.cjs && node test/valheim-updates.test.cjs && node test/valheim-worlds.test.cjs && node test/valheim-worlds-routes.test.cjs && node test/palworld-adapter.test.cjs && node test/palworld-verification.test.cjs && node test/palworld-map.test.cjs && node test/palworld-operations.test.cjs && node test/palworld-settings.test.cjs && node test/palworld-updates.test.cjs && node test/palworld-automation.test.cjs && node test/palworld-mods.test.cjs && node test/palworld-workshop.test.cjs && node test/palworld-portability.test.cjs && node test/portability-safety.test.cjs && node test/custom-process-module.test.cjs && node test/server-templates.test.cjs && node test/server-templates-routes.test.cjs && node test/modpack-lifecycle.test.cjs && node test/branding.test.cjs && node test/api-keys.test.cjs && node test/foundation-db.test.cjs && node test/foundation-audit.test.cjs && node test/foundation-capabilities.test.cjs && node test/foundation-operations.test.cjs && node test/foundation-snapshots-tx.test.cjs && node test/foundation-redact-archive.test.cjs && node test/foundation-downloads.test.cjs && node test/foundation-routes.test.cjs && node test/folder-picker.test.cjs && node test/foundation-boot.test.cjs && node test/health.test.cjs && node test/worlds.test.cjs && node test/worlds-routes.test.cjs && node test/server-create.test.cjs && node test/mrpack.test.cjs && node test/console-history.test.cjs && node test/foundation-ws-command.test.cjs && node test/foundation-server-list.test.cjs && node test/foundation-filemanager-safety.test.cjs && node test/install-resume.test.cjs && node test/service-wrappers.test.cjs && node test/foundation-ws-scope.test.cjs && node test/upgrade-drill.test.cjs && node test/minecraft-portability.test.cjs && node test/palworld-logfile.test.cjs && node test/bug-reports-config.test.cjs && node test/bug-reports-routes.test.cjs && node test/config-boot.test.cjs && node test/server-manifest-edge.test.cjs && node test/restore-drill.test.cjs && node test/byoc-pairing.test.cjs && node test/lifecycle-scorecard.test.cjs && node test/product-validation.test.cjs && node test/product-store.test.cjs && node test/product-routes.test.cjs && node test/product-pairing-public.test.cjs && node test/product-boundary.test.cjs",
     "test:palworld:verification": "node test/palworld-verification.test.cjs",
     "smoke:palworld": "node scripts/palworld-smoke.cjs",
     "smoke:terraria": "node scripts/terraria-smoke.cjs",
@@ -60,6 +70,7 @@
     "yauzl": "^3.1.3"
   },
   "devDependencies": {
+    "@electron/rebuild": "4.2.0",
     "@oxlint/plugins": "^1.78.0",
     "@playwright/test": "^1.62.1",
     "@radix-ui/react-checkbox": "^1.1.2",
@@ -73,6 +84,8 @@
     "@radix-ui/react-tooltip": "^1.1.3",
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
+    "electron": "43.4.1",
+    "electron-builder": "26.15.3",
     "oxlint": "^1.78.0",
     "postcss": "^8.5.26",
     "tailwindcss": "^3.4.16",
@@ -84,7 +97,6 @@
     "esbuild@0.25.12": true
   },
   "overrides": {
-    "body-parser": "1.20.6",
-    "brace-expansion": "2.1.4"
+    "body-parser": "1.20.6"
   }
 }

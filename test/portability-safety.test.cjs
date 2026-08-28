@@ -9,7 +9,6 @@ const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const zlib = require('zlib');
 const { setupDataDir, teardown, TMP_ROOT } = require('./_setup.cjs');
 setupDataDir();
 
@@ -17,7 +16,7 @@ const migrations = require('../lib/migrations.cjs');
 const pathSafety = require('../lib/pathSafety.cjs');
 const trash = require('../lib/trash.cjs');
 const connectivity = require('../lib/palworld-connectivity.cjs');
-const presentation = require('../lib/serverPresentation.cjs');
+
 
 migrations.runMigrations();
 
@@ -242,62 +241,6 @@ test('a failed public probe never claims the router is misconfigured', async () 
     (error) => error.code === 'invalid_host',
   );
   await assert.rejects(async () => connectivity.testEndpoint({ host: 'bad host!', port: 1 }), (error) => error.code === 'invalid_host');
-});
-
-// --- presentation ---------------------------------------------------------
-
-function pngWithMetadata() {
-  const chunk = (type, body) => {
-    const out = Buffer.alloc(8 + body.length + 4);
-    out.writeUInt32BE(body.length, 0);
-    out.write(type, 4, 'latin1');
-    body.copy(out, 8);
-    out.writeUInt32BE(0, 8 + body.length);
-    return out;
-  };
-  const ihdr = Buffer.alloc(13);
-  ihdr.writeUInt32BE(64, 0);
-  ihdr.writeUInt32BE(64, 4);
-  ihdr[8] = 8; ihdr[9] = 6;
-  const text = Buffer.from('Comment\0secret camera location', 'latin1');
-  return Buffer.concat([
-    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
-    chunk('IHDR', ihdr),
-    chunk('tEXt', text),
-    chunk('IDAT', zlib.deflateSync(Buffer.alloc(64 * 4))),
-    chunk('IEND', Buffer.alloc(0)),
-  ]);
-}
-
-test('presentation assets are validated, stripped of metadata, and stored outside the game root', () => {
-  const server = palServer('present-1', INI());
-  const buffer = pngWithMetadata();
-  assert.ok(buffer.includes(Buffer.from('secret camera location')));
-  const state = presentation.setAsset({ serverId: server.id, kind: 'icon', buffer });
-  assert.strictEqual(state.icon.width, 64);
-  assert.strictEqual(state.scope, 'panel-only');
-  const stored = fs.readFileSync(presentation.assetFile(server.id, 'icon').file);
-  assert.strictEqual(stored.includes(Buffer.from('secret camera location')), false);
-  assert.strictEqual(stored.includes(Buffer.from('tEXt')), false);
-  assert.strictEqual(fs.existsSync(path.join(server.dir, 'presentation.json')), false);
-});
-
-test('presentation rejects unsupported types, oversized images, and bad accents', () => {
-  const id = 'present-2';
-  assert.throws(() => presentation.setAsset({ serverId: id, kind: 'icon', buffer: Buffer.from('GIF89a not really') }), (error) => error.code === 'unsupported_type');
-  assert.throws(() => presentation.setAsset({ serverId: id, kind: 'nope', buffer: pngWithMetadata() }), (error) => error.code === 'invalid_kind');
-  assert.throws(() => presentation.setAccent({ serverId: id, accent: 'red' }), (error) => error.code === 'invalid_accent');
-  assert.strictEqual(presentation.setAccent({ serverId: id, accent: '#AABBCC' }).accent, '#aabbcc');
-});
-
-test('presentation resets back to Hostkind defaults', () => {
-  const id = 'present-3';
-  presentation.setAsset({ serverId: id, kind: 'icon', buffer: pngWithMetadata() });
-  presentation.setAccent({ serverId: id, accent: '#123456' });
-  const cleared = presentation.reset(id);
-  assert.strictEqual(cleared.icon, null);
-  assert.strictEqual(cleared.accent, null);
-  assert.throws(() => presentation.assetFile(id, 'icon'), (error) => error.code === 'not_found');
 });
 
 (async () => {

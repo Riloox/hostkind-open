@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert } from '@/components/ui/alert';
 import { useApi } from '@/hooks/useApi';
+import { useFolderPicker } from '@/hooks/useFolderPicker';
 import { useT } from '@/context/I18nContext';
 import { FolderBrowserModal } from './FolderBrowserModal';
 
@@ -17,11 +18,24 @@ import { FolderBrowserModal } from './FolderBrowserModal';
 export function MinecraftAdoptDialog({ open, onOpenChange, onAdopted }) {
   const api = useApi();
   const t = useT();
+  const { picking, pick } = useFolderPicker(api);
   const [dir, setDir] = useState('');
   const [name, setName] = useState('');
   const [detection, setDetection] = useState(null);
   const [busy, setBusy] = useState(false);
   const [fsOpen, setFsOpen] = useState(false);
+
+  async function pickFolder() {
+    try {
+      const picked = await pick(dir, t('portability.minecraftAdoptTitle'));
+      if (!picked) return;
+      setDir(picked);
+      setDetection(null);
+      await inspect(picked);
+    } catch {
+      setFsOpen(true);
+    }
+  }
 
   async function inspect(target = dir) {
     setBusy(true);
@@ -68,7 +82,16 @@ export function MinecraftAdoptDialog({ open, onOpenChange, onAdopted }) {
               <Label>{t('portability.folder')}</Label>
               <div className="flex gap-2">
                 <Input value={dir} onChange={(e) => { setDir(e.target.value); setDetection(null); }} placeholder="/srv/minecraft" />
-                <Button variant="glass" className="h-11 shrink-0" onClick={() => setFsOpen(true)}><FolderOpen className="h-3.5 w-3.5" /></Button>
+                <Button
+                  variant="glass"
+                  className="h-11 shrink-0"
+                  type="button"
+                  aria-label={t('servers.browse')}
+                  disabled={busy || picking}
+                  onClick={pickFolder}
+                >
+                  <FolderOpen className="h-3.5 w-3.5" />
+                </Button>
               </div>
             </div>
             <Button variant="glass" size="sm" disabled={busy || !dir} onClick={() => inspect()}>{t('portability.inspect')}</Button>

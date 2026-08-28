@@ -8,6 +8,7 @@ import { useT } from '@/context/I18nContext';
 import { useAuth, useBranding } from '@/context/AuthContext';
 import { useServer } from '@/context/ServerContext';
 import { NotificationBell } from '@/components/shared/NotificationBell';
+import { ApplicationUpdateIndicator } from '@/components/shared/ApplicationUpdate';
 import { gameById } from '@/lib/games';
 import { Settings, LogOut, User, ChevronDown } from 'lucide-react';
 
@@ -68,6 +69,7 @@ export function Header({ currentView, onOpenSettings }) {
       </div>
 
       <div className="flex items-center gap-2">
+        <ApplicationUpdateIndicator onOpenSettings={onOpenSettings} />
         {/* Notifications */}
         <div data-tour="notifications"><NotificationBell /></div>
 

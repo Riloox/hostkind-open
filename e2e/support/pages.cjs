@@ -250,33 +250,14 @@ function dialog(page, name) {
   };
 }
 
-/* The wrench dialog on a server row: connectivity and profile export for
- * Palworld, panel presentation for everyone.
- *
- * The icon and banner blocks are addressed by data-asset because everything
- * inside them - the tile, the caption, the Remove button - repeats verbatim
- * between the two, so a name match alone cannot tell them apart. */
+/* The wrench dialog on a Palworld server: connectivity and profile export. */
 function serverTools(page) {
   const root = page.getByRole('dialog');
-  const asset = (kind) => {
-    const block = root.locator(`[data-asset="${kind}"]`);
-    return {
-      block,
-      tile: block.getByRole('button', { name: en('portability.chooseImage'), exact: true }),
-      preview: block.locator('img'),
-      file: block.locator('input[type="file"]'),
-      remove: block.getByRole('button', { name: en('common.remove'), exact: true }),
-    };
-  };
+  const tab = (key) => root.getByRole('tab', { name: en(`portability.${key}`), exact: true });
   return {
     root,
     tabs: root.getByRole('tablist'),
-    tab: (key) => root.getByRole('tab', { name: en(`portability.${key}`), exact: true }),
-    icon: asset('icon'),
-    banner: asset('banner'),
-    accentSwatch: (hex) => root.getByRole('button', { name: en('portability.accentSwatch', { value: hex }), exact: true }),
-    accentPicker: root.locator('input[type="color"]'),
-    reset: root.getByRole('button', { name: en('portability.resetPresentation'), exact: true }),
+    tab,
     // Two buttons are named "Close": the footer's, and the X the dialog
     // primitive puts in the corner. The footer's comes first in the markup.
     close: root.getByRole('button', { name: en('common.close'), exact: true }).first(),

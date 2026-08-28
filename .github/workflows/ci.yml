@@ -89,6 +89,9 @@ jobs:
       - name: Build the SPA into public/
         run: npm run build
 
+      - name: Desktop source smoke test
+        run: npm run desktop:smoke
+
       - name: Install Chromium
         run: npx playwright install chromium
 
@@ -145,6 +148,26 @@ jobs:
       - name: Package the release artifact
         run: npm run package
 
+      # Optional binary distribution hook. A platform-specific packager may
+      # emit dist/application-artifacts.json with real .exe/Linux assets. The
+      # private signing key exists only in Actions secrets and is never shipped.
+      - name: Generate signed binary update manifest
+        if: ${{ hashFiles('dist/application-artifacts.json') != '' }}
+        env:
+          HOSTKIND_UPDATE_PRIVATE_KEY: ${{ secrets.HOSTKIND_UPDATE_PRIVATE_KEY }}
+        run: |
+          set -eu
+          test -n "$HOSTKIND_UPDATE_PRIVATE_KEY"
+          key_file="$RUNNER_TEMP/hostkind-update-signing-key.pem"
+          printf '%s\n' "$HOSTKIND_UPDATE_PRIVATE_KEY" > "$key_file"
+          node scripts/create-update-manifest.cjs \
+            --version "${GITHUB_REF_NAME#v}" \
+            --release-notes-url "https://github.com/Riloox/hostkind-open/releases/tag/$GITHUB_REF_NAME" \
+            --artifacts-file dist/application-artifacts.json \
+            --output dist/hostkind-update.json \
+            --signing-key-file "$key_file"
+          rm -f "$key_file"
+
       - name: Publish GitHub release
         run: >-
           gh release create "$GITHUB_REF_NAME"
@@ -152,5 +175,11 @@ jobs:
           dist/hostkind-*.zip.sha256
           dist/SHA256SUMS
           --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Upload signed binary update manifest
+        if: ${{ hashFiles('dist/hostkind-update.json') != '' }}
+        run: gh release upload "$GITHUB_REF_NAME" dist/hostkind-update.json --clobber
         env:
           GH_TOKEN: ${{ github.token }}
