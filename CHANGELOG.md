@@ -7,6 +7,38 @@ All notable changes to Hostkind are documented here. This project follows
 
 No entries yet.
 
+## [0.1.2.1] - 2026-08-28
+
+This release makes Terraria administration and update review clearer and safer.
+
+### Added
+
+- **Terraria player management**: vanilla Terraria servers now have a dedicated
+  live roster with connected-player counts and Terraria-specific Kick and Ban
+  actions. TShock keeps its existing REST-backed player surface.
+- **In-app changelog**: returning users see the complete changelog for a new
+  build instead of a condensed what's-new tour.
+
+### Improved
+
+- **tModLoader mod imports**: the review step now shows the exact source,
+  Workshop item, planned changes, internal names, versions, and authors before
+  any files are written.
+- **Replacement safety**: replacing an installed mod requires an explicit
+  acknowledgement, while blocked modpacks show why they cannot be applied yet.
+- **Import timing**: the review explains that Hostkind creates and verifies a
+  safety snapshot first, the server must be offline, and tModLoader applies the
+  new set after its next restart.
+
+### Security and reliability
+
+- Steam Workshop thumbnail hosts are allowlisted explicitly in the Content
+  Security Policy instead of permitting arbitrary remote images.
+- Terraria player targets are validated before console commands are built, and
+  unsupported Minecraft or TShock actions are rejected.
+- Added focused coverage for Terraria player routing, console actions, Workshop
+  image policy, and the translated import-review states.
+
 ## [0.1.2] - 2026-08-27
 
 This release makes Hostkind easier to install, move, update, and recover.

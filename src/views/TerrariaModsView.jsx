@@ -1,17 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
-  AlertTriangle, ArchiveRestore, ArrowUpRight, Clock3, Download,
-  FileJson, FileUp, FileWarning, FolderSearch, PackageOpen, Power,
-  PowerOff, RefreshCw, Save, Search, ShieldAlert, Trash2,
+  AlertTriangle, ArchiveRestore, ArrowUpRight, CheckCircle2, Clock3, Download,
+  FileJson, FileUp, FileWarning, FolderSearch, PackageOpen, Plus, Power,
+  PowerOff, RefreshCw, Save, Search, ShieldAlert, ShieldCheck, Trash2,
 } from 'lucide-react';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogBody, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { PromptDialog } from '@/components/shared/PromptDialog';
@@ -31,6 +32,54 @@ const SELECT_CLASS = 'h-9 rounded-md border border-input bg-background/60 px-3 t
 
 function issueVariant(severity) {
   return severity === 'error' ? 'destructive' : 'softWarn';
+}
+
+function previewPlanItems(plan) {
+  if (Array.isArray(plan)) {
+    return plan.filter(Boolean).map((item) => ({ ...item, change: item.action || 'add' }));
+  }
+  if (!plan) return [];
+  return [
+    ...(plan.add || []).map((item) => ({ ...item, change: 'missing' })),
+    ...(plan.remove || []).map((item) => ({ ...item, change: 'remove' })),
+    ...(plan.enable || []).map((item) => ({ ...item, change: 'enable' })),
+    ...(plan.disable || []).map((item) => ({ ...item, change: 'disable' })),
+  ];
+}
+
+function previewChangeVariant(change) {
+  if (change === 'replace') return 'softWarn';
+  if (change === 'remove' || change === 'missing') return 'destructive';
+  if (change === 'add' || change === 'enable') return 'softSuccess';
+  return 'default';
+}
+
+function PreviewChangeIcon({ change }) {
+  if (change === 'add') return <Plus className="h-4 w-4" />;
+  if (change === 'replace') return <RefreshCw className="h-4 w-4" />;
+  if (change === 'remove') return <Trash2 className="h-4 w-4" />;
+  if (change === 'enable') return <Power className="h-4 w-4" />;
+  if (change === 'disable') return <PowerOff className="h-4 w-4" />;
+  return <FileWarning className="h-4 w-4" />;
+}
+
+function previewSummaryKey(change) {
+  return {
+    add: 'added',
+    replace: 'replaced',
+    missing: 'missing',
+    remove: 'removed',
+    enable: 'enabled',
+    disable: 'disabled',
+  }[change] || 'changed';
+}
+
+function previewConfirmKey(action, hasReplacement) {
+  if (action === 'import') return hasReplacement ? 'confirmImportReplace' : 'confirmImport';
+  if (action === 'pack-apply') return 'confirmPack';
+  if (action === 'remove') return 'confirmRemove';
+  if (action === 'disable') return 'confirmDisable';
+  return 'confirmEnable';
 }
 
 export function TerrariaModsView() {
@@ -56,6 +105,11 @@ export function TerrariaModsView() {
   const [catalogQuery, setCatalogQuery] = useState('');
   const [catalogSort, setCatalogSort] = useState('trend');
   const [catalogTag, setCatalogTag] = useState('');
+  const [replaceConfirmed, setReplaceConfirmed] = useState(false);
+
+  useEffect(() => {
+    setReplaceConfirmed(false);
+  }, [preview?.token]);
 
   const load = useCallback(async () => {
     if (!activeServerId) return;
@@ -158,12 +212,15 @@ export function TerrariaModsView() {
 
   async function apply() {
     if (!preview) return;
+    const items = previewPlanItems(preview.plan);
+    const hasReplacement = preview.action === 'import' && items.some((item) => item.change === 'replace');
+    if (hasReplacement && !replaceConfirmed) return;
     setBusy('apply');
     try {
       if (preview.action === 'import') {
         const result = await api(`${API}/import`, {
           method: 'POST', headers: { 'Idempotency-Key': uuid() },
-          body: { serverId: activeServerId, token: preview.token, replace: preview.plan.some((item) => item.action === 'replace') },
+          body: { serverId: activeServerId, token: preview.token, replace: hasReplacement && replaceConfirmed },
         });
         setRestartRequired(Boolean(result.restartRequired));
         setPreview(null);
@@ -312,6 +369,11 @@ export function TerrariaModsView() {
 
   const issues = data?.diagnostics?.issues || [];
   const errors = issues.filter((issue) => issue.severity === 'error').length;
+  const planItems = previewPlanItems(preview?.plan);
+  const hasReplacement = preview?.action === 'import' && planItems.some((item) => item.change === 'replace');
+  const summaryItems = [...new Set(planItems.map((item) => item.change))]
+    .map((change) => ({ change, count: planItems.filter((item) => item.change === change).length }));
+  const applyLabel = t(`terraria.mods.review.${previewConfirmKey(preview?.action, hasReplacement)}`);
 
   return (
     <div className="space-y-6">
@@ -692,30 +754,119 @@ export function TerrariaModsView() {
       )}
 
       <Dialog open={Boolean(preview)} onOpenChange={(open) => { if (!open && !busy) setPreview(null); }}>
-        <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>{t(`terraria.mods.preview.${preview?.action || 'enable'}`)}</DialogTitle></DialogHeader>
-          <DialogBody className="space-y-3">
-            <p>{preview?.action === 'import' ? t('terraria.mods.importPreviewHelp') : preview?.action === 'pack-apply' ? t('terraria.mods.packPreviewHelp', { name: preview?.pack?.name || '' }) : t('terraria.mods.previewHelp', { name: preview?.displayName || '' })}</p>
-            {preview?.plan && (
-              <div className="max-h-56 space-y-2 overflow-auto border border-border p-3 text-xs">
-                {(Array.isArray(preview.plan) ? preview.plan : [...preview.plan.add, ...preview.plan.remove, ...preview.plan.enable, ...preview.plan.disable]).map((item, index) => (
-                  <div key={`${item.internalName}:${index}`} className="flex justify-between gap-3">
-                    <span>{item.displayName || item.internalName}</span>
-                    <Badge variant="default">{item.action || (preview.plan.add?.includes(item) ? 'missing' : preview.plan.remove?.includes(item) ? 'remove' : preview.plan.enable?.includes(item) ? 'enable' : 'disable')}</Badge>
-                  </div>
-                ))}
+        <DialogContent className="flex max-w-2xl flex-col !overflow-hidden">
+          <DialogHeader className="shrink-0">
+            <DialogTitle>{t(`terraria.mods.preview.${preview?.action || 'enable'}`)}</DialogTitle>
+            <DialogDescription>
+              {preview?.action === 'import'
+                ? t('terraria.mods.review.importIntro')
+                : preview?.action === 'pack-apply'
+                  ? t('terraria.mods.packPreviewHelp', { name: preview?.pack?.name || '' })
+                  : t('terraria.mods.previewHelp', { name: preview?.displayName || '' })}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogBody className="min-h-0 flex-1 space-y-4">
+            <div className="flex items-start gap-3 border-2 border-primary/35 bg-primary/10 p-4">
+              <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+              <div className="min-w-0">
+                <p className="font-semibold text-foreground">{t('terraria.mods.review.notApplied')}</p>
+                <p className="mt-0.5 text-sm text-muted-foreground">{t('terraria.mods.review.reviewStep')}</p>
+              </div>
+            </div>
+
+            {preview?.action === 'import' && (
+              <div className="flex flex-wrap items-center gap-2 border border-border bg-secondary/20 px-3 py-2 text-xs">
+                <Badge variant="default"><Download className="h-3.5 w-3.5" />{preview.detail ? t('terraria.mods.review.sourceWorkshop') : t('terraria.mods.review.sourceLocal')}</Badge>
+                {preview.detail?.id && <span className="text-muted-foreground">{t('terraria.mods.review.workshopItem', { id: preview.detail.id })}</span>}
+                {preview.detail?.title && <span className="min-w-0 truncate font-semibold text-foreground">{preview.detail.title}</span>}
               </div>
             )}
-            <div className="border border-border p-3 text-xs">
-              <span className="block text-muted-foreground">{t('terraria.mods.internalName')}</span>
-              <code>{preview?.internalName}</code>
+
+            {planItems.length > 0 && (
+              <>
+                <div className="flex items-end justify-between gap-3">
+                  <h3 className="font-display text-sm font-extrabold uppercase tracking-wide">{t('terraria.mods.review.changeList')}</h3>
+                  <span className="text-xs text-muted-foreground">{planItems.length}</span>
+                </div>
+                <div className="grid grid-cols-2 gap-px border border-border bg-border sm:grid-cols-4">
+                  {summaryItems.map(({ change, count }) => (
+                    <div key={change} className="bg-card px-3 py-2.5">
+                      <strong className="block text-lg leading-none text-foreground">{count}</strong>
+                      <span className="mt-1 block text-label font-semibold uppercase tracking-wider text-muted-foreground">{t(`terraria.mods.review.summary.${previewSummaryKey(change)}`)}</span>
+                    </div>
+                  ))}
+                </div>
+                <div role="list" aria-label={t('terraria.mods.review.changeList')} className="max-h-72 divide-y divide-border overflow-auto border border-border">
+                  {planItems.map((item, index) => (
+                    <div key={`${item.internalName || item.displayName || 'mod'}:${item.change}:${index}`} role="listitem" className="flex items-start gap-3 p-3">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-secondary text-muted-foreground">
+                        <PreviewChangeIcon change={item.change} />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="min-w-0 break-words font-semibold text-sm text-foreground">{item.displayName || item.internalName}</span>
+                          <Badge variant={previewChangeVariant(item.change)}>{t(`terraria.mods.review.change.${item.change}`)}</Badge>
+                        </div>
+                        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                          {item.internalName && <code>{item.internalName}</code>}
+                          {item.change === 'replace' && item.installedVersion && item.version
+                            ? <span>{t('terraria.mods.review.versionChange', { current: item.installedVersion, next: item.version })}</span>
+                            : item.version
+                              ? <span>{t('terraria.mods.review.versionOnly', { version: item.version })}</span>
+                              : <span>{t('terraria.mods.review.versionUnknown')}</span>}
+                          {item.author && <span>{t('terraria.mods.by', { author: item.author })}</span>}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {!planItems.length && preview?.displayName && (
+              <div className="border border-border bg-secondary/20 p-3">
+                <p className="font-semibold text-foreground">{preview.displayName}</p>
+                {preview.internalName && <code className="mt-1 block text-xs text-muted-foreground">{preview.internalName}</code>}
+                {preview.file && <p className="mt-1 text-xs text-muted-foreground">{preview.file}</p>}
+              </div>
+            )}
+
+            {hasReplacement && (
+              <div className="space-y-3 border border-status-warn/35 bg-status-warn/10 p-3">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-status-warn" />
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">{t('terraria.mods.review.replaceNotice')}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">{t('terraria.mods.review.replaceHelp')}</p>
+                  </div>
+                </div>
+                <label className="flex cursor-pointer items-start gap-3 border-t border-status-warn/25 pt-3">
+                  <Checkbox checked={replaceConfirmed} onCheckedChange={(checked) => setReplaceConfirmed(checked === true)} />
+                  <span className="text-sm text-foreground">{t('terraria.mods.review.confirmReplaceLabel')}</span>
+                </label>
+              </div>
+            )}
+
+            {preview?.blocked && (
+              <Alert variant="warn"><AlertTriangle className="h-4 w-4" /><div><strong>{t('terraria.mods.review.blockedTitle')}</strong><p>{t('terraria.mods.review.blockedHelp')}</p></div></Alert>
+            )}
+
+            <div className="grid gap-px border border-border bg-border sm:grid-cols-2">
+              <div className="flex items-start gap-2 bg-secondary/20 p-3">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-status-online" />
+                <div><p className="text-sm font-semibold text-foreground">{t('terraria.mods.review.snapshotTitle')}</p><p className="mt-0.5 text-xs text-muted-foreground">{t('terraria.mods.review.snapshotHelp')}</p></div>
+              </div>
+              <div className="flex items-start gap-2 bg-secondary/20 p-3">
+                <RefreshCw className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                <div><p className="text-sm font-semibold text-foreground">{t('terraria.mods.review.restartTitle')}</p><p className="mt-0.5 text-xs text-muted-foreground">{t('terraria.mods.review.restartHelp')}</p></div>
+              </div>
             </div>
-            <p className="flex items-start gap-2 text-xs text-muted-foreground"><RefreshCw className="mt-0.5 h-3.5 w-3.5 shrink-0" />{t('terraria.mods.previewRestart')}</p>
           </DialogBody>
-          <DialogFooter>
+          <DialogFooter className="shrink-0">
             <Button variant="glass" onClick={() => setPreview(null)} disabled={busy === 'apply'}>{t('common.cancel')}</Button>
-            <Button variant={preview?.action === 'remove' ? 'destructive' : 'default'} onClick={apply} disabled={!canManage || busy === 'apply' || preview?.blocked}>
-              {t('common.confirm')}
+            <Button variant={preview?.action === 'remove' ? 'destructive' : 'default'} onClick={apply} disabled={!canManage || busy === 'apply' || preview?.blocked || (hasReplacement && !replaceConfirmed)}>
+              <CheckCircle2 className="h-4 w-4" />
+              {applyLabel}
             </Button>
           </DialogFooter>
         </DialogContent>

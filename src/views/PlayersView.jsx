@@ -13,6 +13,7 @@ import { Loading } from '@/components/shared/Loading';
 import { useApi } from '@/hooks/useApi';
 import { useServer } from '@/context/ServerContext';
 import { PalworldPlayersView } from '@/views/PalworldPlayersView';
+import { TerrariaPlayersView } from '@/views/TerrariaPlayersView';
 import { useT } from '@/context/I18nContext';
 import { toast } from 'sonner';
 import {
@@ -269,12 +270,20 @@ function AddPlayerBar({ onAdd, t }) {
 }
 
 export function PlayersView() {
-  const { activeServer } = useServer();
-  if (activeServer?.type === 'palworld') return <PalworldPlayersView />;
-  return <MinecraftPlayersView />;
+  const { activeServer, currentGame } = useServer();
+  if (activeServer?.type === 'palworld' || (!activeServer && currentGame === 'palworld')) {
+    return <PalworldPlayersView />;
+  }
+  // The server list arrives asynchronously after the URL/game selection. Use
+  // the known game during that gap so a Terraria route never mounts the legacy
+  // Minecraft player-list effects even briefly.
+  if (activeServer?.type === 'terraria' || (!activeServer && currentGame === 'terraria')) {
+    return <TerrariaPlayersView />;
+  }
+  return <LegacyPlayersView />;
 }
 
-function MinecraftPlayersView() {
+function LegacyPlayersView() {
   const api = useApi();
   const t = useT();
   const { activeServerId, statuses } = useServer();

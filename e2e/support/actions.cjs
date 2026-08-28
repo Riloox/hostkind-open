@@ -14,10 +14,9 @@ const { loginScreen, gamesHub, appShell } = require('./pages.cjs');
 const { TOKEN_KEY } = require('./fixtures.cjs');
 
 // The built bundle injects package.json's version as __APP_VERSION__
-// (vite.config.js define). The tour's what's-new variant (idea 13) reopens
-// for seen users whose stored `fleetdeck_tour_version` differs from it, so
-// signInFast must plant the same value or a fresh browser profile meets the
-// modal anyway.
+// (vite.config.js define). The changelog popup reopens for seen users whose
+// stored `fleetdeck_changelog_version` differs from it, so signInFast must
+// plant the same value or a fresh browser profile meets the popup anyway.
 const APP_VERSION = require('../../package.json').version;
 
 /** Fill in the login form and submit it. Does not wait for the result. */
@@ -42,10 +41,10 @@ async function signIn(page, { identifier, password, origin = '' } = {}) {
 
 /**
  * Sign in over HTTP and plant the token, skipping the form. Also marks the
- * onboarding tour as seen for every game and plants the tour version, so a
- * later navigation is not met by a modal the test did not come to look at -
- * neither the first-time tour nor the what's-new variant (which reopens when
- * the stored version differs from the build's).
+ * onboarding tour as seen for every game and plants the changelog version, so
+ * a later navigation is not met by a modal the test did not come to look at -
+ * neither the first-time tour nor the post-update changelog popup (which
+ * reopens when the stored version differs from the build's).
  */
 async function signInFast(page, panel, account = panel.admin) {
   const response = await page.request.post(`${panel.url}/api/login`, {
@@ -56,16 +55,15 @@ async function signInFast(page, panel, account = panel.admin) {
   }
   const { token, user } = await response.json();
 
-  await page.addInitScript(([key, value, userId, tourVersion]) => {
+  await page.addInitScript(([key, value, userId, changelogVersion]) => {
     try {
       window.localStorage.setItem(key, value);
       for (const game of ['minecraft', 'terraria', 'valheim', 'palworld', 'custom']) {
         window.localStorage.setItem(`fleetdeck_tour_seen:${userId}:${game}`, '1');
       }
-      // Idea 13: the what's-new tour re-opens for seen users when the stored
-      // version differs from __APP_VERSION__. Plant it so the modal never
-      // shows in specs that just want to get to the UI.
-      window.localStorage.setItem('fleetdeck_tour_version', tourVersion);
+      // Plant the current version so the changelog popup never shows in specs
+      // that just want to get to the UI.
+      window.localStorage.setItem('fleetdeck_changelog_version', changelogVersion);
     } catch { /* ignore */ }
   }, [TOKEN_KEY, token, user.id, APP_VERSION]);
 

@@ -48,6 +48,7 @@ function appShell(page) {
     menuSettings: page.getByRole('menuitem', { name: en('sidebar.settings') }),
     menuLogout: page.getByRole('menuitem', { name: en('sidebar.logout') }),
     tour: page.getByRole('dialog', { name: en('tour.welcome.title') }),
+    changelog: page.getByRole('dialog', { name: en('whatsNew.title') }),
   };
 }
 
