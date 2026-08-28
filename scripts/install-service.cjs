@@ -62,11 +62,14 @@ function parseArgs(argv) {
 // The full systemd unit, exactly as it would be written to
 // /etc/systemd/system/<name>.service. Pure string assembly so a test can pin
 // the content.
-function systemdUnit({ name, user = null, installDir, nodePath, configPath }) {
+function systemdUnit({ name, user = null, installDir, nodePath, configPath, launcherPath = null, launcherArgs = [] }) {
   // A unit is a Linux file even when generated on Windows, so the ExecStart
   // path must use forward slashes regardless of the host's separator.
   const serverPath = path.posix.join(installDir, 'server.js');
-  const execStart = `${nodePath} ${serverPath}`;
+  const command = launcherPath
+    ? [launcherPath, ...(Array.isArray(launcherArgs) ? launcherArgs : [])]
+    : [nodePath, serverPath];
+  const execStart = command.join(' ');
   const lines = [
     '[Unit]',
     `Description=Hostkind game-server panel (${name})`,
@@ -92,11 +95,18 @@ function systemdUnit({ name, user = null, installDir, nodePath, configPath }) {
 // The schtasks command that creates the Windows task. /TR is a single command
 // line, so the "cd to the install dir" requirement is folded into a cmd /c
 // wrapper. Returns the argv array (no shell quoting surprises) plus the /TN.
-function schtasksCreateCommand({ name, installDir, nodePath, configPath }) {
+function schtasksCreateCommand({ name, installDir, nodePath, configPath, launcherPath = null, launcherArgs = [] }) {
   const taskName = serviceName(name);
   const envSet = configPath ? `set "FLEETDECK_CONFIG=${configPath}" && ` : '';
   const serverJs = path.win32.join(installDir, 'server.js');
-  const inner = `cd /d "${installDir}" && ${envSet}"${nodePath}" "${serverJs}"`;
+  const command = launcherPath
+    ? [launcherPath, ...(Array.isArray(launcherArgs) ? launcherArgs : [])]
+    : [nodePath, serverJs];
+  const launchLine = command.map((value) => {
+    const text = String(value);
+    return /^--?[A-Za-z0-9]/.test(text) ? text : `"${text}"`;
+  }).join(' ');
+  const inner = `cd /d "${installDir}" && ${envSet}${launchLine}`;
   return {
     name: taskName,
     args: [
@@ -134,9 +144,22 @@ function main() {
   const nodePath = resolveNodePath();
   const configPath = process.env.FLEETDECK_CONFIG || '';
   const configEnv = configPath ? ` FLEETDECK_CONFIG=${configPath}` : '';
+  const launcherPath = process.env.HOSTKIND_LAUNCHER || null;
+  let launcherArgs = [];
+  if (process.env.HOSTKIND_LAUNCHER_ARGS) {
+    try {
+      const parsed = JSON.parse(process.env.HOSTKIND_LAUNCHER_ARGS);
+      if (!Array.isArray(parsed) || parsed.some((value) => typeof value !== 'string')) throw new Error('must be a JSON string array');
+      launcherArgs = parsed;
+    } catch (error) {
+      console.error(`Invalid HOSTKIND_LAUNCHER_ARGS: ${error.message}`);
+      process.exitCode = 2;
+      return;
+    }
+  }
 
   if (process.platform === 'win32') {
-    const { args: schargs } = schtasksCreateCommand({ name, installDir, nodePath, configPath });
+    const { args: schargs } = schtasksCreateCommand({ name, installDir, nodePath, configPath, launcherPath, launcherArgs });
     console.log(`Installing Windows task "${name}" (logon autostart)...`);
     const status = run('schtasks', schargs);
     if (status !== 0) process.exitCode = status || 1;
@@ -145,7 +168,7 @@ function main() {
   }
 
   // systemd: write the unit, reload, and enable it for boot.
-  const unit = systemdUnit({ name, user: args.user, installDir, nodePath, configPath });
+  const unit = systemdUnit({ name, user: args.user, installDir, nodePath, configPath, launcherPath, launcherArgs });
   const unitPath = `/etc/systemd/system/${name}.service`;
   if (!fs.existsSync('/etc/systemd/system')) {
     console.error('This host does not use systemd. Install the panel with your init system instead.');

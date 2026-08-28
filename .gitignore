@@ -79,8 +79,9 @@ e2e/report/
 # must build before starting the panel.
 public/
 
-# packaged release artifacts (npm run package)
+# packaged release artifacts (npm run package / electron-builder)
 /dist/
+/dist-electron/
 
 # Python bytecode
 __pycache__/

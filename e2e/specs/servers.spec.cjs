@@ -100,6 +100,32 @@ test.describe('registering', () => {
     await expect(row(page, 'Ghost')).toHaveCount(0);
   });
 
+  test('uses the host native picker for Minecraft adoption', async ({ page, newApp }) => {
+    const panel = await newApp();
+    await signInFast(page, panel);
+    await openView(page, 'minecraft', 'servers', { origin: panel.url });
+
+    let pickRequests = 0;
+    await page.route('**/api/pick-folder**', async (route) => {
+      pickRequests += 1;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ path: panel.dirs.servers }),
+      });
+    });
+
+    await page.getByRole('button', { name: en('servers.addExisting') }).click();
+    const form = dialog(page, en('portability.minecraftAdoptTitle'));
+    const browse = form.root.getByRole('button', { name: en('servers.browse'), exact: true });
+
+    await browse.click();
+
+    await expect(form.root.getByRole('textbox').first()).toHaveValue(panel.dirs.servers);
+    expect(pickRequests).toBe(1);
+    await expect(folderBrowser(page).root).toHaveCount(0);
+  });
+
   test('adopts a folder that has exactly one jar in it', async ({ page, newApp }) => {
     const panel = await newApp();
     // A server folder that exists on disk but the panel does not know about.

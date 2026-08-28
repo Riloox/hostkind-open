@@ -11,7 +11,7 @@
 
 const { test, expect, en, es } = require('../support/fixtures.cjs');
 const { appShell, controlBar, toasts, dialog, gamesHub, serverRow } = require('../support/pages.cjs');
-const { signInFast, openView, enterGame, waitForLiveConnection } = require('../support/actions.cjs');
+const { signIn, signInFast, openView, enterGame, waitForLiveConnection, seedToken } = require('../support/actions.cjs');
 const { client } = require('../support/api.cjs');
 const seed = require('../support/seed.cjs');
 const net = require('net');
@@ -730,6 +730,37 @@ test.describe('onboarding tour', () => {
     await page.keyboard.press('Escape');
     await expect(tour).toBeHidden();
     await page.goto(`${app.url}/games/minecraft/dashboard`);
+    await expect(appShell(page).header).toBeVisible();
+    await expect(tour).toBeHidden();
+  });
+
+  test("does not show what's-new again when the desktop port changes", async ({ page, newApp }) => {
+    // Desktop launches choose a fresh loopback port. Browser localStorage is
+    // origin-scoped (and therefore port-scoped), while cookies are not. A
+    // completed tour must remain dismissed across that boundary.
+    const first = await newApp();
+    await signIn(page, {
+      identifier: first.admin.username,
+      password: first.admin.password,
+      origin: first.url,
+    });
+    await page.goto(`${first.url}/games/minecraft/dashboard`);
+
+    const tour = appShell(page).tour;
+    await expect(tour).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(tour).toBeHidden();
+
+    const second = await newApp();
+    const session = await client(second);
+    await seedToken(page, session.token);
+    await page.context().addCookies([{
+      name: `fleetdeck_tour_seen_${session.user.id}_minecraft`,
+      value: '1',
+      domain: '127.0.0.1',
+      path: '/',
+    }]);
+    await page.goto(`${second.url}/games/minecraft/dashboard`);
     await expect(appShell(page).header).toBeVisible();
     await expect(tour).toBeHidden();
   });

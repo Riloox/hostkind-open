@@ -7,6 +7,15 @@ REM ============================================================
 REM Move to the folder where this .bat lives (handles spaces and "N").
 cd /d "%~dp0"
 
+REM Installed binary mode: the stable launcher owns version selection and
+REM restart/update handoff. Source checkouts have no launcher and use Node below.
+set "HOSTKIND_BINARY_LAUNCHER=%HOSTKIND_LAUNCHER_PATH%"
+if not defined HOSTKIND_BINARY_LAUNCHER if exist "%~dp0hostkind-launcher.exe" set "HOSTKIND_BINARY_LAUNCHER=%~dp0hostkind-launcher.exe"
+if defined HOSTKIND_BINARY_LAUNCHER if exist "%HOSTKIND_BINARY_LAUNCHER%" (
+  "%HOSTKIND_BINARY_LAUNCHER%" %*
+  exit /b
+)
+
 title Hostkind Panel
 
 REM --- Determine the panel port (env override, else the default 2121) ---

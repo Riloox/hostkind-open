@@ -21,6 +21,14 @@ else
   cd "$(dirname "$SCRIPT_SRC")" && cd "$(pwd -P)"
 fi
 
+# Installed binary mode: the stable launcher owns version selection and
+# restart/update handoff. Source checkouts have no launcher and use Node below.
+BINARY_LAUNCHER="${HOSTKIND_LAUNCHER_PATH:-}"
+if [ -z "$BINARY_LAUNCHER" ]; then BINARY_LAUNCHER="$PWD/hostkind-launcher"; fi
+if [ -x "$BINARY_LAUNCHER" ]; then
+  exec "$BINARY_LAUNCHER" "$@"
+fi
+
 PORT="${FLEETDECK_PORT:-${LODESTONE_PORT:-2121}}"
 
 # ---------------------------------------------------------------------------

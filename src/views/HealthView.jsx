@@ -33,6 +33,10 @@ const categoryLabel = (t, category) => {
   return v === k ? (category || 'unknown') : v;
 };
 
+const occurrenceLabel = (t, count) => Number(count) === 1
+  ? t('health.occurrence')
+  : t('health.occurrences', { count });
+
 export function HealthView({ onNavigate }) {
   const t = useT();
   return (
@@ -249,14 +253,120 @@ function Crashes({ onNavigate }) {
   if (detail) return <CrashDetail data={detail} onBack={() => setDetail(null)} onToggle={toggle} onNavigate={onNavigate} t={t} />;
   if (loading) return <div className="py-12 text-center text-sm text-muted-foreground">{t('common.loading')}</div>;
   if (!items.length) return <Card><CardContent className="py-12 text-center text-sm text-muted-foreground">{t('health.noCrashes')}</CardContent></Card>;
-  return <div className="space-y-3">{items.map((g) => <button type="button" key={g.id} onClick={() => open(g.id)} className="w-full rounded-lg border bg-card p-4 text-left hover:border-primary/50"><div className="flex items-center justify-between gap-3"><div className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-status-warn"/><span className="font-medium">{categoryLabel(t, g.category)}</span><Badge variant="secondary">{t('health.occurrences', { count: g.count })}</Badge>{g.acknowledgedAt && <Badge variant="outline"><Check className="mr-1 h-3 w-3"/>{t('health.acknowledged')}</Badge>}</div><span className="text-xs text-muted-foreground">{fmt(g.lastSeenAt)}</span></div><div className="mt-2 text-xs text-muted-foreground">{servers.find((s) => s.id === g.serverId)?.name || g.serverId}</div></button>)}</div>;
+  return <div className="space-y-3">{items.map((g) => <button type="button" key={g.id} onClick={() => open(g.id)} className="w-full rounded-lg border bg-card p-4 text-left hover:border-primary/50"><div className="flex items-center justify-between gap-3"><div className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-status-warn"/><span className="font-medium">{categoryLabel(t, g.category)}</span><Badge variant="secondary">{occurrenceLabel(t, g.count)}</Badge>{g.acknowledgedAt && <Badge variant="outline"><Check className="mr-1 h-3 w-3"/>{t('health.acknowledged')}</Badge>}</div><span className="text-xs text-muted-foreground">{fmt(g.lastSeenAt)}</span></div><div className="mt-2 text-xs text-muted-foreground">{servers.find((s) => s.id === g.serverId)?.name || g.serverId}</div></button>)}</div>;
+}
+
+function IncidentDatum({ label, children }) {
+  return (
+    <div className="min-w-0 space-y-1">
+      <dt className="text-label font-semibold uppercase tracking-[0.12em] text-muted-foreground">{label}</dt>
+      <dd className="break-words text-sm font-semibold leading-6 text-foreground">{children}</dd>
+    </div>
+  );
 }
 
 function CrashDetail({ data, onBack, onToggle, onNavigate, t }) {
   const { group, incident, conclusions, backupBeforeIncident } = data;
   const sources = Object.entries(incident.evidence).filter(([key, value]) => key !== 'version' && key !== 'console' && key !== 'storageTruncated' && value && typeof value === 'object' && !Array.isArray(value));
   const summary = conclusions.length ? ruleKey(t, conclusions[0].ruleId, 'reasoning', 0, conclusions[0].reasoning[0]) : t('health.unknown');
-  return <div className="space-y-5"><div className="flex items-center justify-between"><Button variant="ghost" onClick={onBack}><ChevronLeft className="h-4 w-4"/>{t('common.back')}</Button><Button variant="outline" onClick={onToggle}>{group.acknowledgedAt ? t('health.unacknowledge') : t('health.acknowledge')}</Button></div><Card><CardHeader><CardTitle>{summary}</CardTitle><p className="text-xs text-muted-foreground">{t('health.groupHistory', { count: group.count, first: fmt(group.firstSeenAt), last: fmt(group.lastSeenAt) })}</p></CardHeader><CardContent className="space-y-3">{backupBeforeIncident ? <p className="text-sm">{t('health.backupBeforeIncident', { age: formatAge(backupBeforeIncident.ageMs) })}</p> : <p className="text-sm text-status-warn">{t('health.noBackupBeforeIncident')}</p>}{!conclusions.length ? <p className="text-sm text-muted-foreground">{t('health.unknown')}</p> : conclusions.map((c) => <div key={c.id} className="rounded-lg border p-4"><div className="flex gap-2"><span className="font-medium">{categoryLabel(t, c.category)}</span><Badge variant="secondary">{t(`health.confidence.${c.confidence}`)}</Badge></div><h4 className="mt-4 text-xs font-semibold uppercase text-muted-foreground">{t('health.suggestedChecks')}</h4><ul className="mt-2 list-disc space-y-1 pl-5 text-sm">{c.suggestions.map((x, i) => <li key={i}>{ruleKey(t, c.ruleId, 'suggestions', i, x)}</li>)}</ul>{actionFor(c.ruleId) && <Button className="mt-3" size="sm" variant="outline" onClick={() => onNavigate(actionFor(c.ruleId))}>{t('health.openAction')}<ArrowRight className="ml-1 h-3 w-3"/></Button>}</div>)}</CardContent></Card><Card><CardHeader><CardTitle>{t('health.evidence')}</CardTitle><p className="text-xs text-muted-foreground">{t('health.evidenceImmutable')}</p></CardHeader><CardContent className="space-y-4 text-sm"><div className="grid gap-2 sm:grid-cols-3"><span>{t('health.occurred')}: {fmt(incident.occurredAt)}</span><span>{t('health.exitCode')}: {incident.exitCode ?? '-'}</span><span>{t('health.signal')}: {incident.signal || '-'}</span></div>{incident.evidence.console?.length > 0 && <Evidence title={t('health.consoleTail')} text={incident.evidence.console.map((l) => l.text).join('\n')} />}{sources.map(([key, source]) => source.status === 'captured' ? <Evidence key={key} title={source.path || key} text={source.text}/> : <p key={key} className="text-xs text-muted-foreground">{key}: {source.reason || t('health.unavailable')}</p>)}</CardContent></Card></div>;
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Button variant="ghost" onClick={onBack}>
+          <ChevronLeft className="h-4 w-4" />
+          {t('common.back')}
+        </Button>
+        <Button variant="outline" onClick={onToggle}>
+          {group.acknowledgedAt ? t('health.unacknowledge') : t('health.acknowledge')}
+        </Button>
+      </div>
+
+      <Card>
+        <CardHeader className="flex-col items-start gap-4">
+          <CardTitle className="max-w-4xl font-sans text-xl font-semibold normal-case leading-tight tracking-normal">
+            {summary}
+          </CardTitle>
+          <dl className="grid w-full gap-4 border-t border-border/80 pt-4 sm:grid-cols-3">
+            <IncidentDatum label={t('health.occurrenceLabel')}>{occurrenceLabel(t, group.count)}</IncidentDatum>
+            <IncidentDatum label={t('health.firstSeen')}><time dateTime={group.firstSeenAt}>{fmt(group.firstSeenAt)}</time></IncidentDatum>
+            <IncidentDatum label={t('health.lastSeen')}><time dateTime={group.lastSeenAt}>{fmt(group.lastSeenAt)}</time></IncidentDatum>
+          </dl>
+        </CardHeader>
+        <CardContent>
+          {backupBeforeIncident ? (
+            <div className="flex items-start gap-3 rounded border border-status-online/35 bg-status-online/10 p-4">
+              <Check className="mt-0.5 h-4 w-4 shrink-0 text-status-online" aria-hidden="true" />
+              <p className="text-sm font-semibold leading-6 text-foreground">
+                {t('health.backupBeforeIncident', { age: formatAge(backupBeforeIncident.ageMs) })}
+              </p>
+            </div>
+          ) : (
+            <div className="flex items-start gap-3 rounded border border-status-warn/40 bg-status-warn/10 p-4">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-status-warn" aria-hidden="true" />
+              <p className="text-sm font-semibold leading-6 text-foreground">
+                {t('health.noBackupBeforeIncident')}
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {conclusions.length > 0 && (
+        <Card>
+          <CardHeader className="flex-col items-start gap-1.5">
+            <CardTitle>{t('health.conclusions')}</CardTitle>
+            <p className="max-w-3xl text-sm leading-6 text-muted-foreground">{t('health.heuristicNotice')}</p>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {conclusions.map((c) => (
+              <div key={c.id} className="rounded border border-border/80 bg-muted/30 p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-semibold">{categoryLabel(t, c.category)}</span>
+                  <Badge variant="secondary">{t(`health.confidence.${c.confidence}`)}</Badge>
+                </div>
+                <h4 className="mt-4 text-label font-semibold uppercase tracking-[0.12em] text-muted-foreground">{t('health.suggestedChecks')}</h4>
+                <ul className="mt-2 list-disc space-y-1.5 pl-5 text-sm leading-6">
+                  {c.suggestions.map((x, i) => <li key={i}>{ruleKey(t, c.ruleId, 'suggestions', i, x)}</li>)}
+                </ul>
+                {actionFor(c.ruleId) && (
+                  <Button className="mt-4" size="sm" variant="outline" onClick={() => onNavigate(actionFor(c.ruleId))}>
+                    {t('health.openAction')}
+                    <ArrowRight className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
+        <CardHeader className="flex-col items-start gap-1.5">
+          <CardTitle>{t('health.evidence')}</CardTitle>
+          <p className="max-w-3xl text-sm leading-6 text-muted-foreground">{t('health.evidenceImmutable')}</p>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <dl className="grid gap-4 sm:grid-cols-3">
+            <IncidentDatum label={t('health.occurred')}><time dateTime={incident.occurredAt}>{fmt(incident.occurredAt)}</time></IncidentDatum>
+            <IncidentDatum label={t('health.exitCode')}>{incident.exitCode ?? '-'}</IncidentDatum>
+            <IncidentDatum label={t('health.signal')}>{incident.signal || '-'}</IncidentDatum>
+          </dl>
+
+          {incident.evidence.console?.length > 0 && (
+            <Evidence title={t('health.consoleTail')} text={incident.evidence.console.map((l) => l.text).join('\n')} />
+          )}
+
+          {sources.map(([key, source]) => source.status === 'captured'
+            ? <Evidence key={key} title={source.path || key} text={source.text} />
+            : (
+              <p key={key} className="rounded border border-border/80 bg-muted/30 p-3 text-sm leading-6 text-muted-foreground">
+                <span className="font-semibold text-foreground">{key}</span>: {source.reason || t('health.unavailable')}
+              </p>
+            ))}
+        </CardContent>
+      </Card>
+    </div>
+  );
 }
 const formatAge = (ms) => ms < 3600000 ? `${Math.max(1, Math.round(ms / 60000))}m` : ms < 86400000 ? `${Math.round(ms / 3600000)}h` : `${Math.round(ms / 86400000)}d`;
 const actionFor = (ruleId) => ({
@@ -264,4 +374,17 @@ const actionFor = (ruleId) => ({
   'terraria.world.version': 'worlds', 'terraria.awaiting-input': 'worlds', 'tmodloader.mod.missing-dependency': 'addons',
   'tmodloader.mod.version': 'addons', 'tmodloader.mod.exception': 'addons', 'tshock.config.invalid': 'configs',
 }[ruleId] || null);
-function Evidence({ title, text }) { return <div><h4 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">{title}</h4><pre className="max-h-72 overflow-auto whitespace-pre-wrap rounded-md bg-muted p-3 text-xs">{text}</pre></div>; }
+function Evidence({ title, text }) {
+  return (
+    <div className="space-y-2">
+      <h4 className="font-display text-title font-extrabold uppercase tracking-[0.03em] text-foreground">{title}</h4>
+      <pre
+        tabIndex="0"
+        aria-label={title}
+        className="max-h-96 overflow-auto whitespace-pre-wrap break-words rounded border border-border bg-console px-4 py-3 font-mono text-[13px] leading-6 text-foreground"
+      >
+        {text}
+      </pre>
+    </div>
+  );
+}

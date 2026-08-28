@@ -183,7 +183,7 @@ tests.push(() => {
   // (Find the split by name: newer migrations sit after it in the array.)
   const idx = migrations.MIGRATIONS.findIndex((m) => m.name === 'api-keys');
   assert.ok(idx > 0, 'api-keys migration should exist');
-  const tail = migrations.MIGRATIONS.splice(idx);   // api-keys + drop-backup-drills
+  const tail = migrations.MIGRATIONS.splice(idx);   // api-keys + the newer tail
   const r1 = migrations.runMigrations();            // applies 1–11
   migrations.MIGRATIONS.push(...tail);              // restore immediately
   assert.strictEqual(r1.applied.length, 11, 'should apply 11 migrations');
@@ -195,10 +195,11 @@ tests.push(() => {
 
   // Run the runner — it should pick up all pending migrations.
   const r2 = migrations.runMigrations();
-  assert.strictEqual(r2.applied.length, 3, 'should apply the pending migrations');
+  assert.strictEqual(r2.applied.length, 4, 'should apply the pending migrations');
   assert.strictEqual(r2.applied[0].name, 'api-keys');
   assert.strictEqual(r2.applied[1].name, 'drop-backup-drills');
   assert.strictEqual(r2.applied[2].name, 'bug-reports');
+  assert.strictEqual(r2.applied[3].name, 'edge-product-foundation');
 
   // A snapshot was created before the upgrade ran.
   assert.ok(r2.snapshot, 'upgrade should produce a pre-migration snapshot');
@@ -220,6 +221,8 @@ tests.push(() => {
   assert.ok(v12row, 'migration 12 should be recorded');
   const v14row = db2.prepare('SELECT version FROM schema_migrations WHERE version = 14').get();
   assert.ok(v14row, 'migration 14 should be recorded');
+  const v15row = db2.prepare('SELECT version FROM schema_migrations WHERE version = 15').get();
+  assert.ok(v15row, 'migration 15 should be recorded');
 
   close();
   console.log('ok  upgrade-drill: pending migration creates snapshot, data survives');
@@ -290,6 +293,7 @@ tests.push(() => {
     'world_inventory', 'world_operations', 'world_previews',
     'templates', 'template_versions', 'template_import_previews',
     'api_keys',
+    'byoc_targets', 'pairing_challenges', 'byoc_agents', 'restore_drills', 'product_events',
   ];
   for (const t of expected) {
     const row = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").get(t);
