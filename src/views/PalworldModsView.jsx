@@ -22,6 +22,11 @@ import { useAuth } from '@/context/AuthContext';
 import { fmtBytes } from '@/lib/utils';
 
 const TERMINAL = ['succeeded', 'failed', 'recovery_required', 'cancelled'];
+const EMPTY_CATALOG = {
+  items: [],
+  stale: false,
+  fallbackUrl: 'https://steamcommunity.com/app/1623730/workshop/',
+};
 
 // Matches the raw <select> styling the Modrinth browser uses for its filters.
 const SELECT_CLASS = 'h-9 rounded-md border border-input bg-background/60 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring/50';
@@ -34,7 +39,7 @@ export function PalworldModsView() {
   const uploadRef = useRef(null);
   const [tab, setTab] = useState('browse');
   const [data, setData] = useState(null);
-  const [catalog, setCatalog] = useState(null);
+  const [catalog, setCatalog] = useState(EMPTY_CATALOG);
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState('trend');
   const [tag, setTag] = useState('');
@@ -62,7 +67,10 @@ export function PalworldModsView() {
       });
       if (force) params.set('force', '1');
       setCatalog(await api(`/api/palworld/mods/catalog?${params}`));
-    } catch (error) { toast.error(error.message); }
+    } catch (error) {
+      setCatalog((current) => ({ ...current, stale: true }));
+      toast.error(error.message);
+    }
     finally { setBusy(false); }
   }, [api, query, sort, tag]);
 
@@ -166,7 +174,7 @@ export function PalworldModsView() {
     finally { setBusy(false); }
   }
 
-  if (!data || !catalog) return <Loading />;
+  if (!data) return <Loading />;
   const eligible = data.compatibility?.supported && data.compatibility?.target === 'windows';
   const cachedIds = new Set(data.cached.map((item) => item.workshopId));
   const catalogItems = catalog.items.map((item) => ({ ...item, cached: cachedIds.has(item.workshopId) }));
