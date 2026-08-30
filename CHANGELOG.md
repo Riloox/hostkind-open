@@ -7,6 +7,34 @@ All notable changes to Hostkind are documented here. This project follows
 
 No entries yet.
 
+## [0.1.2.2] - 2026-08-30
+
+This release adds a guarded way to return Hostkind to a clean first-run state.
+
+### Added
+
+- **From-scratch reset**: `npm run reset` removes local credentials,
+  configuration, application state, runtime state, and supported caches before
+  starting a fresh panel process.
+- **Optional server cleanup**: registered server folders and backups are kept by
+  default. Passing `--include-servers` selects them for deletion.
+
+### Security and reliability
+
+- Reset requires two exact confirmations and never accepts a non-interactive
+  confirmation bypass. Server deletion requires a separate second token.
+- The command refuses to run while Hostkind or a configured game server is
+  active, validates every deletion target before mutation, and rejects unsafe or
+  overlapping server paths.
+- Reset coverage uses temporary filesystem fixtures and verifies both deletion
+  and preservation behavior without touching an installed Hostkind instance.
+
+### Release artifacts
+
+- The release source includes the reset command, focused tests, and updated
+  upgrade guidance. The packaged artifact includes a prebuilt panel and
+  SHA-256 manifests.
+
 ## [0.1.2.1] - 2026-08-28
 
 This release makes Terraria administration and update review clearer and safer.
