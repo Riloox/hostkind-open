@@ -26,7 +26,7 @@ jobs:
         language: ['javascript-typescript']
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
         with:
@@ -45,7 +45,7 @@ jobs:
       security-events: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
       - name: Generate the public snapshot
         run: |
           node scripts/strip-open.cjs
