@@ -176,12 +176,22 @@ jobs:
           rm -f "$key_file"
 
       - name: Publish GitHub release
-        run: >-
-          gh release create "$GITHUB_REF_NAME"
-          dist/hostkind-*.zip
-          dist/hostkind-*.zip.sha256
-          dist/SHA256SUMS
-          --generate-notes
+        run: |
+          set -eu
+          if gh release view "$GITHUB_REF_NAME" --json tagName >/dev/null 2>&1; then
+            echo "Release $GITHUB_REF_NAME already exists; replacing generated artifacts."
+            gh release upload "$GITHUB_REF_NAME" \
+              dist/hostkind-*.zip \
+              dist/hostkind-*.zip.sha256 \
+              dist/SHA256SUMS \
+              --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" \
+              dist/hostkind-*.zip \
+              dist/hostkind-*.zip.sha256 \
+              dist/SHA256SUMS \
+              --generate-notes
+          fi
         env:
           GH_TOKEN: ${{ github.token }}
 
