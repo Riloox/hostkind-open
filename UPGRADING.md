@@ -21,6 +21,7 @@ root (it also ships inside the zip).
 ```
 hostkind-<version>.zip
 ├── server.js                 the panel (Express + WebSocket)
+├── scripts/                  launchers, packaging, and reset tooling
 ├── lib/                      platform code and game modules
 ├── i18n.cjs, i18n.json       all user-facing strings
 ├── public/                   the prebuilt SPA (built by npm run build)
@@ -35,6 +36,24 @@ hostkind-<version>.zip
 
 Your `config.json` and `data/` directory are **not** in the artifact and are
 **never** overwritten by an upgrade.
+
+## Reset to a fresh Hostkind state
+
+The release includes a guarded reset command for returning Hostkind to its first-run state. Stop the panel and all game servers before running it:
+
+```bash
+npm run reset
+```
+
+This removes local credentials, configuration, application state, running state, metrics, runtime and installer caches, and supported local build caches. Registered server folders and backups are preserved by default.
+
+To delete registered server folders as well, use:
+
+```bash
+npm run reset -- --include-servers
+```
+
+Both modes require two exact confirmations. The server mode asks for a separate server-deletion confirmation. Use `--no-start` to leave the panel stopped after the reset.
 
 ## 1. Back up your state
 

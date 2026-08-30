@@ -68,6 +68,24 @@ copy `config.example.json` to `config.json` and edit it. The config contains the
 address, users, servers, backup settings, schedules, and optional integrations. Secrets
 and machine-specific paths are intentionally git-ignored.
 
+### Reset to a fresh state
+
+If you need to start Hostkind over, stop the panel and all game servers first, then run:
+
+```sh
+npm run reset
+```
+
+The default reset removes local credentials, configuration, application data, running state, metrics, runtimes, installer data, and supported caches. Registered server folders and backups are preserved.
+
+To also remove registered server folders, pass `--include-servers`:
+
+```sh
+npm run reset -- --include-servers
+```
+
+Both modes require two exact confirmations. Server deletion uses a separate confirmation token. Use `--no-start` when you want to reset without launching the fresh panel process.
+
 ## Modules
 
 Hostkind keeps process management generic and delegates workload-specific behavior to
