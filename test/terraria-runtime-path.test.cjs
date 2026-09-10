@@ -17,9 +17,18 @@ function tempRoot(prefix) {
 
 // Compare data roots by canonical path: on Windows runners os.tmpdir() can
 // report the 8.3 short form (C:\Users\RUNNER~1\...) while the import code
-// resolves the long form (C:\Users\runneradmin\...). Both name the same
-// directory; realpathSync makes the assertion hold on either spelling.
+// resolves the long form (C:\Users\runneradmin\...). Plain realpathSync
+// preserves each input's spelling, so use the native handle-based resolver,
+// which returns one canonical long-path spelling (minus its \\?\ prefix)
+// for both.
 function canonicalRoot(p) {
+  if (fs.realpathSync.native) {
+    try {
+      return fs.realpathSync.native(p)
+        .replace(/^\\\\\?\\UNC\\/, '\\\\')
+        .replace(/^\\\\\?\\/, '');
+    } catch { /* fall through to the portable resolver */ }
+  }
   return fs.realpathSync(p);
 }
 
