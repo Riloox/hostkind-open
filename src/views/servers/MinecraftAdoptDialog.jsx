@@ -54,8 +54,10 @@ export function MinecraftAdoptDialog({ open, onOpenChange, onAdopted }) {
         name,
         dir: detection.dir,
         jar: detection.jarLoader?.jar?.jar || '',
+        loader: detection.jarLoader?.loader || detection.jarLoader?.jar?.type || '',
+        launchArgs: detection.jarLoader?.launchArgs || null,
         javaArgs: '-Xmx4G -Xms4G',
-        mcVersion: '',
+        mcVersion: detection.jarLoader?.mcVersion || '',
         worlds: detection.worlds.map((w) => w.name).join(', '),
         mapUrl: '',
       };
@@ -128,7 +130,7 @@ export function MinecraftAdoptDialog({ open, onOpenChange, onAdopted }) {
           </DialogBody>
           <DialogFooter>
             <Button variant="glass" onClick={() => onOpenChange(false)}>{t('common.cancel')}</Button>
-            <Button disabled={busy || !detection?.ok || !detection?.jarLoader?.jar || !name} onClick={adopt}>{t('portability.minecraftAdopt')}</Button>
+            <Button disabled={busy || !detection?.ok || (!detection?.jarLoader?.jar && !detection?.jarLoader?.launchArgs?.length) || !name} onClick={adopt}>{t('portability.minecraftAdopt')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

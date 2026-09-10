@@ -8,6 +8,27 @@ and npm (see [Requirements](#requirements)).
 For what changed in a given version, read `CHANGELOG.md` at the repository
 root (it also ships inside the zip).
 
+## Desktop installer upgrades (0.1.2.3+)
+
+If you installed Hostkind from `Hostkind-<version>-Setup.exe` (Windows),
+`hostkind_<version>_amd64.deb`, or `Hostkind-<version>.AppImage` (Linux),
+upgrading needs no terminal:
+
+1. Download the new installer from the GitHub Releases page.
+2. Run it over the current install (Windows setup / `.deb`) or replace the
+   old `.AppImage` file (portable ZIP: extract over the old folder).
+
+Your configuration, database, servers, and backups live in per-user folders
+outside the install directory (see
+[WINDOWS-DISTRIBUTION.md](WINDOWS-DISTRIBUTION.md) and
+[LINUX-DISTRIBUTION.md](LINUX-DISTRIBUTION.md)), so they are preserved
+automatically. Database migrations still run on first boot as described
+below. Desktop installers update by re-downloading the next release: the
+signed in-app update manifest only activates for strict `X.Y.Z` releases
+(the updater fail-closes on other schemes), so patch builds like `0.1.2.3`
+upgrade through a fresh installer run. The rest of this guide covers the
+advanced ZIP layout.
+
 ## Requirements
 
 - **Node.js `>=22`** (declared in `package.json` `engines`; the launcher
@@ -21,7 +42,6 @@ root (it also ships inside the zip).
 ```
 hostkind-<version>.zip
 ├── server.js                 the panel (Express + WebSocket)
-├── scripts/                  launchers, packaging, and reset tooling
 ├── lib/                      platform code and game modules
 ├── i18n.cjs, i18n.json       all user-facing strings
 ├── public/                   the prebuilt SPA (built by npm run build)
@@ -36,24 +56,6 @@ hostkind-<version>.zip
 
 Your `config.json` and `data/` directory are **not** in the artifact and are
 **never** overwritten by an upgrade.
-
-## Reset to a fresh Hostkind state
-
-The release includes a guarded reset command for returning Hostkind to its first-run state. Stop the panel and all game servers before running it:
-
-```bash
-npm run reset
-```
-
-This removes local credentials, configuration, application state, running state, metrics, runtime and installer caches, and supported local build caches. Registered server folders and backups are preserved by default.
-
-To delete registered server folders as well, use:
-
-```bash
-npm run reset -- --include-servers
-```
-
-Both modes require two exact confirmations. The server mode asks for a separate server-deletion confirmation. Use `--no-start` to leave the panel stopped after the reset.
 
 ## 1. Back up your state
 

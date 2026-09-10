@@ -518,7 +518,7 @@ function startPanel({ root, env = process.env, fsImpl = fs, spawnImpl = spawn } 
       env: { ...env },
       shell: false,
       detached: true,
-      stdio: 'inherit',
+      stdio: 'ignore',
     };
     try {
       child = spawnImpl(process.execPath, [serverPath], options);

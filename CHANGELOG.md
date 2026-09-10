@@ -7,33 +7,39 @@ All notable changes to Hostkind are documented here. This project follows
 
 No entries yet.
 
-## [0.1.2.2] - 2026-08-30
+## [0.1.2.3]
 
-This release adds a guarded way to return Hostkind to a clean first-run state.
+This release puts one-click installers on the Releases tab so non-technical
+users can install Hostkind without Node.js, npm, or a terminal.
 
 ### Added
 
-- **From-scratch reset**: `npm run reset` removes local credentials,
-  configuration, application state, runtime state, and supported caches before
-  starting a fresh panel process.
-- **Optional server cleanup**: registered server folders and backups are kept by
-  default. Passing `--include-servers` selects them for deletion.
+- **Windows installer**: `Hostkind-<version>-Setup.exe` (one-click NSIS,
+  Start-menu launcher) published to every tagged GitHub Release, plus a
+  `Hostkind-<version>-Portable.zip` fallback for hosts where Smart App
+  Control blocks the unsigned setup.
+- **Linux installers**: `hostkind_<version>_amd64.deb` for Ubuntu/Debian
+  double-click installs and a `Hostkind-<version>.AppImage` portable
+  fallback, both published to every tagged GitHub Release.
+- **Release pipeline**: tag-triggered `build-installer-windows` and
+  `build-installer-linux` CI jobs; the `release` job hashes every installer
+  asset (`scripts/collect-installer-artifacts.cjs`), feeds the NSIS setup
+  and AppImage into the signed Ed25519 update manifest, and attaches all
+  assets with `.sha256` sidecars.
+- **Documentation**: installer-first README, new `LINUX-DISTRIBUTION.md`,
+  rewritten `WINDOWS-DISTRIBUTION.md`, and desktop upgrade notes in
+  `UPGRADING.md`.
 
-### Security and reliability
+### Notes
 
-- Reset requires two exact confirmations and never accepts a non-interactive
-  confirmation bypass. Server deletion requires a separate second token.
-- The command refuses to run while Hostkind or a configured game server is
-  active, validates every deletion target before mutation, and rejects unsafe or
-  overlapping server paths.
-- Reset coverage uses temporary filesystem fixtures and verifies both deletion
-  and preservation behavior without touching an installed Hostkind instance.
-
-### Release artifacts
-
-- The release source includes the reset command, focused tests, and updated
-  upgrade guidance. The packaged artifact includes a prebuilt panel and
-  SHA-256 manifests.
+- The Windows installer is published **unsigned** (no trusted Authenticode
+  material is available): expect a SmartScreen / Smart App Control warning,
+  use the portable ZIP when the setup is blocked, and never disable OS
+  security controls. The Ed25519 update manifest + SHA-256 hashes protect
+  update integrity but do not confer Authenticode trust.
+- Desktop installers update by re-downloading the next release: the signed
+  in-app update manifest only activates for strict `X.Y.Z` releases, so this
+  patch build (`0.1.2.3`) upgrades through a fresh installer run.
 
 ## [0.1.2.1] - 2026-08-28
 

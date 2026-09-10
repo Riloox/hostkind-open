@@ -45,5 +45,6 @@ npm run desktop:smoke:packaged
 ```
 
 It can be refused by Smart App Control because the local executable is unsigned.
-That is expected security behavior. The public tag release does not publish
-this installer.
+That is expected security behavior. Since 0.1.2.3 the CI-built installer is
+published to the tagged GitHub Release (unsigned, with a portable fallback);
+see [WINDOWS-DISTRIBUTION.md](WINDOWS-DISTRIBUTION.md) for the release policy.

@@ -7,6 +7,7 @@ import {
 import { ViewHeader } from '@/components/layout/Page';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Alert } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
@@ -34,7 +35,7 @@ const SELECT_CLASS = 'h-9 rounded-md border border-input bg-background/60 px-3 t
 export function PalworldModsView() {
   const api = useApi();
   const t = useT();
-  const { activeServerId } = useServer();
+  const { activeServerId, getServerStatus } = useServer();
   const { hasCapability } = useAuth();
   const uploadRef = useRef(null);
   const [tab, setTab] = useState('browse');
@@ -48,11 +49,18 @@ export function PalworldModsView() {
   const [operation, setOperation] = useState(null);
   const [manualPath, setManualPath] = useState('');
   const [pendingRemove, setPendingRemove] = useState(null);
+  const [selectedCatalog, setSelectedCatalog] = useState(new Set());
+  const [selectedInstalled, setSelectedInstalled] = useState(new Set());
   const canManage = hasCapability('plugins.manage', activeServerId);
+  const offline = getServerStatus(activeServerId).status === 'offline';
 
   const load = useCallback(async () => {
     if (!activeServerId) return;
-    try { setData(await api('/api/palworld/mods/official')); }
+    try {
+      const nextData = await api('/api/palworld/mods/official');
+      setData(nextData);
+      setSelectedInstalled((current) => new Set([...current].filter((id) => nextData.packages.some((pkg) => pkg.workshopId === id))));
+    }
     catch (error) { toast.error(error.message); }
   }, [activeServerId, api]);
 
@@ -66,7 +74,9 @@ export function PalworldModsView() {
         page: '1',
       });
       if (force) params.set('force', '1');
-      setCatalog(await api(`/api/palworld/mods/catalog?${params}`));
+      const nextCatalog = await api(`/api/palworld/mods/catalog?${params}`);
+      setCatalog(nextCatalog);
+      setSelectedCatalog(new Set());
     } catch (error) {
       setCatalog((current) => ({ ...current, stale: true }));
       toast.error(error.message);
@@ -74,7 +84,12 @@ export function PalworldModsView() {
     finally { setBusy(false); }
   }, [api, query, sort, tag]);
 
-  useEffect(() => { load(); browse(); }, [activeServerId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    setSelectedCatalog(new Set());
+    setSelectedInstalled(new Set());
+    load();
+    browse();
+  }, [activeServerId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Re-run the catalog search when the sort changes, like the Modrinth browser
   // does - but not on the first render, where the mount effect already fetched.
@@ -119,6 +134,35 @@ export function PalworldModsView() {
       if (error.code === 'revision_unknown' && !allowUnknownRevision) return previewWorkshop(item, true);
       toast.error(error.message);
     } finally { setBusy(false); }
+  }
+
+  async function downloadSelected() {
+    const workshopIds = catalogItems
+      .filter((item) => selectedCatalog.has(item.workshopId) && !item.cached)
+      .map((item) => item.workshopId);
+    if (!workshopIds.length) return toast.info(t('palworldMods.official.selectNotDownloaded'));
+    setBusy(true);
+    try {
+      const result = await api('/api/palworld/mods/catalog/download', { method: 'POST', body: { workshopIds } });
+      if (result.downloaded.length) toast.success(t('palworldMods.official.downloadedSelected', { count: result.downloaded.length }));
+      if (result.failed.length) toast.error(t('palworldMods.official.downloadedPartial', { count: result.failed.length }));
+      setSelectedCatalog(new Set());
+      await Promise.all([load(), browse(true)]);
+    } catch (error) { toast.error(error.message); }
+    finally { setBusy(false); }
+  }
+
+  async function setSelectedEnabled(enabled) {
+    const workshopIds = [...selectedInstalled];
+    if (!workshopIds.length) return;
+    setBusy(true);
+    try {
+      const result = await api('/api/palworld/mods/enabled-batch', { method: 'POST', body: { workshopIds, enabled } });
+      toast.success(t(enabled ? 'palworldMods.enabledSelected' : 'palworldMods.disabledSelected', { count: result.changed.length }));
+      setSelectedInstalled(new Set());
+      await load();
+    } catch (error) { toast.error(error.message); }
+    finally { setBusy(false); }
   }
 
   async function previewUpload(event) {
@@ -179,6 +223,9 @@ export function PalworldModsView() {
   const cachedIds = new Set(data.cached.map((item) => item.workshopId));
   const catalogItems = catalog.items.map((item) => ({ ...item, cached: cachedIds.has(item.workshopId) }));
   const downloaded = data.cached.filter((item) => !data.packages.some((pkg) => pkg.workshopId === item.workshopId));
+  const selectableCatalogIds = catalogItems.filter((item) => !item.cached).map((item) => item.workshopId);
+  const selectedCatalogCount = selectableCatalogIds.filter((id) => selectedCatalog.has(id)).length;
+  const selectedInstalledCount = data.packages.filter((pkg) => selectedInstalled.has(pkg.workshopId)).length;
 
   return (
     <div className="space-y-6">
@@ -271,10 +318,47 @@ export function PalworldModsView() {
                 <Alert variant="warn" className="mb-4"><Clock3 className="h-4 w-4" />{t('palworldMods.official.catalogFallback')}</Alert>
               )}
 
+              {selectableCatalogIds.length > 0 && (
+                <div className="mb-4 flex flex-wrap items-center gap-3 rounded-md border border-border/60 bg-secondary/10 px-3 py-2">
+                  <label className="flex items-center gap-2 text-sm text-foreground">
+                    <Checkbox
+                      checked={selectedCatalogCount === selectableCatalogIds.length}
+                      onCheckedChange={(checked) => setSelectedCatalog(new Set(checked ? selectableCatalogIds : []))}
+                      aria-label={t('palworldMods.official.selectAll')}
+                    />
+                    {t('palworldMods.official.selectAll')}
+                  </label>
+                  <span className="text-xs text-muted-foreground">
+                    {t('palworldMods.official.selectedCount', { count: selectedCatalogCount })}
+                  </span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="default"
+                    className="ml-auto"
+                    disabled={!canManage || !eligible || !selectedCatalogCount || busy}
+                    onClick={downloadSelected}
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    {t('palworldMods.official.downloadSelected')}
+                  </Button>
+                </div>
+              )}
+
               {catalogItems.length ? (
                 <div className="space-y-2">
                   {catalogItems.map((item) => (
                     <div key={item.workshopId} className="flex items-center gap-3 rounded-lg border border-border/60 bg-secondary/20 p-3 hover:bg-secondary/40 transition-colors">
+                      <Checkbox
+                        checked={selectedCatalog.has(item.workshopId)}
+                        disabled={item.cached}
+                        onCheckedChange={(checked) => setSelectedCatalog((current) => {
+                          const next = new Set(current);
+                          if (checked) next.add(item.workshopId); else next.delete(item.workshopId);
+                          return next;
+                        })}
+                        aria-label={t('palworldMods.official.selectItem', { name: item.title || item.workshopId })}
+                      />
                       {item.previewUrl ? (
                         <img src={item.previewUrl} alt="" loading="lazy" className="h-12 w-12 rounded shrink-0 object-cover"
                           onError={(event) => { event.target.style.visibility = 'hidden'; }} />
@@ -358,10 +442,42 @@ export function PalworldModsView() {
                 </div>
               )}
 
+              {data.packages.length > 0 && (
+                <div className="mb-4 flex flex-wrap items-center gap-3 rounded-md border border-border/60 bg-secondary/10 px-3 py-2">
+                  <label className="flex items-center gap-2 text-sm text-foreground">
+                    <Checkbox
+                      checked={selectedInstalledCount === data.packages.length}
+                      onCheckedChange={(checked) => setSelectedInstalled(new Set(checked ? data.packages.map((pkg) => pkg.workshopId) : []))}
+                      aria-label={t('palworldMods.selectAllInstalled')}
+                    />
+                    {t('palworldMods.selectAllInstalled')}
+                  </label>
+                  <span className="text-xs text-muted-foreground">{t('palworldMods.selectedInstalled', { count: selectedInstalledCount })}</span>
+                  {!offline && <span className="text-xs text-status-warn">{t('palworldMods.offlineRequired')}</span>}
+                  <div className="ml-auto flex flex-wrap gap-2">
+                    <Button type="button" size="sm" variant="glass" disabled={!canManage || !offline || !selectedInstalledCount || busy} onClick={() => setSelectedEnabled(true)}>
+                      {t('palworldMods.enableSelected')}
+                    </Button>
+                    <Button type="button" size="sm" variant="glass" disabled={!canManage || !offline || !selectedInstalledCount || busy} onClick={() => setSelectedEnabled(false)}>
+                      {t('palworldMods.disableSelected')}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               {data.packages.length ? (
                 <div className="space-y-2">
                   {data.packages.map((pkg) => (
                     <div key={pkg.workshopId} className="flex items-center gap-3 rounded-lg border border-border/60 bg-secondary/20 p-3 hover:bg-secondary/40 transition-colors">
+                      <Checkbox
+                        checked={selectedInstalled.has(pkg.workshopId)}
+                        onCheckedChange={(checked) => setSelectedInstalled((current) => {
+                          const next = new Set(current);
+                          if (checked) next.add(pkg.workshopId); else next.delete(pkg.workshopId);
+                          return next;
+                        })}
+                        aria-label={t('palworldMods.selectItem', { name: pkg.packageName })}
+                      />
                       <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded bg-muted text-muted-foreground">
                         <ShieldCheck className="h-5 w-5" />
                       </div>

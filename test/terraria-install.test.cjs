@@ -367,7 +367,7 @@ test('a tModLoader install resolves an argv launch plan and never a wrapper scri
   assert.ok(Array.isArray(runtime.args), 'the launch plan is an argv array');
   assert.strictEqual(runtime.executable, '/usr/bin/dotnet', 'the runtime runs the package, not the other way round');
   assert.deepStrictEqual(runtime.args, [
-    path.join(destination, 'tModLoader.dll'), '-server', '-config', path.join(destination, 'serverconfig.txt'),
+    path.join(destination, 'tModLoader.dll'), '-server', '-tmlsavedirectory', destination, '-config', path.join(destination, 'serverconfig.txt'),
   ]);
   assert.strictEqual(runtime.cwd, destination);
   assert.strictEqual(runtime.runtime.framework, '8.0.0', 'the required framework is read from the package');

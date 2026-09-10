@@ -43,7 +43,24 @@ dock.
 
 ## Run Hostkind
 
-On Windows, double-click `start-panel.bat`. On Linux or macOS:
+No technical setup is required. Each release below ships ready-to-run
+installers:
+
+- **Windows**: download `Hostkind-<version>-Setup.exe`, double-click it, then
+  launch Hostkind from the Start menu. The installer is unsigned, so Windows
+  may warn about it; if it is blocked, extract
+  `Hostkind-<version>-Portable.zip` and run `Hostkind.exe` instead. Never
+  disable Smart App Control or Defender to run it.
+- **Linux**: download `hostkind_<version>_amd64.deb` and double-click it to
+  install (Ubuntu/Debian), or make `Hostkind-<version>.AppImage` executable
+  and double-click it on other distributions.
+
+Your servers and settings live in per-user folders outside the install
+directory, so reinstalling never deletes them. To upgrade a desktop install,
+run the next release's installer over it.
+
+Advanced headless installs still work: on Windows, double-click
+`start-panel.bat`. On Linux or macOS:
 
 ```sh
 ./start-panel.sh
@@ -67,24 +84,6 @@ Hostkind creates `config.json` on first boot. To customise settings before start
 copy `config.example.json` to `config.json` and edit it. The config contains the panel
 address, users, servers, backup settings, schedules, and optional integrations. Secrets
 and machine-specific paths are intentionally git-ignored.
-
-### Reset to a fresh state
-
-If you need to start Hostkind over, stop the panel and all game servers first, then run:
-
-```sh
-npm run reset
-```
-
-The default reset removes local credentials, configuration, application data, running state, metrics, runtimes, installer data, and supported caches. Registered server folders and backups are preserved.
-
-To also remove registered server folders, pass `--include-servers`:
-
-```sh
-npm run reset -- --include-servers
-```
-
-Both modes require two exact confirmations. Server deletion uses a separate confirmation token. Use `--no-start` when you want to reset without launching the fresh panel process.
 
 ## Modules
 
@@ -121,12 +120,21 @@ continuously synced fork.
 
 Publishing is automated upstream: every green CI run on the source repository
 publishes a fresh snapshot to `main` here, and each tagged release (`vX.Y.Z`)
-is mirrored to a GitHub Release on this repository with a zip archive, its
-SHA256 checksum, and a full manifest. Verify a download with:
+is mirrored to a GitHub Release on this repository with:
+
+- `hostkind-<version>.zip` (prebuilt source distribution) with its SHA256
+  checksum and full manifest,
+- `Hostkind-<version>-Setup.exe` plus the `Hostkind-<version>-Portable.zip`
+  fallback (Windows),
+- `hostkind_<version>_amd64.deb` and `Hostkind-<version>.AppImage` (Linux).
+
+Verify a download with:
 
 ```
 sha256sum -c hostkind-<version>.zip.sha256
 ```
+
+(each installer ships its own `.sha256` sidecar verified the same way).
 
 ## License
 

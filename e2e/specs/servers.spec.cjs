@@ -151,6 +151,48 @@ test.describe('registering', () => {
     expect(panel.readConfig().servers.some((server) => server.name === 'adopted')).toBe(true);
   });
 
+  test('adopts a NeoForge folder launched through a generated argfile', async ({ page, newApp }) => {
+    const panel = await newApp();
+    const dir = path.join(panel.dirs.servers, 'neoforge-adopted');
+    const argRelative = path.join('libraries', 'net', 'neoforged', 'neoforge', '21.4.157', 'win_args.txt');
+    fs.mkdirSync(path.dirname(path.join(dir, argRelative)), { recursive: true });
+    fs.writeFileSync(path.join(dir, argRelative), [
+      '--module-path',
+      'libraries',
+      '--fml.neoForgeVersion',
+      '21.4.157',
+      '--fml.mcVersion',
+      '1.21.4',
+    ].join('\n'));
+    fs.writeFileSync(path.join(dir, 'server.properties'), [
+      'server-port=25565',
+      'motd=A NeoForge Server',
+      'level-name=world',
+      'max-players=20',
+    ].join('\n'));
+    fs.writeFileSync(path.join(dir, 'eula.txt'), 'eula=true\n');
+    fs.mkdirSync(path.join(dir, 'world'), { recursive: true });
+    fs.writeFileSync(path.join(dir, 'world', 'level.dat'), 'level');
+
+    await signInFast(page, panel);
+    await openView(page, 'minecraft', 'servers', { origin: panel.url });
+
+    await page.getByRole('button', { name: en('servers.addExisting') }).click();
+    const form = dialog(page, en('portability.minecraftAdoptTitle'));
+    await form.root.getByRole('textbox').first().fill(dir);
+    await form.root.getByRole('button', { name: en('portability.inspect') }).click();
+
+    await expect(form.root).toContainText('NeoForge');
+    await expect(form.root).toContainText('neoforge-server');
+    await expect(form.root.getByRole('button', { name: en('portability.minecraftAdopt') })).toBeEnabled();
+    await form.root.getByRole('button', { name: en('portability.minecraftAdopt') }).click();
+
+    await expect(row(page, 'neoforge-adopted')).toBeVisible();
+    const registered = panel.readConfig().servers.find((server) => server.name === 'neoforge-adopted');
+    expect(registered.launchArgs).toEqual(['@libraries/net/neoforged/neoforge/21.4.157/win_args.txt', 'nogui']);
+    expect(registered.mcVersion).toBe('1.21.4');
+  });
+
   /*
    * The create wizard, end to end, with no network involved: a custom process
    * is the one kind of server the panel makes without downloading anything.

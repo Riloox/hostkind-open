@@ -18,6 +18,7 @@ jobs:
   # but Node 20 reached end-of-life in April 2026 and CI gates the oldest
   # actively supported LTS instead of a retired runtime.
   test:
+    if: github.repository == 'Riloox/hostkind-open'
     name: test (node 22)
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -64,6 +65,7 @@ jobs:
           retention-days: 14
 
   test-windows:
+    if: github.repository == 'Riloox/hostkind-open'
     name: test (node 22, windows)
     runs-on: windows-latest
     timeout-minutes: 60
@@ -115,13 +117,102 @@ jobs:
             e2e/results/
           retention-days: 14
 
+  # 0.1.2.3: tag-triggered Windows installer build. Publishes an unsigned
+  # NSIS setup plus a portable-zip fallback (zipped win-unpacked) for hosts
+  # where Smart App Control blocks the unsigned installer. Never instruct
+  # users to disable Smart App Control or Defender to run them.
+  build-installer-windows:
+    name: installer (windows)
+    if: github.repository == 'Riloox/hostkind-open' && startsWith(github.ref, 'refs/tags/v')
+    needs: [test, test-windows]
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build the SPA into public/
+        run: npm run build
+
+      - name: Rebuild native modules for Electron
+        run: npm run desktop:install-app-deps
+
+      - name: Build the Windows installer
+        run: npx electron-builder --config packaging/windows/electron-builder.cjs --win nsis --publish never
+
+      - name: Zip the portable fallback
+        run: node scripts/collect-installer-artifacts.cjs --portable-zip --version "${GITHUB_REF_NAME#v}"
+        shell: bash
+
+      - name: Upload Windows installer artifacts
+        uses: actions/upload-artifact@v5
+        with:
+          name: installer-windows
+          path: |
+            dist-electron/Hostkind-*-Setup.exe
+            dist-electron/Hostkind-*-Setup.exe.sha256
+            dist-electron/Hostkind-*-Portable.zip
+            dist-electron/Hostkind-*-Portable.zip.sha256
+          retention-days: 14
+          if-no-files-found: error
+
+  # 0.1.2.3: tag-triggered Linux installer build. The .deb covers
+  # Ubuntu/Debian double-click installs; the AppImage is the portable
+  # fallback (chmod +x, then double-click).
+  build-installer-linux:
+    name: installer (linux)
+    if: github.repository == 'Riloox/hostkind-open' && startsWith(github.ref, 'refs/tags/v')
+    needs: [test, test-windows]
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build the SPA into public/
+        run: npm run build
+
+      - name: Rebuild native modules for Electron
+        run: npm run desktop:install-app-deps
+
+      - name: Build the Linux installers
+        run: npx electron-builder --config packaging/windows/electron-builder.cjs --linux AppImage deb --publish never
+
+      - name: Upload Linux installer artifacts
+        uses: actions/upload-artifact@v5
+        with:
+          name: installer-linux
+          path: |
+            dist-electron/Hostkind-*.AppImage
+            dist-electron/*.deb
+          retention-days: 14
+          if-no-files-found: error
+
   # Manual, tag-triggered release: cut a tag `v<semver>` matching package.json
   # and this job builds the SPA, packages the artifact, and publishes it to a
   # GitHub Release with the zip, its checksum, and the full SHA256SUMS manifest.
   release:
     name: release
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: [test, test-windows]
+    if: github.repository == 'Riloox/hostkind-open' && startsWith(github.ref, 'refs/tags/v')
+    needs: [test, test-windows, build-installer-windows, build-installer-linux]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -155,16 +246,53 @@ jobs:
       - name: Package the release artifact
         run: npm run package
 
-      # Optional binary distribution hook. A platform-specific packager may
-      # emit dist/application-artifacts.json with real .exe/Linux assets. The
-      # private signing key exists only in Actions secrets and is never shipped.
+      - name: Download Windows installer artifacts
+        uses: actions/download-artifact@v5
+        with:
+          name: installer-windows
+          path: dist/
+
+      - name: Download Linux installer artifacts
+        uses: actions/download-artifact@v5
+        with:
+          name: installer-linux
+          path: dist/
+
+      # Hash the installer assets and emit the updater payload consumed by
+      # the signed-manifest step below. The NSIS setup feeds windows-x64,
+      # the AppImage feeds linux-x64; the portable zip and .deb ship for
+      # manual download with their own .sha256 sidecars.
+      - name: Collect installer artifacts manifest
+        run: >-
+          node scripts/collect-installer-artifacts.cjs --manifest
+          --tag "$GITHUB_REF_NAME"
+          --version "${GITHUB_REF_NAME#v}"
+          --assets-dir dist
+          --output dist/application-artifacts.json
+
+      # Binary distribution hook. The installer jobs above emit real .exe/Linux
+      # assets; the collect step wrote dist/application-artifacts.json from
+      # them. The private signing key exists only in Actions secrets and is
+      # never shipped.
       - name: Generate signed binary update manifest
         if: ${{ hashFiles('dist/application-artifacts.json') != '' }}
         env:
           HOSTKIND_UPDATE_PRIVATE_KEY: ${{ secrets.HOSTKIND_UPDATE_PRIVATE_KEY }}
         run: |
           set -eu
-          test -n "$HOSTKIND_UPDATE_PRIVATE_KEY"
+          version="${GITHUB_REF_NAME#v}"
+          # The updater fail-closes on strict stable X.Y.Z (see
+          # lib/application-release.cjs). Patch-build tags like v0.1.2.3 ship
+          # their installers for manual download; the signed in-app update
+          # manifest activates again for strict-semver releases.
+          if ! printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::notice::skipping signed update manifest for non-strict-semver version $version"
+            exit 0
+          fi
+          if [ -z "$HOSTKIND_UPDATE_PRIVATE_KEY" ]; then
+            echo "::notice::skipping signed update manifest (HOSTKIND_UPDATE_PRIVATE_KEY not set)"
+            exit 0
+          fi
           key_file="$RUNNER_TEMP/hostkind-update-signing-key.pem"
           printf '%s\n' "$HOSTKIND_UPDATE_PRIVATE_KEY" > "$key_file"
           node scripts/create-update-manifest.cjs \
@@ -176,22 +304,20 @@ jobs:
           rm -f "$key_file"
 
       - name: Publish GitHub release
-        run: |
-          set -eu
-          if gh release view "$GITHUB_REF_NAME" --json tagName >/dev/null 2>&1; then
-            echo "Release $GITHUB_REF_NAME already exists; replacing generated artifacts."
-            gh release upload "$GITHUB_REF_NAME" \
-              dist/hostkind-*.zip \
-              dist/hostkind-*.zip.sha256 \
-              dist/SHA256SUMS \
-              --clobber
-          else
-            gh release create "$GITHUB_REF_NAME" \
-              dist/hostkind-*.zip \
-              dist/hostkind-*.zip.sha256 \
-              dist/SHA256SUMS \
-              --generate-notes
-          fi
+        run: >-
+          gh release create "$GITHUB_REF_NAME"
+          dist/hostkind-*.zip
+          dist/hostkind-*.zip.sha256
+          dist/SHA256SUMS
+          dist/Hostkind-*-Setup.exe
+          dist/Hostkind-*-Setup.exe.sha256
+          dist/Hostkind-*-Portable.zip
+          dist/Hostkind-*-Portable.zip.sha256
+          dist/Hostkind-*.AppImage
+          dist/Hostkind-*.AppImage.sha256
+          dist/*.deb
+          dist/*.deb.sha256
+          --generate-notes
         env:
           GH_TOKEN: ${{ github.token }}
 
