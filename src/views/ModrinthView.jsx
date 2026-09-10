@@ -3,6 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { ViewHeader } from '@/components/layout/Page';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/dialog';
 import { useApi } from '@/hooks/useApi';
@@ -30,6 +31,8 @@ function ModrinthResults({ compat, projectType, onInstalled }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [installing, setInstalling] = useState({});
+  const [selected, setSelected] = useState(new Set());
+  const [batchInstalling, setBatchInstalling] = useState(false);
 
   async function search() {
     setLoading(true);
@@ -40,6 +43,7 @@ function ModrinthResults({ compat, projectType, onInstalled }) {
       setNote(data.note || '');
       if (data.categories && !categories.length) setCategories(data.categories);
       setResults(data.hits || []);
+      setSelected(new Set());
     } catch (e) { setError(e.message); }
     setLoading(false);
   }
@@ -68,6 +72,42 @@ function ModrinthResults({ compat, projectType, onInstalled }) {
     }
   }
 
+  async function installSelected() {
+    const projectIds = results
+      .map((item) => item.project_id || item.slug)
+      .filter((projectId) => selected.has(projectId) && !installing[projectId]);
+    if (!projectIds.length || batchInstalling) return;
+    setBatchInstalling(true);
+    setInstalling((current) => ({
+      ...current,
+      ...Object.fromEntries(projectIds.map((projectId) => [projectId, 'downloading'])),
+    }));
+    try {
+      const result = await api('/api/modrinth/install-batch', {
+        method: 'POST',
+        body: { projectIds, projectType },
+      });
+      setInstalling((current) => {
+        const next = { ...current };
+        for (const item of result.results || []) next[item.projectId] = item.status === 'installed' ? 'done' : null;
+        return next;
+      });
+      if (result.installed.length) toast.success(t('minecraft.modrinth.installedSelected', { count: result.installed.length }));
+      if (result.failed.length) toast.error(t('minecraft.modrinth.installedSelectedPartial', { count: result.installed.length, failed: result.failed.length }));
+      setSelected(new Set());
+      onInstalled?.(result);
+    } catch (e) {
+      toast.error(e.message);
+      setInstalling((current) => {
+        const next = { ...current };
+        for (const projectId of projectIds) next[projectId] = null;
+        return next;
+      });
+    } finally { setBatchInstalling(false); }
+  }
+
+  const selectableResults = results.filter((item) => !installing[item.project_id || item.slug]);
+  const selectedVisibleCount = selectableResults.filter((item) => selected.has(item.project_id || item.slug)).length;
   const compatText = compat?.projectType
     ? `${compat.label} · ${projectType === 'mod' ? t('minecraft.modrinth.compatMod') : t('minecraft.modrinth.compatPlugin')}${compat.mcVersion ? ' · ' + compat.mcVersion : ''}`
     : note || t('minecraft.modrinth.compatNone');
@@ -113,10 +153,43 @@ function ModrinthResults({ compat, projectType, onInstalled }) {
         <p className="text-sm text-muted-foreground italic">{note || t('minecraft.modrinth.empty')}</p>
       ) : (
         <div className="space-y-2">
+          <div className="flex flex-wrap items-center gap-3 rounded-md border border-border/60 bg-secondary/10 px-3 py-2">
+            <label className="flex items-center gap-2 text-sm text-foreground">
+              <Checkbox
+                checked={selectableResults.length > 0 && selectedVisibleCount === selectableResults.length}
+                onCheckedChange={(checked) => setSelected(new Set(checked ? selectableResults.map((item) => item.project_id || item.slug) : []))}
+                aria-label={t('minecraft.modrinth.selectAll')}
+              />
+              {t('minecraft.modrinth.selectAll')}
+            </label>
+            <span className="text-xs text-muted-foreground">{t('minecraft.modrinth.selectedCount', { count: selectedVisibleCount })}</span>
+            <Button
+              type="button"
+              size="sm"
+              variant="default"
+              className="ml-auto"
+              disabled={!selectedVisibleCount || batchInstalling || Object.values(installing).some((value) => value === 'downloading' || value === 'finding')}
+              onClick={installSelected}
+            >
+              <Download className="h-3.5 w-3.5" />
+              {t('minecraft.modrinth.installSelected')}
+            </Button>
+          </div>
           {results.map(h => {
             const state = installing[h.project_id || h.slug];
             return (
               <div key={h.project_id || h.slug} className="flex items-center gap-3 rounded-lg border border-border/60 bg-secondary/20 p-3 hover:bg-secondary/40 transition-colors">
+                <Checkbox
+                  checked={selected.has(h.project_id || h.slug)}
+                  disabled={!!state || batchInstalling}
+                  onCheckedChange={(checked) => setSelected((current) => {
+                    const next = new Set(current);
+                    const id = h.project_id || h.slug;
+                    if (checked) next.add(id); else next.delete(id);
+                    return next;
+                  })}
+                  aria-label={t('minecraft.modrinth.selectItem', { name: h.title })}
+                />
                 {h.icon_url && (
                   <img src={h.icon_url} alt="" className="h-12 w-12 rounded shrink-0 object-cover"
                     onError={e => { e.target.style.visibility = 'hidden'; }} />
@@ -163,7 +236,7 @@ function ModsTab({ compat, serverLabel, onInstalled }) {
   return <ModrinthResults compat={compat} projectType="mod" onInstalled={onInstalled} />;
 }
 
-function ModpacksInstallDialog({ open, onOpenChange, projectId, compat, onInstalled }) {
+function ModpacksInstallDialog({ open, onOpenChange, projectId, onInstalled }) {
   const api = useApi();
   const t = useT();
   const { picking, pick } = useFolderPicker(api);
@@ -444,7 +517,6 @@ function ModpacksTab({ compat, onInstalled }) {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         projectId={selectedProjectId}
-        compat={compat}
         onInstalled={onInstalled}
       />
     </>

@@ -106,6 +106,8 @@ export function TerrariaModsView() {
   const [catalogSort, setCatalogSort] = useState('trend');
   const [catalogTag, setCatalogTag] = useState('');
   const [replaceConfirmed, setReplaceConfirmed] = useState(false);
+  const [selectedWorkshop, setSelectedWorkshop] = useState(new Set());
+  const [selectedMods, setSelectedMods] = useState(new Set());
 
   useEffect(() => {
     setReplaceConfirmed(false);
@@ -120,6 +122,7 @@ export function TerrariaModsView() {
         api(`${API}/modpacks?serverId=${encodeURIComponent(activeServerId)}`),
       ]);
       setData(inventory);
+      setSelectedMods((current) => new Set([...current].filter((name) => inventory.mods.some((mod) => mod.internalName === name))));
       setPacks(packData.packs || []);
     }
     catch (loadError) {
@@ -140,7 +143,9 @@ export function TerrariaModsView() {
         page: '1',
       });
       if (force) params.set('force', '1');
-      setCatalog(await api(`${API}/workshop/catalog?${params}`));
+      const nextCatalog = await api(`${API}/workshop/catalog?${params}`);
+      setCatalog(nextCatalog);
+      setSelectedWorkshop(new Set());
     } catch (browseError) { toast.error(browseError.message); }
     setBusy('');
   }, [activeServerId, api, catalogQuery, catalogSort, catalogTag]);
@@ -148,6 +153,8 @@ export function TerrariaModsView() {
   useEffect(() => {
     setData(null);
     setCatalog(null);
+    setSelectedWorkshop(new Set());
+    setSelectedMods(new Set());
     setRestartRequired(false);
     load();
     browse();
@@ -241,6 +248,20 @@ export function TerrariaModsView() {
         setBusy('');
         return;
       }
+      if (preview.batch && ['enable', 'disable'].includes(preview.action)) {
+        const result = await api(`${API}/batch/${preview.action}`, {
+          method: 'POST',
+          headers: { 'Idempotency-Key': uuid() },
+          body: { serverId: activeServerId, token: preview.token },
+        });
+        setRestartRequired(Boolean(result.restartRequired));
+        setPreview(null);
+        setSelectedMods(new Set());
+        toast.success(t('terraria.mods.batchDone', { count: result.changed.length }));
+        await load();
+        setBusy('');
+        return;
+      }
       const url = preview.action === 'remove'
         ? `${API}/${encodeURIComponent(preview.internalName)}`
         : `${API}/${encodeURIComponent(preview.internalName)}/${preview.action}`;
@@ -284,6 +305,36 @@ export function TerrariaModsView() {
       const result = await api(`${API}/workshop/install`, { method: 'POST', body: { serverId: activeServerId, value } });
       setPreview({ ...result.preview, action: 'import' });
     } catch (installError) { toast.error(installError.message); }
+    setBusy('');
+  }
+
+  async function installWorkshopSelection() {
+    const values = [...selectedWorkshop];
+    if (!values.length) return;
+    setBusy('workshop-install-batch');
+    try {
+      const result = await api(`${API}/workshop/install-batch`, {
+        method: 'POST',
+        body: { serverId: activeServerId, values },
+      });
+      if (result.preview.failed?.length) toast.error(t('terraria.mods.catalog.downloadPartial', { count: result.preview.failed.length }));
+      setPreview({ ...result.preview, action: 'import' });
+      setSelectedWorkshop(new Set());
+    } catch (installError) { toast.error(installError.message); }
+    setBusy('');
+  }
+
+  async function reviewSelectedMods(enabled) {
+    const names = [...selectedMods];
+    if (!names.length) return;
+    setBusy(`batch-${enabled ? 'enable' : 'disable'}`);
+    try {
+      const result = await api(`${API}/batch/${enabled ? 'enable' : 'disable'}`, {
+        method: 'POST',
+        body: { serverId: activeServerId, names },
+      });
+      setPreview({ ...result.preview, action: enabled ? 'enable' : 'disable', batch: true });
+    } catch (reviewError) { toast.error(reviewError.message); }
     setBusy('');
   }
 
@@ -373,6 +424,8 @@ export function TerrariaModsView() {
   const hasReplacement = preview?.action === 'import' && planItems.some((item) => item.change === 'replace');
   const summaryItems = [...new Set(planItems.map((item) => item.change))]
     .map((change) => ({ change, count: planItems.filter((item) => item.change === change).length }));
+  const selectedWorkshopCount = (catalog?.items || []).filter((item) => selectedWorkshop.has(item.id)).length;
+  const selectedModsCount = (data?.mods || []).filter((mod) => selectedMods.has(mod.internalName)).length;
   const applyLabel = t(`terraria.mods.review.${previewConfirmKey(preview?.action, hasReplacement)}`);
 
   return (
@@ -471,12 +524,46 @@ export function TerrariaModsView() {
                 <Alert variant="warn" className="mb-4"><Clock3 className="h-4 w-4" />{t('terraria.mods.catalog.fallback')}</Alert>
               )}
 
+              {catalog?.items?.length > 0 && (
+                <div className="mb-4 flex flex-wrap items-center gap-3 rounded-md border border-border/60 bg-secondary/10 px-3 py-2">
+                  <label className="flex items-center gap-2 text-sm text-foreground">
+                    <Checkbox
+                      checked={selectedWorkshopCount === catalog.items.length}
+                      onCheckedChange={(checked) => setSelectedWorkshop(new Set(checked ? catalog.items.map((item) => item.id) : []))}
+                      aria-label={t('terraria.mods.catalog.selectAll')}
+                    />
+                    {t('terraria.mods.catalog.selectAll')}
+                  </label>
+                  <span className="text-xs text-muted-foreground">{t('terraria.mods.catalog.selectedCount', { count: selectedWorkshopCount })}</span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="default"
+                    className="ml-auto"
+                    disabled={!canManage || !offline || !selectedWorkshopCount || Boolean(busy)}
+                    onClick={installWorkshopSelection}
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    {t('terraria.mods.catalog.downloadSelected')}
+                  </Button>
+                </div>
+              )}
+
               {!catalog ? (
                 <Loading />
               ) : catalog.items?.length > 0 ? (
                 <div className="space-y-2">
                   {catalog.items.map((item) => (
                     <div key={item.id} className="flex items-center gap-3 rounded-lg border border-border/60 bg-secondary/20 p-3 hover:bg-secondary/40 transition-colors">
+                      <Checkbox
+                        checked={selectedWorkshop.has(item.id)}
+                        onCheckedChange={(checked) => setSelectedWorkshop((current) => {
+                          const next = new Set(current);
+                          if (checked) next.add(item.id); else next.delete(item.id);
+                          return next;
+                        })}
+                        aria-label={t('terraria.mods.catalog.selectItem', { name: item.title || item.id })}
+                      />
                       {item.previewUrl ? (
                         <img src={item.previewUrl} alt="" loading="lazy" className="h-12 w-12 rounded shrink-0 object-cover"
                           onError={(event) => { event.target.style.visibility = 'hidden'; }} />
@@ -572,12 +659,45 @@ export function TerrariaModsView() {
               {!data.mods.length && !data.unreadable.length ? (
                 <p className="text-sm text-muted-foreground italic">{t('terraria.mods.empty')} · {t('terraria.mods.emptyHelp')}</p>
               ) : (
-                <div className="space-y-2">
-                  {data.mods.map((mod) => {
-                    const modIssues = issuesByMod.get(mod.internalName) || [];
+                <>
+                  {data.mods.length > 0 && (
+                    <div className="mb-4 flex flex-wrap items-center gap-3 rounded-md border border-border/60 bg-secondary/10 px-3 py-2">
+                      <label className="flex items-center gap-2 text-sm text-foreground">
+                        <Checkbox
+                          checked={selectedModsCount === data.mods.length}
+                          onCheckedChange={(checked) => setSelectedMods(new Set(checked ? data.mods.map((mod) => mod.internalName) : []))}
+                          aria-label={t('terraria.mods.selectAll')}
+                        />
+                        {t('terraria.mods.selectAll')}
+                      </label>
+                      <span className="text-xs text-muted-foreground">{t('terraria.mods.selectedCount', { count: selectedModsCount })}</span>
+                      <div className="ml-auto flex flex-wrap gap-2">
+                        <Button type="button" size="sm" variant="glass" disabled={!canManage || !offline || !selectedModsCount || Boolean(busy)} onClick={() => reviewSelectedMods(true)}>
+                          <Power className="h-3.5 w-3.5" />
+                          {t('terraria.mods.enableSelected')}
+                        </Button>
+                        <Button type="button" size="sm" variant="glass" disabled={!canManage || !offline || !selectedModsCount || Boolean(busy)} onClick={() => reviewSelectedMods(false)}>
+                          <PowerOff className="h-3.5 w-3.5" />
+                          {t('terraria.mods.disableSelected')}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    {data.mods.map((mod) => {
+                      const modIssues = issuesByMod.get(mod.internalName) || [];
                     return (
                       <div key={mod.file} className="rounded-lg border border-border/60 bg-secondary/20 p-3 hover:bg-secondary/40 transition-colors">
                         <div className="flex items-center gap-3">
+                          <Checkbox
+                            checked={selectedMods.has(mod.internalName)}
+                            onCheckedChange={(checked) => setSelectedMods((current) => {
+                              const next = new Set(current);
+                              if (checked) next.add(mod.internalName); else next.delete(mod.internalName);
+                              return next;
+                            })}
+                            aria-label={t('terraria.mods.catalog.selectItem', { name: mod.displayName })}
+                          />
                           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded bg-muted text-muted-foreground">
                             <PackageOpen className="h-5 w-5" />
                           </div>
@@ -631,8 +751,9 @@ export function TerrariaModsView() {
                     </div>
                   ))}
                 </div>
-              )}
               <p className="text-label text-muted-foreground/70 pt-2 break-all">{data.modsDir}</p>
+            </>
+            )}
             </TabsContent>
 
             <TabsContent value="updates">

@@ -271,7 +271,7 @@ async function testStartPanelReturnsAfterProcessSpawn() {
     assert.strictEqual(result.started, true);
     assert.strictEqual(result.pid, child.pid);
     assert.strictEqual(spawnOptions.options.detached, true);
-    assert.strictEqual(spawnOptions.options.stdio, 'inherit');
+    assert.strictEqual(spawnOptions.options.stdio, 'ignore');
     assert.strictEqual(spawnOptions.options.shell, false);
     assert.strictEqual(unrefCalled, true);
   } finally {

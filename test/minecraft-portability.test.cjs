@@ -134,6 +134,34 @@ test('detectJarLoader detects libraries and mods directories', () => {
   assert.strictEqual(result.hasMods, true);
 });
 
+test('detectJarLoader recognizes a NeoForge argfile install without a root jar', () => {
+  const dir = path.join(TMP_ROOT, 'jar-neoforge-argfile');
+  const argName = process.platform === 'win32' ? 'win_args.txt' : 'unix_args.txt';
+  const argDir = path.join(dir, 'libraries', 'net', 'neoforged', 'neoforge', '21.4.157');
+  fs.mkdirSync(argDir, { recursive: true });
+  fs.writeFileSync(path.join(argDir, argName), [
+    '--module-path',
+    'libraries',
+    '--fml.neoForgeVersion',
+    '21.4.157',
+    '--fml.mcVersion',
+    '1.21.4',
+  ].join('\n'));
+
+  const result = portability.detectJarLoader(dir);
+
+  assert.deepStrictEqual(result.jar, { jar: 'neoforge-server', type: 'neoforge', label: 'NeoForge' });
+  assert.deepStrictEqual(result.launchArgs, [`@libraries/net/neoforged/neoforge/21.4.157/${argName}`, 'nogui']);
+  assert.strictEqual(result.loader, 'neoforge');
+  assert.strictEqual(result.mcVersion, '1.21.4');
+
+  const detection = portability.detectServer({ dir, servers: [] });
+  const descriptor = portability.buildDescriptor({ detection, name: 'NeoForge server' });
+  assert.deepStrictEqual(descriptor.launchArgs, result.launchArgs);
+  assert.strictEqual(descriptor.loader, 'neoforge');
+  assert.strictEqual(descriptor.mcVersion, '1.21.4');
+});
+
 // --- detectWorlds ---------------------------------------------------------
 
 test('detectWorlds finds worlds with level.dat', () => {

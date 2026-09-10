@@ -111,6 +111,8 @@ const palworldPlatform = require('./lib/palworld-platform.cjs');
 const palworldPortability = require('./lib/palworld-portability.cjs');
 const palworldConnectivity = require('./lib/palworld-connectivity.cjs');
 const minecraftPortabilityRouter = require('./lib/routes/minecraft-portability.cjs');
+const { installBatch: installModrinthBatch } = require('./lib/modrinth-batch.cjs');
+const addonState = require('./lib/addon-state.cjs');
 const trash = require('./lib/trash.cjs');
 const pathSafety = require('./lib/pathSafety.cjs');
 const automation = require('./lib/palworld-automation.cjs');
@@ -1062,7 +1064,11 @@ class ServerManager {
     const trimmed = String(cmd).replace(/[\r\n]+$/, '');
     if (!silent) this.pushLine(`> ${trimmed}`, 'cmd');
     try {
-      this.proc.stdin.write(trimmed + '\n');
+      const mod = this.module();
+      const payload = mod && typeof mod.formatCommand === 'function'
+        ? mod.formatCommand(trimmed, this)
+        : trimmed + '\n';
+      this.proc.stdin.write(payload);
       return { ok: true };
     } catch (err) {
       return { ok: false, error: err.message };
@@ -2486,6 +2492,30 @@ app.get('/api/palworld/mods/catalog', async (req, res) => {
   } catch (error) { sendPalworldModError(res, error); }
 });
 
+app.post('/api/palworld/mods/catalog/download', async (req, res) => {
+  const target = palworldModTarget(req, res);
+  if (!target) return;
+  try {
+    const result = await palworldWorkshop.downloadBatch({
+      server: target.server,
+      workshopIds: req.body?.workshopIds,
+      ...steamUpdateDeps(),
+    });
+    foundationAudit.record({
+      actorId: req.user.id,
+      actorUsername: req.user.username,
+      serverId: target.server.id,
+      action: 'palworld.mods.workshop.batch-download',
+      targetType: 'palworld-mod',
+      targetId: target.server.id,
+      outcome: result.ok ? 'success' : 'partial',
+      requestId: req.requestId,
+      metadata: { requested: result.requested.length, downloaded: result.downloaded.length },
+    });
+    res.json(result);
+  } catch (error) { sendPalworldModError(res, error); }
+});
+
 app.get('/api/palworld/mods/catalog/:workshopId', async (req, res) => {
   const target = palworldModTarget(req, res);
   if (!target) return;
@@ -2619,6 +2649,33 @@ app.post('/api/palworld/mods/import', async (req, res) => {
       metadata: { summary: result.operation.summary },
     });
     res.status(202).json({ ok: true, operationId: result.operation.id, replay: !!result.replay });
+  } catch (error) { sendPalworldModError(res, error); }
+});
+
+app.post('/api/palworld/mods/enabled-batch', (req, res) => {
+  const target = palworldModTarget(req, res);
+  if (!target) return;
+  try {
+    const enabled = req.body?.enabled;
+    if (typeof enabled !== 'boolean') return res.status(400).json({ error: 'enabled must be a boolean.', code: 'invalid_enabled' });
+    const result = palworldWorkshop.setEnabledBatch({
+      server: target.server,
+      manager: target.manager,
+      workshopIds: req.body?.workshopIds,
+      enabled,
+    });
+    foundationAudit.record({
+      actorId: req.user.id,
+      actorUsername: req.user.username,
+      serverId: target.server.id,
+      action: enabled ? 'palworld.mods.batch-enable' : 'palworld.mods.batch-disable',
+      targetType: 'palworld-mod',
+      targetId: target.server.id,
+      outcome: 'success',
+      requestId: req.requestId,
+      metadata: { count: result.changed.length },
+    });
+    res.json(result);
   } catch (error) { sendPalworldModError(res, error); }
 });
 
@@ -4276,6 +4333,25 @@ function rebasePath(p, from, to) {
 // installed by the panel with its own executable/args, and its gameplay
 // settings live in the game's own config files - so editing one only touches
 // the panel-side fields (name + install folder).
+function validateMinecraftLaunchArgs(dir, raw) {
+  if (!Array.isArray(raw) || !raw.length || raw.some((arg) => typeof arg !== 'string' || /[\r\n\0]/.test(arg))) {
+    return { error: eKey('errors.invalidLaunchArgs') };
+  }
+  const root = path.resolve(dir);
+  for (const arg of raw) {
+    if (!arg.startsWith('@')) continue;
+    const reference = arg.slice(1).trim();
+    if (!reference || path.isAbsolute(reference)) return { error: eKey('errors.invalidLaunchArgs') };
+    const target = path.resolve(root, reference);
+    const relative = path.relative(root, target);
+    if (relative.startsWith('..') || path.isAbsolute(relative)) return { error: eKey('errors.invalidLaunchArgs') };
+    let stat;
+    try { stat = fs.statSync(target); } catch (_) {}
+    if (!stat?.isFile()) return { error: eKey('errors.invalidLaunchArgs') };
+  }
+  return { value: [...raw] };
+}
+
 function validateServerInput(body, user, existing = null) {
   const name = String(body.name || '').trim();
   const dir = String(body.dir || '').trim();
@@ -4297,14 +4373,25 @@ function validateServerInput(body, user, existing = null) {
     }
     return { value };
   }
-  // Auto-detect the jar if not supplied and exactly one exists.
-  if (!jar) {
-    const jars = fs.readdirSync(dir).filter((f) => f.toLowerCase().endsWith('.jar'));
-    if (jars.length === 1) jar = jars[0];
-    else if (jars.length === 0) return { error: eKey('errors.noJar') };
-    else return { error: eKey('errors.multipleJars') };
-  } else if (!fs.existsSync(path.join(dir, jar))) {
-    return { error: eKey('errors.jarNotFound', { name: jar }) };
+  let launchArgs = null;
+  if (body.launchArgs !== undefined && body.launchArgs !== null && body.launchArgs !== '') {
+    const validated = validateMinecraftLaunchArgs(dir, body.launchArgs);
+    if (validated.error) return validated;
+    launchArgs = validated.value;
+  }
+  const hasLaunchArgs = Array.isArray(launchArgs) && launchArgs.length > 0;
+
+  // Auto-detect the jar if not supplied and exactly one exists. Forge and
+  // NeoForge argfile installs use launchArgs instead of a root jar.
+  if (!hasLaunchArgs) {
+    if (!jar) {
+      const jars = fs.readdirSync(dir).filter((f) => f.toLowerCase().endsWith('.jar'));
+      if (jars.length === 1) jar = jars[0];
+      else if (jars.length === 0) return { error: eKey('errors.noJar') };
+      else return { error: eKey('errors.multipleJars') };
+    } else if (!fs.existsSync(path.join(dir, jar))) {
+      return { error: eKey('errors.jarNotFound', { name: jar }) };
+    }
   }
   let javaArgs = body.javaArgs;
   if (typeof javaArgs === 'string') {
@@ -4316,18 +4403,19 @@ function validateServerInput(body, user, existing = null) {
   if (!Array.isArray(worlds) || !worlds.length) worlds = ['world', 'world_nether', 'world_the_end'];
   const mapUrl = normalizeMapUrl(body.mapUrl);
   if (mapUrl === null) return { error: eKey('errors.invalidMapUrl') };
-  return {
-    value: {
-      name,
-      dir,
-      jar,
-      javaArgs,
-      worlds,
-      mcVersion: String(body.mcVersion || '').trim(),
-      stopTimeoutSeconds: Number(body.stopTimeoutSeconds) || 30,
-      mapUrl,
-    },
+  const value = {
+    name,
+    dir,
+    jar,
+    javaArgs,
+    worlds,
+    mcVersion: String(body.mcVersion || '').trim(),
+    stopTimeoutSeconds: Number(body.stopTimeoutSeconds) || 30,
+    mapUrl,
   };
+  if (hasLaunchArgs) value.launchArgs = launchArgs;
+  if (body.loader != null && String(body.loader).trim()) value.loader = String(body.loader).trim();
+  return { value };
 }
 
 // Accept an empty string (clears the map) or a http(s) URL. Returns the
@@ -5108,15 +5196,10 @@ app.get('/api/addons', (req, res) => {
   const m = targetManager(req);
   if (!m) return res.json({ kind, addons: [] });
   try {
-    const dir = m.addonsDir(kind);
-    if (!fs.existsSync(dir)) return res.json({ kind, addons: [] });
-    const files = fs.readdirSync(dir)
-      .filter((f) => f.toLowerCase().endsWith('.jar'))
-      .map((f) => {
-        const st = fs.statSync(path.join(dir, f));
-        return { name: f, size: st.size, mtime: st.mtimeMs };
-      })
-      .sort((a, b) => a.name.localeCompare(b.name));
+    const files = addonState.list({
+      activeDir: m.addonsDir(kind),
+      disabledDir: addonState.disabledDir(m.dir(), kind),
+    });
     res.json({ kind, addons: files });
   } catch (err) {
     httpError(res, req, err, 500);
@@ -5134,12 +5217,33 @@ app.post('/api/addons/upload', upload.single('addon'), (req, res) => {
   res.status(400).json({ error: tErr(req.user, err.message && err.message.includes('Only') ? 'errors.onlyJar' : 'errors.unknownAction') });
 });
 
+app.post('/api/addons/enabled', (req, res) => {
+  const m = targetManager(req);
+  if (!m) return res.status(400).json({ error: tErr(req.user, 'errors.noActiveServer') });
+  if (m.status !== 'offline') return res.status(409).json({ error: 'Stop the server before changing addon state.', code: 'server_online' });
+  const body = req.body || {};
+  try {
+    const result = addonState.setEnabled({
+      activeDir: m.addonsDir(addonKind(req)),
+      disabledDir: addonState.disabledDir(m.dir(), addonKind(req)),
+      names: body.names,
+      enabled: body.enabled,
+    });
+    res.json(result);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: sanitizeErrorMessage(err.message), code: err.code || 'addon_state_error' });
+  }
+});
+
 app.delete('/api/addons/:name', (req, res) => {
   const m = targetManager(req);
   if (!m) return res.status(400).json({ error: tErr(req.user, 'errors.noActiveServer') });
   const name = path.basename(req.params.name);
   if (!name.toLowerCase().endsWith('.jar')) return res.status(400).json({ error: tErr(req.user, 'errors.notAJar') });
-  const full = path.join(m.addonsDir(addonKind(req)), name);
+  const active = path.join(m.addonsDir(addonKind(req)), name);
+  const disabled = path.join(addonState.disabledDir(m.dir(), addonKind(req)), name);
+  if (fs.existsSync(active) && fs.existsSync(disabled)) return res.status(409).json({ error: tErr(req.user, 'errors.unknownAction') });
+  const full = fs.existsSync(active) ? active : disabled;
   if (!fs.existsSync(full)) return res.status(404).json({ error: tErr(req.user, 'errors.fileDoesNotExist') });
   try {
     fs.unlinkSync(full);
@@ -5756,6 +5860,37 @@ app.get('/api/modrinth/versions/:projectId', async (req, res) => {
     res.json({ matched: Array.isArray(matched) ? matched : [], compat });
   } catch (err) {
     httpError(res, req, err, 502);
+  }
+});
+
+app.post('/api/modrinth/install-batch', async (req, res) => {
+  const m = targetManager(req);
+  if (!m || !m.dir()) return res.status(400).json({ error: tErr(req.user, 'errors.noActiveServer') });
+  const body = req.body || {};
+  const compat = detectCompat(m);
+  const requestedType = String(body.projectType || '');
+  if (requestedType === 'mod' && !compat.canMods) {
+    return res.status(409).json({ error: tErr(req.user, 'minecraft.modrinth.tabModsDisabledBody', { label: compat.label }) });
+  }
+  try {
+    const result = await installModrinthBatch({
+      projectIds: body.projectIds,
+      compat,
+      rootDir: m.dir(),
+      recordImpl: (entry) => updateCenter.recordModrinth({ ...entry, serverId: m.id }),
+    });
+    for (const item of result.results.filter((candidate) => candidate.status === 'installed')) {
+      log(`Modrinth: installed ${item.name} into ${compat.folder}/ for "${m.name()}"`);
+      m.pushLine(`[Hostkind] Installed from Modrinth into ${compat.folder}/: ${item.name}`, 'info');
+    }
+    if (result.installed.length) {
+      addNotification('plugin_installed', 'Content installed', `${result.installed.length} selected Modrinth item(s) installed for "${m.name()}". Restart the server to apply.`, m.id);
+    }
+    res.json({ ...result, note: 'Restart the server to apply.' });
+  } catch (err) {
+    log(`Modrinth batch install failed: ${err.message}`);
+    const clientError = ['invalid_project_ids', 'empty_selection', 'selection_too_large', 'invalid_install_target'].includes(err.code);
+    res.status(clientError ? 400 : 502).json({ error: sanitizeErrorMessage(err.message), code: err.code || 'modrinth_batch_failed' });
   }
 });
 

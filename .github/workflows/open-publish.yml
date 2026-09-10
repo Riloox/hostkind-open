@@ -49,9 +49,14 @@ jobs:
     # workflow_run trigger would otherwise fire on the public repo's own CI
     # completions (and fail: strip-open.cjs is stripped from the public tree).
     # Run for real only in the source repository.
+    #
+    # 'skipped' counts as green: CI jobs are repo-guarded to run only on
+    # hostkind-open, so on this repository every CI run concludes 'skipped'
+    # by design. Real validation happens on the public repo itself — this job
+    # waits for hostkind-open CI to go green on the snapshot before succeeding.
     if: >-
       github.repository == 'Riloox/hostkind' &&
-      github.event.workflow_run.conclusion == 'success' &&
+      (github.event.workflow_run.conclusion == 'success' || github.event.workflow_run.conclusion == 'skipped') &&
       github.event.workflow_run.head_branch == 'main'
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -74,7 +79,12 @@ jobs:
       - name: Publish snapshot to Riloox/hostkind-open
         env:
           GITHUB_TOKEN: ${{ secrets.OPEN_PUBLISH_TOKEN }}
-        run: node scripts/strip-open.cjs --publish
+        run: |
+          # strip-open.cjs commits inside a fresh clone of the public repo,
+          # which carries no git identity: set the bot identity explicitly.
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          node scripts/strip-open.cjs --publish
 
       - name: Wait for hostkind-open CI on the published commit
         env:
@@ -106,9 +116,12 @@ jobs:
 
   mirror-release:
     name: mirror release tag to hostkind-open
+    # 'skipped' counts as green for the same reason as above: private CI runs
+    # nothing by design, so a tag push concludes 'skipped'. The release itself
+    # is validated by the open repo's tag-gated release job below.
     if: >-
       github.repository == 'Riloox/hostkind' &&
-      github.event.workflow_run.conclusion == 'success' &&
+      (github.event.workflow_run.conclusion == 'success' || github.event.workflow_run.conclusion == 'skipped') &&
       startsWith(github.event.workflow_run.head_branch, 'v')
     runs-on: ubuntu-latest
     # Queues behind a concurrent snapshot run (shared concurrency group), then

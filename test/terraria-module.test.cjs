@@ -250,6 +250,29 @@ try {
   assert.deepEqual(terraria.start(manager), { ok: true });
   assert.deepEqual(manager.launches, [{ bin: executable, args: ['-port', '7777'] }]);
 
+  // Existing tModLoader descriptors predate the Windows console wrapper. Start
+  // must repair their argv too, or reinstalling would be the only way to stop
+  // them gracefully and load the server's Mods directory.
+  const tmodRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'fleetdeck-tmodloader-'));
+  const tmodRuntime = path.join(tmodRoot, 'dotnet.exe');
+  const tmodEntry = path.join(tmodRoot, 'tModLoader.dll');
+  fs.writeFileSync(tmodRuntime, 'runtime fixture');
+  fs.writeFileSync(tmodEntry, 'managed entry fixture');
+  const legacyTmod = fakeManager({
+    type: 'terraria', terrariaVariant: 'tmodloader', cwd: tmodRoot, dir: tmodRoot, executable: tmodRuntime,
+    args: [tmodEntry, '-server', '-showserverconsole', '-config', path.join(tmodRoot, 'serverconfig.txt')],
+  });
+  const windowsTerraria = createTerrariaModule({ platform: 'win32', windowsSystemRoot: 'C:/Windows' });
+  assert.equal(windowsTerraria.formatCommand('exit', legacyTmod), 'exit\r\n');
+  assert.equal(terraria.formatCommand('exit', manager), 'exit\n');
+  assert.ok(SERVER_JS.includes("typeof mod.formatCommand === 'function'"));
+  assert.ok(SERVER_JS.includes('mod.formatCommand(trimmed, this)'));
+  assert.deepEqual(windowsTerraria.start(legacyTmod), { ok: true });
+  assert.deepEqual(legacyTmod.launches, [{
+    bin: path.join('C:/Windows', 'System32', 'conhost.exe'),
+    args: ['--headless', tmodRuntime, tmodEntry, '-server', '-tmlsavedirectory', tmodRoot, '-config', path.join(tmodRoot, 'serverconfig.txt')],
+  }]);
+
   // An unrecognized variant stops the launch before spawn.
   assert.throws(() => {
     const result = terraria.start(fakeManager({ ...registered, dir: installRoot, terrariaVariant: 'nope' }));
