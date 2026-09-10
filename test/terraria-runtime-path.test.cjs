@@ -15,6 +15,14 @@ function tempRoot(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), `hostkind-${prefix}-`));
 }
 
+// Compare data roots by canonical path: on Windows runners os.tmpdir() can
+// report the 8.3 short form (C:\Users\RUNNER~1\...) while the import code
+// resolves the long form (C:\Users\runneradmin\...). Both name the same
+// directory; realpathSync makes the assertion hold on either spelling.
+function canonicalRoot(p) {
+  return fs.realpathSync(p);
+}
+
 function writeTmodRuntime(root) {
   fs.writeFileSync(path.join(root, 'tModLoader.dll'), 'managed entry point');
   fs.writeFileSync(path.join(root, 'tModLoader.runtimeconfig.json'), JSON.stringify({
@@ -107,7 +115,7 @@ test('tModLoader import and adoption preserve the server data root', () => {
     const preview = terrariaImport.preview({ dir: root, actorId: 'operator', variant: 'tmodloader' });
     const previewFlag = saveFlag(preview.inspection.launchPlan.args);
     assert.ok(previewFlag, 'the imported launch plan must select a tModLoader save root');
-    assert.equal(previewFlag.value, root);
+    assert.equal(canonicalRoot(previewFlag.value), canonicalRoot(root));
 
     const adopted = terrariaImport.adopt({
       token: preview.token,
@@ -117,7 +125,7 @@ test('tModLoader import and adoption preserve the server data root', () => {
     });
     const adoptedFlag = saveFlag(adopted.descriptor.args);
     assert.ok(adoptedFlag, 'the adopted descriptor must keep the save-root flag');
-    assert.equal(adoptedFlag.value, root);
+    assert.equal(canonicalRoot(adoptedFlag.value), canonicalRoot(root));
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
