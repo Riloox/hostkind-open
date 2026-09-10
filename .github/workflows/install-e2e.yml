@@ -25,6 +25,7 @@ permissions:
 
 jobs:
   install:
+    if: github.repository == 'Riloox/hostkind-open'
     name: install e2e (real downloads)
     runs-on: windows-latest
     timeout-minutes: 60

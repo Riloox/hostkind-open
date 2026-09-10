@@ -29,6 +29,29 @@ Node test suite, and `e2e/` is the Playwright suite.
 
 ## Testing policy
 
+GitHub Actions checks and releases run only in `Riloox/hostkind-open`.
+Keep Actions disabled in the private `Riloox/hostkind` repository under
+Settings > Actions > General to avoid consuming its monthly Actions minutes.
+The workflow files remain here as source for the generated public edition;
+their jobs also require the public repository name as a second safeguard.
+Run checks for private-only code locally.
+
+### Publishing the open edition
+
+Publishing is a local maintainer operation; private pushes and tags no longer
+automatically publish snapshots or mirror releases. From a clean, committed
+private checkout, run `npm run open:strip` to validate the generated snapshot,
+then `npm run open:publish` with `GITHUB_TOKEN` set to a PAT authorized to write
+contents and workflow files in `Riloox/hostkind-open`. Never commit the token.
+The publisher snapshots `HEAD`, strips private code, and pushes the public tree.
+The public push triggers its own CI and security checks.
+
+Check the published commit's results in `hostkind-open` before releasing. To
+release it, tag that exact public commit with `v<package.json version>` and push
+the tag to `hostkind-open`. Its tag-triggered CI tests and publishes the release.
+Private tags do not publish releases. Licensing checks remain local because
+licensing code is removed from the public edition.
+
 **Every change to a user-facing feature ships with a browser test.** Not instead of
 the unit tests — as well as. The suites under `test/` prove a route or module
 behaves; they cannot tell you the button is unreachable, the guard bounces you to

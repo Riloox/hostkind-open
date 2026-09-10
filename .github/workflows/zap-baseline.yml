@@ -19,6 +19,7 @@ permissions:
 
 jobs:
   zap-baseline:
+    if: github.repository == 'Riloox/hostkind-open'
     name: ZAP baseline scan
     runs-on: ubuntu-latest
     timeout-minutes: 30

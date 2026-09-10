@@ -1,10 +1,11 @@
 @echo off
+setlocal EnableExtensions
 REM ============================================================
 REM  Hostkind - Minecraft server panel launcher (Windows)
 REM  Double-click this file to start the web panel.
 REM ============================================================
 
-REM Move to the folder where this .bat lives (handles spaces and "N").
+REM Move to the folder where this .bat lives (handles spaces in the path).
 cd /d "%~dp0"
 
 REM Installed binary mode: the stable launcher owns version selection and
@@ -17,11 +18,6 @@ if defined HOSTKIND_BINARY_LAUNCHER if exist "%HOSTKIND_BINARY_LAUNCHER%" (
 )
 
 title Hostkind Panel
-
-REM --- Determine the panel port (env override, else the default 2121) ---
-set "PORT=2121"
-if defined FLEETDECK_PORT set "PORT=%FLEETDECK_PORT%"
-if defined LODESTONE_PORT set "PORT=%LODESTONE_PORT%"
 
 REM --- Check Node.js is installed ---
 where node >nul 2>nul
@@ -107,6 +103,17 @@ if not exist "config.json" (
   )
 )
 
+REM --- Resolve the effective panel port ---
+REM Shared precedence (scripts/resolve-port.cjs, same as server.js):
+REM FLEETDECK_PORT, then LODESTONE_PORT, then config.json panelPort, then
+REM 2121. Node is verified above; the helper always prints one valid port.
+set "PORT=2121"
+for /f "usebackq delims=" %%p in (`node scripts\resolve-port.cjs 2^>nul`) do set "PORT=%%p"
+if not defined PORT set "PORT=2121"
+REM Export it so the backend binds this same port (server.js honors FLEETDECK_PORT).
+REM setlocal above keeps this from leaking into the caller's shell.
+set "FLEETDECK_PORT=%PORT%"
+
 REM --- Kill any previous panel instance still holding the port ---
 REM netstat shows the listener as 0.0.0.0:PORT (IPv4) or [::]:PORT (IPv6),
 REM so match any LISTENING line whose local address ends in ":PORT ". Retry
@@ -126,7 +133,7 @@ for /l %%i in (1,1,10) do (
 
 echo.
 echo Starting Hostkind panel...
-echo Open http://localhost:%PORT% in your browser ^(default port^).
+echo Open http://localhost:%PORT% in your browser.
 echo Press Ctrl+C in this window to stop the panel.
 echo.
 

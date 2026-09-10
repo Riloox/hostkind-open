@@ -73,7 +73,7 @@ test.describe('sidebar', () => {
 
     // Minecraft is the fullest module: worlds, mods, a map, a player list.
     await openView(page, 'minecraft', 'dashboard');
-    for (const view of ['console', 'players', 'addons', 'modrinth', 'worlds', 'map', 'configs', 'backups']) {
+    for (const view of ['console', 'players', 'addons', 'content', 'worlds', 'map', 'configs', 'backups']) {
       await expect(appShell(page).navItem(view)).toHaveCount(1);
     }
 
@@ -82,7 +82,7 @@ test.describe('sidebar', () => {
     for (const view of ['console', 'files', 'backups', 'tasks']) {
       await expect(appShell(page).navItem(view)).toHaveCount(1);
     }
-    for (const view of ['players', 'worlds', 'map', 'modrinth', 'updates']) {
+    for (const view of ['players', 'worlds', 'map', 'content', 'updates']) {
       await expect(appShell(page).navItem(view)).toHaveCount(0);
     }
   });
@@ -120,14 +120,14 @@ test.describe('view error boundary', () => {
 });
 
 test.describe('per-game views', () => {
-  test('gives Minecraft the Modrinth browser and Terraria none', async ({ page, app }) => {
+  test('gives Minecraft the Content browser and Terraria none', async ({ page, app }) => {
     await signInFast(page, app);
 
-    await openView(page, 'minecraft', 'modrinth');
-    await expect(page).toHaveURL(/\/games\/minecraft\/modrinth$/);
+    await openView(page, 'minecraft', 'content');
+    await expect(page).toHaveURL(/\/games\/minecraft\/content$/);
 
     // content-install is Minecraft's alone.
-    await openView(page, 'terraria', 'modrinth');
+    await openView(page, 'terraria', 'content');
     await expect(page).toHaveURL(/\/games\/terraria\/dashboard$/);
   });
 

@@ -8,7 +8,7 @@ import { GameLogo } from '@/components/shared/GameArtwork';
 // Each game teaches its own useful stations. Targets that need a registered
 // server may not exist yet; those steps are skipped dynamically (idea 3).
 const GAME_STATIONS = {
-  minecraft: { configure: 'nav-configs', content: 'nav-modrinth' },
+  minecraft: { configure: 'nav-configs', content: 'nav-content' },
   terraria: { configure: 'nav-worlds', content: 'nav-addons' },
   valheim: { configure: 'nav-worlds', content: 'nav-updates' },
   palworld: { configure: 'nav-configs', content: 'nav-map' },

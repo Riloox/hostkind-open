@@ -98,3 +98,7 @@ __pycache__/
 
 # understand-anything analysis data
 .ua/
+
+# local rendered brand image (generated preview, not a shipped asset)
+hostkind.png
+**/hostkind.png

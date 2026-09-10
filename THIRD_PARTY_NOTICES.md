@@ -1,5 +1,9 @@
 # THIRD_PARTY_NOTICES
 
+## FTB Server Installer
+
+Hostkind can execute a separately downloaded or administrator-supplied official FTB Server Installer. It is not bundled and remains subject to FTB's own terms. Hostkind records the installer's source, SHA-256 digest, and verification method.
+
 Hostkind is published under the AGPL-3.0 (`SPDX-License-Identifier: AGPL-3.0-only`);
 the full text is in `LICENSE`. This file records every bundled asset that is not
 plain Hostkind original work, the provenance we could establish for it, and what

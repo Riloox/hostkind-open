@@ -69,6 +69,10 @@ const apiKeys = require('./lib/apiKeys.cjs');
 const crashIntelligence = require('./lib/crashes.cjs');
 const updateCenter = require('./lib/updates.cjs');
 const modpackLifecycle = require('./lib/modpacks.cjs');
+const minecraftContent = require('./lib/minecraft-content.cjs');
+const curseforgeImport = require('./lib/curseforge-import.cjs');
+const ftbInstaller = require('./lib/ftb-installer.cjs');
+const contentApply = require('./lib/content-apply.cjs');
 const foundationSnapshots = require('./lib/snapshots.cjs');
 const foundationOperations = require('./lib/operations.cjs');
 const recovery = require('./lib/recovery.cjs');
@@ -613,6 +617,28 @@ function migrateConfig() {
 }
 
 migrateConfig();
+
+// The launchers (start-panel/start-dev, .bat and .sh) resolve the effective
+// panel port via scripts/resolve-port.cjs and export it back as
+// FLEETDECK_PORT, so the backend they spawn must bind that same port.
+// Apply the shared precedence here (in-memory only; config.json stays the
+// persisted source of truth) so an env override takes effect instead of
+// being silently ignored while the scripts report it.
+(function applyPortEnvOverride() {
+  const raw = process.env.FLEETDECK_PORT ?? process.env.LODESTONE_PORT;
+  if (raw === undefined || raw === null || String(raw).trim() === '') return;
+  const parsed = Number(String(raw).trim());
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > 65535) {
+    console.log(`[Hostkind] ignoring invalid port override FLEETDECK_PORT/LODESTONE_PORT=${JSON.stringify(String(raw))}; using panelPort ${config.panelPort}.`);
+    return;
+  }
+  const { resolvePanelPort } = require('./scripts/resolve-port.cjs');
+  const port = resolvePanelPort(CONFIG_PATH);
+  if (port !== config.panelPort) {
+    console.log(`[Hostkind] panel port override from environment: ${port} (config panelPort ${config.panelPort}).`);
+    config.panelPort = port;
+  }
+})();
 
 // ---------------------------------------------------------------------------
 // Platform foundation (docs/roadmap/README.md "Shared platform foundation")
@@ -1827,6 +1853,12 @@ function capabilityForRequest(req) {
   const valheim = valheimRouteCapability(p, method);
   if (valheim) return valheim;
   if (/^\/(?:players|playerlists|whitelist)(?:\/|$)/.test(p)) return method === 'GET' ? CAPABILITIES.PLAYERS_VIEW : CAPABILITIES.PLAYERS_MANAGE;
+  if (/^\/minecraft\/content(?:\/|$)/.test(p)) {
+    if (method === 'GET') return foundationCapabilities.CAPABILITIES.CONTENT_VIEW;
+    if (/\/apply$/.test(p)) return foundationCapabilities.CAPABILITIES.CONTENT_INSTALL;
+    if (/upload-previews$/.test(p) && String(req.body?.kind || '') !== 'modpack') return foundationCapabilities.CAPABILITIES.PLUGINS_MANAGE;
+    return foundationCapabilities.CAPABILITIES.CONTENT_INSTALL;
+  }
   if (/^\/modpacks(?:\/|$)/.test(p)) {
     if (method === 'GET') return foundationCapabilities.CAPABILITIES.CONTENT_VIEW;
     if (/\/clone$/.test(p)) return foundationCapabilities.CAPABILITIES.SERVER_MANAGE;
@@ -1883,6 +1915,7 @@ app.use('/api/whitelist', requireModuleCapability('players'));
 app.use('/api/addons', requireModuleCapability('addons'));
 app.use('/api/modrinth', requireModuleCapability('content-install'));
 app.use('/api/modpacks', requireModuleCapability('content-install'));
+app.use('/api/minecraft/content', requireModuleCapability('content-install'));
 app.use('/api/worlds', requireModuleCapability('worlds'));
 app.use('/api/palworld', requireModuleCapability('rest-api'));
 // Reserved for the Terraria surface (docs/terraria/00-baseline-contracts.md).
@@ -5778,6 +5811,49 @@ const MODRINTH_CATEGORIES = [
   'storage', 'technology', 'transportation', 'utility', 'worldgen',
 ];
 
+// Provider-neutral Minecraft content API. Modrinth remains the only catalog
+// provider in 0.1.3; CurseForge and FTB deliberately expose import/install
+// capabilities without pretending that Hostkind has catalog credentials.
+app.get('/api/minecraft/content/providers', (req, res) => {
+  res.json({ providers: minecraftContent.listProviders({ isAdmin: isAdmin(req.user) }) });
+});
+
+app.get('/api/minecraft/content/search', async (req, res) => {
+  const providerId = String(req.query.provider || 'modrinth').toLowerCase();
+  if (providerId !== 'modrinth') return res.status(400).json({ error: 'Catalog browsing is available only for Modrinth.', code: 'catalog_unavailable' });
+  const m = targetManager(req); const compat = detectCompat(m);
+  const kind = ['plugin', 'mod', 'modpack'].includes(String(req.query.kind || req.query.projectType)) ? String(req.query.kind || req.query.projectType) : compat.projectType;
+  if (!kind) return res.json({ hits: [], compat, provider: 'modrinth' });
+  const facets = [[`project_type:${kind}`]];
+  if (kind !== 'modpack') {
+    const loaders = kind === 'plugin' ? ['paper', 'spigot', 'bukkit'] : (compat.canMods ? compat.loaders : ['fabric', 'forge', 'neoforge', 'quilt']);
+    facets.push(loaders.map((loader) => `categories:${loader}`));
+    if (compat.mcVersion) facets.push([`versions:${compat.mcVersion}`]);
+  }
+  const sort = MODRINTH_SORTS.includes(req.query.sort) ? req.query.sort : 'downloads';
+  const url = `${MODRINTH}/search?query=${encodeURIComponent(req.query.q || '')}&facets=${encodeURIComponent(JSON.stringify(facets))}&index=${sort}&limit=30`;
+  try {
+    const response = await fetch(url, { headers: { 'User-Agent': UA } });
+    if (!response.ok) throw new Error(`Modrinth returned HTTP ${response.status}`);
+    const data = await response.json();
+    res.json({ provider: 'modrinth', projects: (data.hits || []).map((item) => minecraftContent.normalizeProject(item)), pagination: { offset: data.offset || 0, limit: data.limit || 30, total: data.total_hits || 0 }, compat });
+  } catch (error) { httpError(res, req, error, 502); }
+});
+
+app.get('/api/minecraft/content/projects/:provider/:projectId/versions', async (req, res) => {
+  if (String(req.params.provider).toLowerCase() !== 'modrinth') return res.status(400).json({ error: 'Catalog versions are available only for Modrinth.', code: 'catalog_unavailable' });
+  const compat = detectCompat(targetManager(req));
+  const query = new URLSearchParams();
+  if (compat.loaders.length) query.set('loaders', JSON.stringify(compat.loaders));
+  if (compat.mcVersion) query.set('game_versions', JSON.stringify([compat.mcVersion]));
+  try {
+    const response = await fetch(`${MODRINTH}/project/${encodeURIComponent(req.params.projectId)}/version?${query}`, { headers: { 'User-Agent': UA } });
+    if (!response.ok) throw new Error(`Modrinth returned HTTP ${response.status}`);
+    const versions = await response.json();
+    res.json({ provider: 'modrinth', versions: (Array.isArray(versions) ? versions : []).map((item) => minecraftContent.normalizeVersion(item)) });
+  } catch (error) { httpError(res, req, error, 502); }
+});
+
 // Work out what content the selected server can actually run, from its jar name.
 // loaders[] is used both to filter Modrinth and to decide plugins/ vs mods/.
 // `canMods` (true when the server runs any mod loader) is what gates the Mods
@@ -6068,6 +6144,334 @@ async function lifecycleApply(req, res, kind) {
     res.status(err.status || 500).json({ error: sanitizeErrorMessage(err.message), operationId: operation.id });
   }
 }
+
+const contentUploadRoot = path.join(__dirname, 'data', 'content-uploads');
+const contentUpload = multer({
+  storage: multer.diskStorage({
+    destination(req, file, cb) {
+      const dir = path.join(contentUploadRoot, crypto.randomUUID());
+      try { fs.mkdirSync(dir, { recursive: true }); cb(null, dir); } catch (error) { cb(error); }
+    },
+    filename(req, file, cb) { cb(null, path.basename(String(file.originalname || 'upload.bin')).replace(/[^a-zA-Z0-9._ -]/g, '_')); },
+  }),
+  limits: { fileSize: modpackLifecycle.MAX_TOTAL_BYTES, files: 1 },
+});
+
+app.post('/api/minecraft/content/previews', (req, res) => {
+  const body = req.body || {}; const provider = String(body.provider || 'modrinth').toLowerCase();
+  if (!['modrinth', 'ftb'].includes(provider)) return res.status(400).json({ error: 'Use upload-previews for imported content.', code: 'upload_required' });
+  if (provider === 'ftb' && !isAdmin(req.user)) return res.status(403).json({ error: tErr(req.user, 'errors.forbidden') });
+  const m = targetManager(req);
+  if (!m || !m.dir()) return res.status(400).json({ error: 'No active server.' });
+  const op = foundationOperations.create({ kind: `content-${provider}-prepare`, actorId: req.user.id, serverId: m.id, summary: { provider, sourceKind: provider === 'ftb' ? 'official_installer' : 'catalog' } });
+  res.status(202).json({ operationId: op.id });
+  setImmediate(async () => {
+    try {
+      foundationOperations.start(op.id, { phase: 'resolve' });
+      if (provider === 'ftb') {
+        // Official unattended-installer contract: numeric pack/version plus an
+        // explicit Minecraft EULA acknowledgement. Official downloads require
+        // release metadata with a published digest; the executable run itself
+        // is delegated to the same reviewed runner used for uploaded
+        // installers (operation-owned staging, see uploads/:id/apply).
+        if (!/^\d+$/.test(String(body.packId || ''))) throw Object.assign(new Error('A numeric FTB pack ID is required.'), { code: 'invalid_pack_id' });
+        const latest = body.latest === true || body.latest === 'true';
+        if (!latest && !/^\d+$/.test(String(body.versionId || ''))) throw Object.assign(new Error('A numeric FTB version ID or latest is required.'), { code: 'invalid_version_id' });
+        if (body.acceptEula !== true) throw Object.assign(new Error('Explicit Minecraft EULA acknowledgement is required.'), { code: 'eula_required' });
+        foundationOperations.finish(op.id, { provider, verification: 'verified', sourceKind: 'official_installer', packId: String(body.packId), versionId: latest ? 'latest' : String(body.versionId), acceptEula: true, attestationRequired: true, staging: 'operation-owned', next: 'upload-installer', awaitingInstallerResolution: true });
+        return;
+      }
+      const pack = await resolveLifecyclePack(String(body.versionId || ''), m.desc().worlds || []);
+      const previous = modpackLifecycle.latest(m.id); const oldFiles = previous ? previous.files.map((f) => ({ relativePath: f.relative_path, sha256: f.sha256, sizeBytes: f.size_bytes })) : [];
+      const plan = modpackLifecycle.buildPlan({ root: m.dir(), oldFiles, newFiles: pack.files, worlds: m.desc().worlds || [] });
+      const kind = body.action === 'update' ? 'update' : 'import';
+      const previewId = modpackLifecycle.savePreview({ serverId: m.id, actorId: req.user.id, kind, provider: 'modrinth', verificationStatus: 'verified', projectId: String(pack.version.project_id || body.projectId || ''), versionId: String(body.versionId), mcVersion: pack.spec.mcVersion, loader: pack.spec.loaderType, previousManifestId: previous?.id || null, plan });
+      foundationOperations.finish(op.id, { previewId, provider: 'modrinth', verification: 'verified', groups: plan.groups, expiresAt: Date.now() + 30 * 60 * 1000, snapshotRequired: true });
+    } catch (error) { foundationOperations.fail(op.id, { code: error.code || 'content_prepare_failed', text: sanitizeErrorMessage(error.message) }); }
+  });
+});
+
+app.post('/api/minecraft/content/upload-previews', contentUpload.single('file'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'A ZIP, JAR, or FTB installer is required.', code: 'file_required' });
+  const provider = String(req.body?.provider || (/\.jar$/i.test(req.file.originalname) ? 'curseforge' : 'curseforge')).toLowerCase();
+  if (!['curseforge', 'ftb'].includes(provider)) { fs.rmSync(path.dirname(req.file.path), { recursive: true, force: true }); return res.status(400).json({ error: 'Unsupported upload provider.' }); }
+  if (provider === 'ftb' && (!isAdmin(req.user) || req.body?.attested !== 'true')) { fs.rmSync(path.dirname(req.file.path), { recursive: true, force: true }); return res.status(403).json({ error: 'An administrator must attest that the installer came from FTB.', code: 'attestation_required' }); }
+  if (provider === 'ftb' && req.body?.acceptEula !== 'true') { fs.rmSync(path.dirname(req.file.path), { recursive: true, force: true }); return res.status(403).json({ error: 'Explicit Minecraft EULA acknowledgement is required.', code: 'eula_required' }); }
+  const m = targetManager(req); const op = foundationOperations.create({ kind: `content-${provider}-upload-prepare`, actorId: req.user.id, serverId: m?.id || null, summary: { provider, originalName: path.basename(req.file.originalname) } });
+  res.status(202).json({ operationId: op.id });
+  setImmediate(async () => {
+    try {
+      foundationOperations.start(op.id, { phase: 'inspect' });
+      let preview;
+      if (provider === 'ftb') {
+        const latest = req.body.latest === 'true' || req.body.latest === true;
+        const packId = req.body.packId != null && String(req.body.packId) !== '' ? String(req.body.packId) : null;
+        if (packId !== null && !/^\d+$/.test(packId)) throw Object.assign(new Error('A numeric FTB pack ID is required.'), { code: 'invalid_pack_id' });
+        const versionId = latest ? 'latest' : (req.body.versionId != null && String(req.body.versionId) !== '' ? String(req.body.versionId) : null);
+        if (versionId !== null && versionId !== 'latest' && !/^\d+$/.test(versionId)) throw Object.assign(new Error('A numeric FTB version ID or latest is required.'), { code: 'invalid_version_id' });
+        preview = { provider, sourceKind: 'uploaded_installer', verification: 'user_attested', installerName: path.basename(req.file.originalname), sha256: ftbInstaller.sha256File(req.file.path), packId, versionId, acceptEula: true, attested: true };
+      }
+      else if (/\.jar$/i.test(req.file.originalname)) preview = curseforgeImport.inspectJar(req.file.path, { kind: req.body.kind, projectId: req.body.projectId, fileId: req.body.fileId });
+      else if (/\.zip$/i.test(req.file.originalname)) preview = await curseforgeImport.inspectZip(req.file.path);
+      else throw Object.assign(new Error('CurseForge imports must be .jar or .zip files.'), { code: 'invalid_file_type' });
+      if (preview.clientOnly) throw Object.assign(new Error(`${preview.error} Unresolved: ${preview.unresolved.join(', ')}`), { code: 'unresolved_curseforge_files' });
+      foundationOperations.finish(op.id, { ...preview, uploadPath: req.file.path, expiresAt: Date.now() + 30 * 60 * 1000, snapshotRequired: !!m });
+    } catch (error) { fs.rmSync(path.dirname(req.file.path), { recursive: true, force: true }); foundationOperations.fail(op.id, { code: error.code || 'content_upload_invalid', text: sanitizeErrorMessage(error.message) }); }
+  });
+});
+
+app.post('/api/minecraft/content/previews/:previewId/apply', (req, res) => {
+  const loaded = modpackLifecycle.loadPreview(req.params.previewId, req.user.id);
+  if (!loaded) return res.status(409).json({ error: 'Preview expired. Create a new preview.' });
+  req.body = { ...(req.body || {}), previewId: req.params.previewId };
+  return lifecycleApply(req, res, loaded.data.kind);
+});
+
+function recordImportedJar({ serverId, relativePath, kind, projectId, versionId, mcVersion, loader, sha256, displayName, providerMetadata }) {
+  const db = require('./lib/db.cjs').open();
+  db.prepare(`INSERT INTO content_provenance
+    (id, server_id, relative_path, kind, provider, project_id, version_id, mc_version, loader, sha256, managed_at, display_name, version_name, provider_metadata_json, source_kind, verification_status)
+    VALUES (?, ?, ?, ?, 'curseforge', ?, ?, ?, ?, ?, ?, ?, ?, ?, 'jar_upload', 'user_supplied')
+    ON CONFLICT(server_id, relative_path) DO UPDATE SET kind=excluded.kind, provider='curseforge', project_id=excluded.project_id, version_id=excluded.version_id, mc_version=excluded.mc_version, loader=excluded.loader, sha256=excluded.sha256, managed_at=excluded.managed_at, display_name=excluded.display_name, provider_metadata_json=excluded.provider_metadata_json, source_kind='jar_upload', verification_status='user_supplied'`)
+    .run(crypto.randomUUID(), serverId, relativePath, kind, String(projectId || ''), String(versionId || ''), mcVersion || null, loader || null, sha256, Date.now(), displayName || null, null, JSON.stringify(providerMetadata || {}));
+}
+
+function extractCurseZipToStaging(uploadPath, stagingDir, overridesDir, commonRoot) {
+  const yauzl = require('yauzl');
+  const archiveGuard = require('./lib/archiveGuard.cjs');
+  const ZIP_OPTIONS = { maxEntries: modpackLifecycle.MAX_FILES, maxEntrySize: modpackLifecycle.MAX_FILE_BYTES, maxTotalSize: modpackLifecycle.MAX_TOTAL_BYTES };
+  return new Promise((resolve, reject) => {
+    yauzl.open(uploadPath, { lazyEntries: true, decodeStrings: true }, (openError, zip) => {
+      if (openError) return reject(openError);
+      const state = {};
+      fs.mkdirSync(stagingDir, { recursive: true });
+      zip.on('error', reject);
+      zip.on('entry', (entry) => {
+        let normalized;
+        try { normalized = archiveGuard.checkEntry(entry, state, ZIP_OPTIONS); } catch (error) { zip.close(); reject(error); return; }
+        if (/\/$/.test(entry.fileName)) return zip.readEntry();
+        const stripped = curseforgeImport.stripCommonRoot(normalized, commonRoot || '');
+        const deployRel = contentApply.curseDeployPath(stripped, overridesDir || 'overrides');
+        if (!deployRel) return zip.readEntry();
+        const rel = contentApply.normalizeRelative(deployRel);
+        if (!rel) { zip.close(); reject(Object.assign(new Error(`Unsafe path in archive: ${deployRel}`), { code: 'unsafe_path' })); return; }
+        const dest = contentApply.safeResolve(stagingDir, rel);
+        if (!dest) { zip.close(); reject(Object.assign(new Error(`Entry escapes staging: ${deployRel}`), { code: 'unsafe_path' })); return; }
+        zip.openReadStream(entry, (streamError, stream) => {
+          if (streamError) { zip.close(); reject(streamError); return; }
+          const chunks = [];
+          stream.on('data', (chunk) => chunks.push(chunk));
+          stream.on('end', () => {
+            try {
+              fs.mkdirSync(path.dirname(dest), { recursive: true });
+              fs.writeFileSync(dest, Buffer.concat(chunks));
+              zip.readEntry();
+            } catch (error) { zip.close(); reject(error); }
+          });
+          stream.on('error', (error) => { zip.close(); reject(error); });
+        });
+      });
+      zip.on('end', () => {
+        try { archiveGuard.finalize(state, ZIP_OPTIONS); } catch (error) { reject(error); return; }
+        resolve();
+      });
+      zip.readEntry();
+    });
+  });
+}
+
+async function runCurseJarApply({ applyOpId, serverId, summary, uploadPath }) {
+  const manager = getManager(serverId);
+  const serverDir = manager.dir();
+  const kind = summary.kind === 'mod' ? 'mod' : 'plugin';
+  const filename = path.basename(String(summary.name || 'import.jar'));
+  const compat = detectCompat(manager);
+  if (kind === 'mod' && !compat.canMods) throw Object.assign(new Error(`Mods require a Fabric, Forge, or NeoForge server (got ${compat.label}).`), { code: 'incompatible_loader' });
+  const folder = kind === 'mod' ? 'mods' : 'plugins';
+  const destRel = contentApply.normalizeRelative(`${folder}/${filename}`);
+  if (!destRel) throw Object.assign(new Error('Unsafe import path.'), { code: 'unsafe_path' });
+  const dest = contentApply.safeResolve(serverDir, destRel);
+  if (!dest) throw Object.assign(new Error('Import escapes the server directory.'), { code: 'unsafe_path' });
+  if (!fs.existsSync(uploadPath)) throw Object.assign(new Error('Upload expired. Upload again.'), { code: 'upload_expired' });
+  const snapshot = foundationSnapshots.take({ serverId, sourceDir: serverDir, scope: [folder], kind: 'content', reason: `curseforge jar ${filename}` });
+  if (!foundationSnapshots.verify(snapshot.id).ok) throw new Error('Snapshot verification failed.');
+  fs.mkdirSync(path.dirname(dest), { recursive: true });
+  fs.copyFileSync(uploadPath, dest);
+  const actual = contentApply.sha256Buffer(fs.readFileSync(dest));
+  if (summary.sha256 && summary.sha256 !== actual) throw new Error('SHA-256 mismatch after copy.');
+  recordImportedJar({
+    serverId, relativePath: destRel, kind,
+    projectId: summary.source?.projectId || '', versionId: summary.source?.fileId || '',
+    mcVersion: compat.mcVersion || null, loader: compat.loaders[0] || null,
+    sha256: actual, displayName: filename,
+    providerMetadata: { originalName: filename, uploadSha256: summary.sha256 || null },
+  });
+  manager.pushLine(`[Hostkind] Imported CurseForge ${kind} into ${destRel} (user-supplied). Restart to apply.`, 'info');
+  addNotification('plugin_installed', 'Content imported', `"${filename}" imported into ${folder}/ (user-supplied). Restart the server to apply.`, serverId);
+  return { relativePath: destRel, sha256: actual, snapshotId: snapshot.id, restartRequired: true };
+}
+
+async function promoteStagedPlan({ serverId, serverDir, stagingDir, plan, decisions, incomingByPath }) {
+  for (const entry of plan.entries) {
+    const takePack = entry.state !== 'local_edit' && (entry.state !== 'conflict' || decisions[entry.relativePath] === 'take_pack');
+    if (!takePack) continue;
+    if (incomingByPath.has(entry.relativePath)) {
+      const stagedAbs = contentApply.safeResolve(stagingDir, entry.relativePath);
+      const dest = mrpackSafeResolve(serverDir, entry.relativePath);
+      if (!stagedAbs || !dest || !fs.existsSync(stagedAbs)) throw new Error(`Staged file missing: ${entry.relativePath}`);
+      fs.mkdirSync(path.dirname(dest), { recursive: true });
+      fs.copyFileSync(stagedAbs, dest);
+    } else if (entry.state === 'safe_removal') {
+      const dest = mrpackSafeResolve(serverDir, entry.relativePath);
+      if (dest && fs.existsSync(dest)) fs.unlinkSync(dest);
+    }
+  }
+}
+
+async function runCurseZipApply({ applyOpId, serverId, summary, uploadPath, decisions }) {
+  const manager = getManager(serverId);
+  const serverDir = manager.dir();
+  const worlds = manager.desc().worlds || [];
+  const meta = contentApply.curseManifestMeta(summary.manifest);
+  const stagingRoot = path.join(serverDir, '.lodestone', 'staging', applyOpId);
+  const stagingDir = path.join(stagingRoot, 'pack');
+  fs.mkdirSync(stagingDir, { recursive: true });
+  await extractCurseZipToStaging(uploadPath, stagingDir, summary.manifest?.overrides || meta.overridesDir, summary.commonRoot || '');
+  const staged = contentApply.walkStaging(stagingDir);
+  if (!staged.length) throw Object.assign(new Error('Archive contains no deployable files.'), { code: 'empty_pack' });
+  const validated = modpackLifecycle.validateFiles(staged.map((f) => ({ relativePath: f.relativePath, sizeBytes: f.sizeBytes, sha256: f.sha256 })), worlds);
+  const previous = modpackLifecycle.latest(serverId);
+  const oldFiles = previous ? previous.files.map((f) => ({ relativePath: f.relative_path, sha256: f.sha256, sizeBytes: f.size_bytes })) : [];
+  const plan = modpackLifecycle.buildPlan({ root: serverDir, oldFiles, newFiles: validated.accepted, worlds });
+  contentApply.checkDecisions(plan, decisions);
+  const snapshot = foundationSnapshots.take({ serverId, sourceDir: serverDir, kind: 'modpack', reason: `curseforge import ${meta.displayName || 'pack'}` });
+  if (!foundationSnapshots.verify(snapshot.id).ok) throw new Error('Snapshot verification failed.');
+  const incomingByPath = new Map(validated.accepted.map((f) => [f.relativePath, f]));
+  await promoteStagedPlan({ serverId, serverDir, stagingDir, plan, decisions, incomingByPath });
+  const owned = validated.accepted.filter((f) => {
+    const e = plan.entries.find((x) => x.relativePath === f.relativePath);
+    return e && e.state !== 'local_edit' && (e.state !== 'conflict' || decisions[e.relativePath] === 'take_pack');
+  });
+  const manifest = modpackLifecycle.persistManifest({
+    serverId, provider: 'curseforge', projectId: '', versionId: '',
+    mcVersion: meta.mcVersion || '', loader: meta.loader || '',
+    operationId: applyOpId, snapshotId: snapshot.id, previousManifestId: previous?.id || null,
+    displayName: meta.displayName || 'CurseForge import', versionName: meta.versionName || '',
+    providerMetadata: { originalName: summary.originalName || null, zipSha256: summary.sha256 || null, unresolved: summary.unresolved || [], commonRoot: summary.commonRoot || null },
+    sourceKind: 'server_pack', verificationStatus: 'user_supplied',
+  }, owned);
+  fs.rmSync(stagingRoot, { recursive: true, force: true });
+  manager.pushLine(`[Hostkind] Imported CurseForge server pack (user-supplied, ${owned.length} files).`, 'info');
+  addNotification('modpack_installed', 'Modpack Imported', `CurseForge pack imported into "${manager.name()}" (${owned.length} files, user-supplied).`, serverId);
+  return { manifestId: manifest.id, snapshotId: snapshot.id };
+}
+
+async function runFtbApply({ applyOpId, serverId, summary, uploadPath, decisions, acceptEula }) {
+  const manager = getManager(serverId);
+  if (manager.status !== STATUS.OFFLINE) throw Object.assign(new Error('The server must be offline.'), { status: 409 });
+  const serverDir = manager.dir();
+  const worlds = manager.desc().worlds || [];
+  const packId = String(summary.packId ?? '');
+  const latest = summary.versionId === 'latest';
+  const versionId = latest ? undefined : String(summary.versionId ?? '');
+  if (!/^\d+$/.test(packId)) throw Object.assign(new Error('A numeric FTB pack ID is required.'), { code: 'invalid_pack_id' });
+  if (!latest && !/^\d+$/.test(versionId || '')) throw Object.assign(new Error('A numeric FTB version ID or latest is required.'), { code: 'invalid_version_id' });
+  if (!acceptEula) throw Object.assign(new Error('Explicit Minecraft EULA acknowledgement is required.'), { code: 'eula_required' });
+  if (!uploadPath || !fs.existsSync(uploadPath)) throw Object.assign(new Error('Upload expired. Upload again.'), { code: 'upload_expired' });
+  const stagingRoot = path.join(serverDir, '.lodestone', 'staging', applyOpId);
+  const stagingDir = path.join(stagingRoot, 'ftb');
+  fs.mkdirSync(stagingDir, { recursive: true });
+  if (fs.readdirSync(stagingDir).length) throw Object.assign(new Error('FTB staging directory must be fresh.'), { code: 'staging_not_empty' });
+  if (process.platform !== 'win32') { try { fs.chmodSync(uploadPath, 0o755); } catch (_) {} }
+  foundationOperations.heartbeat(applyOpId, { phase: 'install', progress: 0.2 });
+  const manifestInfo = await ftbInstaller.run({
+    executable: uploadPath, stagingDir, packId, versionId, latest, acceptEula: true,
+    onLine: (line) => { try { foundationOperations.appendEvent(applyOpId, { phase: 'install', message: String(line).slice(0, 300), level: 'info' }); } catch (_) {} },
+  });
+  const staged = contentApply.walkStaging(stagingDir).filter((f) => f.relativePath !== '.manifest.json');
+  if (!staged.length) throw Object.assign(new Error('FTB installer produced no files.'), { code: 'empty_pack' });
+  const validated = modpackLifecycle.validateFiles(staged.map((f) => ({ relativePath: f.relativePath, sizeBytes: f.sizeBytes, sha256: f.sha256 })), worlds);
+  const previous = modpackLifecycle.latest(serverId);
+  const oldFiles = previous ? previous.files.map((f) => ({ relativePath: f.relative_path, sha256: f.sha256, sizeBytes: f.size_bytes })) : [];
+  const plan = modpackLifecycle.buildPlan({ root: serverDir, oldFiles, newFiles: validated.accepted, worlds });
+  contentApply.checkDecisions(plan, decisions);
+  const snapshot = foundationSnapshots.take({ serverId, sourceDir: serverDir, kind: 'modpack', reason: `ftb ${packId}` });
+  if (!foundationSnapshots.verify(snapshot.id).ok) throw new Error('Snapshot verification failed.');
+  const incomingByPath = new Map(validated.accepted.map((f) => [f.relativePath, f]));
+  await promoteStagedPlan({ serverId, serverDir, stagingDir, plan, decisions, incomingByPath });
+  const owned = validated.accepted.filter((f) => {
+    const e = plan.entries.find((x) => x.relativePath === f.relativePath);
+    return e && e.state !== 'local_edit' && (e.state !== 'conflict' || decisions[e.relativePath] === 'take_pack');
+  });
+  const manifest = modpackLifecycle.persistManifest({
+    serverId, provider: 'ftb', projectId: packId, versionId: manifestInfo.versionId || (latest ? 'latest' : String(versionId || '')),
+    mcVersion: manifestInfo.minecraftVersion || '', loader: manifestInfo.loader || '',
+    operationId: applyOpId, snapshotId: snapshot.id, previousManifestId: previous?.id || null,
+    displayName: manifestInfo.name || `FTB ${packId}`, versionName: manifestInfo.versionName || '',
+    providerMetadata: { packId, versionId: latest ? 'latest' : String(versionId || ''), installerName: summary.installerName || null, installerSha256: summary.sha256 || null, javaVersion: manifestInfo.javaVersion || null },
+    sourceKind: 'official_installer', verificationStatus: 'user_attested',
+  }, owned);
+  fs.rmSync(stagingRoot, { recursive: true, force: true });
+  manager.pushLine(`[Hostkind] Installed FTB pack ${packId} via official installer (attested).`, 'info');
+  addNotification('modpack_installed', 'FTB Pack Installed', `FTB pack ${packId} installed into "${manager.name()}" (${owned.length} files).`, serverId);
+  return { manifestId: manifest.id, snapshotId: snapshot.id };
+}
+
+app.post('/api/minecraft/content/uploads/:operationId/apply', (req, res) => {
+  const prep = foundationOperations.get(String(req.params.operationId || ''));
+  if (!prep) return res.status(404).json({ error: 'Upload not found.' });
+  if (prep.state !== foundationOperations.STATES.SUCCEEDED) return res.status(409).json({ error: prep.state === foundationOperations.STATES.FAILED ? 'Upload inspection failed.' : 'Upload is not ready.', state: prep.state });
+  const summary = (prep.summary && typeof prep.summary === 'object') ? prep.summary : {};
+  if (summary.expiresAt && summary.expiresAt < Date.now()) {
+    if (summary.uploadPath) fs.rmSync(path.dirname(summary.uploadPath), { recursive: true, force: true });
+    return res.status(410).json({ error: 'Upload expired. Upload again.', code: 'upload_expired' });
+  }
+  const provider = String(summary.provider || '').toLowerCase();
+  if (!['curseforge', 'ftb'].includes(provider)) return res.status(400).json({ error: 'Unsupported upload provider.' });
+  if (provider === 'ftb' && !isAdmin(req.user)) return res.status(403).json({ error: tErr(req.user, 'errors.forbidden') });
+  if (prep.actorId && prep.actorId !== req.user.id && !isAdmin(req.user)) return res.status(403).json({ error: tErr(req.user, 'errors.forbidden') });
+  const target = targetManager(req) || (prep.serverId ? getManager(prep.serverId) : null);
+  if (!target || !target.dir()) return res.status(400).json({ error: 'No active server.' });
+  const isJar = provider === 'curseforge' && /\.jar$/i.test(String(summary.name || summary.uploadPath || ''));
+  if (!isJar && target.status !== STATUS.OFFLINE) return res.status(409).json({ error: 'The server must be offline.' });
+  if (provider === 'ftb' && (req.body || {}).acceptEula !== true) return res.status(403).json({ error: 'Explicit Minecraft EULA acknowledgement is required.', code: 'eula_required' });
+  const decisions = ((req.body || {}).decisions && typeof req.body.decisions === 'object' && !Array.isArray(req.body.decisions)) ? req.body.decisions : {};
+  const applyOp = foundationOperations.create({ kind: `content-${provider}-apply`, actorId: req.user.id, serverId: target.id, idempotencyKey: req.get('Idempotency-Key') || null, summary: { prepOperationId: prep.id, provider } });
+  if (applyOp.state !== foundationOperations.STATES.QUEUED) return res.status(202).json({ ok: true, operationId: applyOp.id, replay: true });
+  if (!foundationOperations.acquireServerLock(applyOp.id, target.id)) {
+    foundationOperations.fail(applyOp.id, { code: 'server_busy', text: 'Another operation is running for this server.' });
+    return res.status(409).json({ error: 'Another operation is running for this server.' });
+  }
+  res.status(202).json({ ok: true, operationId: applyOp.id });
+  setImmediate(async () => {
+    const uploadPath = summary.uploadPath;
+    try {
+      foundationOperations.start(applyOp.id, { phase: 'apply' });
+      let result;
+      if (provider === 'curseforge' && isJar) result = await runCurseJarApply({ applyOpId: applyOp.id, serverId: target.id, summary, uploadPath });
+      else if (provider === 'curseforge') result = await runCurseZipApply({ applyOpId: applyOp.id, serverId: target.id, summary, uploadPath, decisions });
+      else result = await runFtbApply({ applyOpId: applyOp.id, serverId: target.id, summary, uploadPath, decisions, acceptEula: req.body.acceptEula === true });
+      if (uploadPath) fs.rmSync(path.dirname(uploadPath), { recursive: true, force: true });
+      foundationOperations.finish(applyOp.id, { provider, ...result });
+    } catch (error) {
+      if (error && error.code === 'conflicts_required') {
+        foundationOperations.fail(applyOp.id, { code: 'conflicts_required', text: sanitizeErrorMessage(error.message) });
+      } else {
+        try { fs.rmSync(path.join(target.dir(), '.lodestone', 'staging', applyOp.id), { recursive: true, force: true }); } catch (_) {}
+        foundationOperations.fail(applyOp.id, { code: (error && error.code) || 'content_apply_failed', text: sanitizeErrorMessage((error && error.message) || 'Apply failed') });
+      }
+      log('content apply failed:', (error && error.message) || error);
+    }
+  });
+});
+
+app.get('/api/minecraft/content/installed', (req, res) => {
+  const m = targetManager(req); if (!m) return res.status(400).json({ error: 'No active server.' });
+  const db = require('./lib/db.cjs').open();
+  const artifacts = db.prepare('SELECT * FROM content_provenance WHERE server_id = ? ORDER BY managed_at DESC').all(m.id).map((row) => ({ ...row, providerMetadata: JSON.parse(row.provider_metadata_json || '{}') }));
+  const history = modpackLifecycle.history(m.id).map((row) => ({ ...row, providerMetadata: JSON.parse(row.provider_metadata_json || '{}') }));
+  res.json({ installed: modpackLifecycle.latest(m.id), artifacts, history });
+});
 
 app.post('/api/modpacks/import/preview', (req, res) => lifecyclePreview(req, res, 'import'));
 app.post('/api/modpacks/import', (req, res) => lifecycleApply(req, res, 'import'));

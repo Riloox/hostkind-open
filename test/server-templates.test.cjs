@@ -55,7 +55,7 @@ function seedSource() {
   // The plugin was installed by Hostkind, so it has provenance: the template
   // must carry the reference, never the jar.
   const pluginSha = templates.sha256File(path.join(root, 'plugins', 'EssentialsX.jar'));
-  open().prepare('INSERT INTO content_provenance VALUES (?,?,?,?,?,?,?,?,?,?,?)')
+  open().prepare('INSERT INTO content_provenance (id, server_id, relative_path, kind, provider, project_id, version_id, mc_version, loader, sha256, managed_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)')
     .run('prov-1', server.id, 'plugins/EssentialsX.jar', 'plugin', 'modrinth', 'proj-ess', 'ver-ess', '1.21.4', 'paper', pluginSha, Date.now());
 
   // --- classification + sanitization ---------------------------------------

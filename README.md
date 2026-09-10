@@ -136,9 +136,9 @@ continuously synced fork.
 
 ## Releases
 
-Publishing is automated upstream: every green CI run on the source repository
-publishes a fresh snapshot to `main` here, and each tagged release (`vX.Y.Z`)
-is mirrored to a GitHub Release on this repository with:
+Maintainers publish validated source snapshots to `main` here. After the public
+checks pass, a version tag (`vX.Y.Z`) runs the release pipeline in this repository
+and publishes a GitHub Release with:
 
 - `hostkind-<version>.zip` (prebuilt source distribution) with its SHA256
   checksum and full manifest,

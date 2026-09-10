@@ -1,4 +1,5 @@
 @echo off
+setlocal EnableExtensions
 REM ============================================================
 REM  Hostkind - DEVELOPMENT launcher (Windows)
 REM  Runs the backend + the Vite dev server with hot reload.
@@ -8,15 +9,10 @@ REM
 REM  For normal use (built bundle, single port) use start-panel.bat.
 REM ============================================================
 
-REM Move to the folder where this .bat lives (handles spaces and "N").
+REM Move to the folder where this .bat lives (handles spaces in the path).
 cd /d "%~dp0"
 
 title Hostkind Dev
-
-REM --- Determine the backend port (env override, else the default 2121) ---
-set "PORT=2121"
-if defined FLEETDECK_PORT set "PORT=%FLEETDECK_PORT%"
-if defined LODESTONE_PORT set "PORT=%LODESTONE_PORT%"
 
 REM --- Check Node.js is installed ---
 where node >nul 2>nul
@@ -87,6 +83,18 @@ if not exist "config.json" (
     exit /b 1
   )
 )
+
+REM --- Resolve the effective backend port ---
+REM Shared precedence (scripts/resolve-port.cjs, same as server.js):
+REM FLEETDECK_PORT, then LODESTONE_PORT, then config.json panelPort, then
+REM 2121. Node is verified above; the helper always prints one valid port.
+set "PORT=2121"
+for /f "usebackq delims=" %%p in (`node scripts\resolve-port.cjs 2^>nul`) do set "PORT=%%p"
+if not defined PORT set "PORT=2121"
+REM Export it so the backend binds this same port (server.js honors
+REM FLEETDECK_PORT) and Vite proxies to it (vite.config.js reads it too).
+REM setlocal above keeps this from leaking into the caller's shell.
+set "FLEETDECK_PORT=%PORT%"
 
 REM --- Kill any previous backend instance still holding the port ---
 call :kill_port "%PORT%"

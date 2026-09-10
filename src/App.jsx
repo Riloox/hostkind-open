@@ -30,7 +30,7 @@ import { TerrariaTshockView } from '@/views/TerrariaTshockView';
 import { MapView } from '@/views/MapView';
 import { AddonsView } from '@/views/AddonsView';
 import { TerrariaModsView } from '@/views/TerrariaModsView';
-import { ModrinthView } from '@/views/ModrinthView';
+import { ContentView } from '@/views/ModrinthView';
 import { FileManagerView } from '@/views/FileManagerView';
 import { ConfigsView } from '@/views/ConfigsView';
 import { WorldsView } from '@/views/WorldsView';
@@ -50,14 +50,14 @@ import { cn, jwtSubject } from '@/lib/utils';
 // Navigating into any of them while the active server has never been started
 // triggers the "Start the server first" prompt so mods/plugins install into a
 // fully generated folder tree instead of a half-empty one.
-const CONTENT_VIEWS = ['addons', 'modrinth', 'files', 'configs'];
+const CONTENT_VIEWS = ['addons', 'content', 'files', 'configs'];
 
 // Views that are meaningless without at least one registered server: every one
 // of them reads a server's status, files, or config. With zero servers they are
 // blocked (the sidebar greys them out and direct URLs bounce to Servers).
 const SERVER_REQUIRED_VIEWS = new Set([
   'health', 'console', 'players', 'map',
-  'addons', 'modrinth', 'files', 'configs', 'worlds',
+  'addons', 'content', 'files', 'configs', 'worlds',
   'backups', 'tasks',
   'updates',
 ]);
@@ -73,7 +73,7 @@ const VIEW_MODULE_CAPABILITIES = {
   console: 'console',
   players: ['players', 'terraria-tshock'],
   addons: ['addons', 'terraria-mods'],
-  modrinth: 'content-install',
+  content: 'content-install',
   worlds: ['worlds', 'terraria-worlds', 'valheim-worlds'],
   map: 'map',
   files: 'files',
@@ -743,7 +743,7 @@ function AppShell({ onLoggedIn }) {
     players:   supports('terraria-tshock') ? <TerrariaTshockView /> : <PlayersView />,
     map:       <MapView />,
     addons:    supports('terraria-mods') ? <TerrariaModsView /> : <AddonsView />,
-    modrinth:  <ModrinthView />,
+    content:   <ContentView />,
     files:     <FileManagerView />,
     configs:   <ConfigsView />,
     worlds:    <WorldsView />,

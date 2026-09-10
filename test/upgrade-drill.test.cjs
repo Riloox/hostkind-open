@@ -195,7 +195,7 @@ tests.push(() => {
 
   // Run the runner — it should pick up all pending migrations.
   const r2 = migrations.runMigrations();
-  assert.strictEqual(r2.applied.length, 4, 'should apply the pending migrations');
+  assert.strictEqual(r2.applied.length, 5, 'should apply the pending migrations');
   assert.strictEqual(r2.applied[0].name, 'api-keys');
   assert.strictEqual(r2.applied[1].name, 'drop-backup-drills');
   assert.strictEqual(r2.applied[2].name, 'bug-reports');
@@ -223,6 +223,8 @@ tests.push(() => {
   assert.ok(v14row, 'migration 14 should be recorded');
   const v15row = db2.prepare('SELECT version FROM schema_migrations WHERE version = 15').get();
   assert.ok(v15row, 'migration 15 should be recorded');
+  const v16row = db2.prepare('SELECT version FROM schema_migrations WHERE version = 16').get();
+  assert.ok(v16row, 'migration 16 should be recorded');
 
   close();
   console.log('ok  upgrade-drill: pending migration creates snapshot, data survives');

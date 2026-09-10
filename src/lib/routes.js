@@ -11,7 +11,7 @@ export const VIEW_PATHS = {
   players: '/players',
   map: '/map',
   addons: '/addons',
-  modrinth: '/mods',
+  content: '/content',
   files: '/files',
   configs: '/configs',
   worlds: '/worlds',
@@ -30,6 +30,7 @@ export const VIEW_NAMES = new Set(Object.keys(VIEW_PATHS));
 const PATH_TO_VIEW = Object.fromEntries(
   Object.entries(VIEW_PATHS).map(([view, path]) => [path, view])
 );
+PATH_TO_VIEW['/mods'] = 'content';
 PATH_TO_VIEW['/metrics'] = 'health';
 
 export function viewToPath(view) {

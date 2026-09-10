@@ -1,11 +1,11 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { ViewHeader } from '@/components/layout/Page';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogBody, DialogFooter } from '@/components/ui/dialog';
 import { useApi } from '@/hooks/useApi';
 import { useFolderPicker } from '@/hooks/useFolderPicker';
 import { useT } from '@/context/I18nContext';
@@ -14,7 +14,7 @@ import { osExamplePath } from '@/lib/utils';
 import { jarIsModLoader } from '@/lib/compat';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
-import { Search, Download, Check, FolderOpen, Package } from 'lucide-react';
+import { Search, Download, Check, FolderOpen, Package, Upload } from 'lucide-react';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { Loading } from '@/components/shared/Loading';
 import { showModpackProgressToast, dismissModpackProgressToast } from '@/components/shared/ModpackProgressToast';
@@ -220,6 +220,189 @@ function ModrinthResults({ compat, projectType, onInstalled }) {
       )}
     </>
   );
+}
+
+function useContentOperation(operationId) {
+  const api = useApi();
+  const [op, setOp] = useState(null);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    setError('');
+    setOp(null);
+    if (!operationId) return;
+    let cancelled = false;
+    let timer = null;
+    const poll = async () => {
+      try {
+        const data = await api(`/api/operations/${encodeURIComponent(operationId)}`);
+        if (cancelled) return;
+        setOp(data.operation || null);
+        const state = data.operation?.state;
+        if (state === 'queued' || state === 'running') timer = setTimeout(poll, 1200);
+      } catch (e) {
+        if (!cancelled) setError(e.message);
+      }
+    };
+    poll();
+    return () => { cancelled = true; if (timer) clearTimeout(timer); };
+  }, [api, operationId]);
+  return { op, error };
+}
+
+function UploadSource({ provider, kind, accept, label, fields = {}, disabled = false, onApplied }) {
+  const api = useApi();
+  const input = useRef(null);
+  const [busy, setBusy] = useState(false);
+  const [operationId, setOperationId] = useState(null);
+  const [applyBusy, setApplyBusy] = useState(false);
+  const [applyOpId, setApplyOpId] = useState(null);
+  const [eulaAck, setEulaAck] = useState(false);
+  const { op, error: inspectionError } = useContentOperation(operationId);
+  const { op: applyOp, error: applyError } = useContentOperation(applyOpId);
+  const inspecting = !!operationId && (!op || ['queued', 'running'].includes(op.state));
+  const applying = !!applyOpId && (!applyOp || ['queued', 'running'].includes(applyOp.state));
+  const preview = op?.state === 'succeeded' ? (op.summary || {}) : null;
+  const failed = op?.state === 'failed' ? (op.error?.text || op.error?.code || 'Inspection failed') : '';
+
+  const upload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setBusy(true);
+    setOperationId(null);
+    setApplyOpId(null);
+    setEulaAck(false);
+    try {
+      const form = new FormData();
+      form.set('file', file); form.set('provider', provider); form.set('kind', kind);
+      for (const [k, v] of Object.entries(fields || {})) if (v !== '' && v != null) form.set(k, String(v));
+      const result = await api('/api/minecraft/content/upload-previews', { method: 'POST', body: form });
+      setOperationId(result.operationId);
+      toast.success(`Inspection started · ${result.operationId}`);
+    } catch (error) { toast.error(error.message); }
+    finally { setBusy(false); event.target.value = ''; }
+  };
+
+  const apply = async () => {
+    if (!operationId) return;
+    setApplyBusy(true);
+    try {
+      const body = {};
+      if (provider === 'ftb') {
+        if (!eulaAck) { toast.error('Explicit Minecraft EULA acknowledgement is required.'); setApplyBusy(false); return; }
+        body.acceptEula = true;
+      }
+      const result = await api(`/api/minecraft/content/uploads/${encodeURIComponent(operationId)}/apply`, { method: 'POST', body });
+      setApplyOpId(result.operationId);
+      toast.success(`Apply started · ${result.operationId}`);
+    } catch (error) { toast.error(error.message); }
+    finally { setApplyBusy(false); }
+  };
+
+  useEffect(() => {
+    if (applyOp?.state === 'succeeded') {
+      toast.success(provider === 'curseforge' && kind !== 'modpack' ? 'Imported. Restart the server to apply.' : 'Installed.');
+      onApplied?.();
+    } else if (applyOp?.state === 'failed') {
+      toast.error(applyOp.error?.text || 'Apply failed');
+    }
+  }, [applyOp?.state]);
+
+  const summaryText = preview ? (preview.name || preview.installerName || (preview.files ? `${preview.files.length} files` : preview.sha256 || 'ready')) : '';
+
+  return <div className="flex flex-wrap items-center gap-3" aria-live="polite">
+    <input ref={input} type="file" accept={accept} className="hidden" onChange={upload} />
+    <Button variant="outline" size="sm" disabled={busy || inspecting || applying || applyBusy || disabled} onClick={() => input.current?.click()}><Upload className="h-3.5 w-3.5" />{busy ? 'Preparing…' : label}</Button>
+    {operationId && (!op || op.state === 'queued' || op.state === 'running') && <span className="text-xs text-muted-foreground">Inspecting…</span>}
+    {(inspectionError || applyError) && <p role="alert" className="text-xs text-status-error">{inspectionError || applyError}</p>}
+    {applyOp?.state === 'failed' && <p role="alert" className="text-xs text-status-error">{applyOp.error?.text || 'Installation failed. Try again.'}</p>}
+    {failed && <span role="alert" className="text-xs text-status-error">{failed}</span>}
+    {preview && <span className="text-xs text-muted-foreground">Ready · {String(summaryText).slice(0, 80)}</span>}
+    {provider === 'ftb' && preview && <label className="flex items-center gap-2 text-xs"><Checkbox checked={eulaAck} onCheckedChange={(v) => setEulaAck(v === true)} />I accept the Minecraft EULA</label>}
+    {preview && <Button variant="default" size="default" disabled={applyBusy || applying || applyOp?.state === 'succeeded' || (provider === 'ftb' && !eulaAck)} onClick={apply}>{applyOp?.state === 'succeeded' ? 'Installed' : applyBusy || applying ? 'Installing…' : `Install ${kind}`}</Button>}
+    {applyOpId && applyOp && (applyOp.state === 'running' || applyOp.state === 'queued') && <span className="text-xs text-muted-foreground">Applying…</span>}
+  </div>;
+}
+
+function FtbOfficialPrepare() {
+  const api = useApi();
+  const [packId, setPackId] = useState('');
+  const [versionId, setVersionId] = useState('');
+  const [latest, setLatest] = useState(true);
+  const [eula, setEula] = useState(false);
+  const [operationId, setOperationId] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const { op } = useContentOperation(operationId);
+  const prepare = async () => {
+    setBusy(true);
+    try {
+      const result = await api('/api/minecraft/content/previews', { method: 'POST', body: { provider: 'ftb', packId, versionId: latest ? undefined : versionId, latest, acceptEula: eula } });
+      setOperationId(result.operationId);
+      toast.success(`FTB prepare started · ${result.operationId}`);
+    } catch (e) { toast.error(e.message); }
+    finally { setBusy(false); }
+  };
+  return <div className="flex flex-wrap items-center gap-2 rounded-md border border-border/60 bg-secondary/10 p-2">
+    <span className="text-xs font-medium">FTB official</span>
+    <Input value={packId} onChange={(e) => setPackId(e.target.value)} placeholder="Pack ID" aria-label="Official FTB pack ID" inputMode="numeric" className="h-10 w-32 text-xs" />
+    {!latest && <Input value={versionId} onChange={(e) => setVersionId(e.target.value)} placeholder="Version ID" aria-label="Official FTB version ID" inputMode="numeric" className="h-10 w-32 text-xs" />}
+    <label className="flex items-center gap-1 text-xs"><Checkbox checked={latest} onCheckedChange={(v) => setLatest(v === true)} />latest</label>
+    <label className="flex items-center gap-1 text-xs"><Checkbox checked={eula} onCheckedChange={(v) => setEula(v === true)} />I accept the Minecraft EULA</label>
+    <Button variant="outline" size="sm" disabled={busy || !packId || (!latest && !versionId) || !eula} onClick={prepare}>{busy ? 'Preparing…' : 'Prepare'}</Button>
+    {op?.state === 'succeeded' && <span className="text-xs text-muted-foreground">Prepared · upload the matching installer below, then Apply.</span>}
+    {op?.state === 'failed' && <span className="text-xs text-status-error">{op.error?.text || 'Prepare failed'}</span>}
+  </div>;
+}
+
+function ProviderActions({ kind, onApplied }) {
+  const [ftbAttested, setFtbAttested] = useState(false);
+  const [ftbEula, setFtbEula] = useState(false);
+  const [ftbPackId, setFtbPackId] = useState('');
+  const [ftbVersionId, setFtbVersionId] = useState('');
+  const [ftbLatest, setFtbLatest] = useState(true);
+  const isPack = kind === 'modpack';
+  const validFtb = /^\d+$/.test(ftbPackId) && (ftbLatest || /^\d+$/.test(ftbVersionId));
+  return <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-4">
+    <div>
+      <p className="text-sm font-semibold">Browse Modrinth</p>
+      <p className="mt-1 text-xs text-muted-foreground">{isPack ? 'Find a modpack below, or import one you already have.' : `Find ${kind}s below, or import a JAR from your computer.`}</p>
+    </div>
+    <Dialog>
+      <DialogTrigger asChild><Button variant="outline" size="default"><Upload />Import {isPack ? 'modpack' : `${kind} JAR`}</Button></DialogTrigger>
+      <DialogContent className="max-w-xl">
+        <DialogHeader className="pr-12">
+          <DialogTitle>Import {isPack ? 'a modpack' : `a ${kind}`}</DialogTitle>
+          <DialogDescription>Choose a file, review the inspection, then install.</DialogDescription>
+        </DialogHeader>
+        <DialogBody className="space-y-5">
+          {isPack ? <Tabs defaultValue="curseforge">
+            <TabsList className="mb-5"><TabsTrigger value="curseforge">CurseForge ZIP</TabsTrigger><TabsTrigger value="ftb">FTB installer</TabsTrigger></TabsList>
+            <TabsContent value="curseforge" forceMount className="space-y-4 data-[state=inactive]:hidden">
+              <div><h3 className="text-sm font-semibold">Import from CurseForge</h3><p className="mt-2 text-sm text-muted-foreground">Select the modpack ZIP downloaded from CurseForge. Keep it zipped for inspection.</p></div>
+              <UploadSource provider="curseforge" kind="modpack" accept=".zip,application/zip" label="Choose ZIP file" onApplied={onApplied} />
+            </TabsContent>
+            <TabsContent value="ftb" forceMount className="space-y-5 data-[state=inactive]:hidden">
+              <div><h3 className="text-sm font-semibold">Import an FTB server installer</h3><p className="mt-2 text-sm text-muted-foreground">Use the server installer from Feed The Beast for this computer (.exe, .sh or .bin). Enter the pack it should install.</p></div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <label className="space-y-2 text-sm font-medium"><span>FTB pack ID</span><Input inputMode="numeric" value={ftbPackId} onChange={(e) => setFtbPackId(e.target.value.trim())} placeholder="Numeric pack ID" /></label>
+                <label className="space-y-2 text-sm font-medium"><span>Pack version</span><select aria-label="Pack version" className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" value={ftbLatest ? 'latest' : 'specific'} onChange={(e) => setFtbLatest(e.target.value === 'latest')}><option value="latest">Latest version</option><option value="specific">Specific version</option></select></label>
+                {!ftbLatest && <label className="space-y-2 text-sm font-medium"><span>FTB version ID</span><Input inputMode="numeric" value={ftbVersionId} onChange={(e) => setFtbVersionId(e.target.value.trim())} placeholder="Numeric version ID" /></label>}
+              </div>
+              <div className="space-y-3 border-t border-border/60 pt-4">
+                <label className="flex min-h-11 items-start gap-3 text-sm sm:min-h-0"><Checkbox className="mt-0.5 min-h-4" checked={ftbAttested} onCheckedChange={(v) => setFtbAttested(v === true)} />I downloaded this installer from Feed The Beast.</label>
+                <label className="flex min-h-11 items-start gap-3 text-sm sm:min-h-0"><Checkbox className="mt-0.5 min-h-4" checked={ftbEula} onCheckedChange={(v) => setFtbEula(v === true)} /><span>I accept the <a className="text-primary underline underline-offset-4" href="https://www.minecraft.net/eula" target="_blank" rel="noreferrer">Minecraft EULA</a>.</span></label>
+              </div>
+              <p className="text-xs text-muted-foreground">{!validFtb ? 'Enter a numeric pack ID and choose a version to continue.' : !ftbAttested || !ftbEula ? 'Confirm the installer source and accept the EULA to choose your file.' : 'Choose your installer to inspect it before installation.'}</p>
+              <UploadSource provider="ftb" kind="modpack" accept=".exe,.sh,.bin,application/octet-stream" label="Choose FTB installer" disabled={!validFtb || !ftbAttested || !ftbEula} fields={{ attested: 'true', acceptEula: ftbEula ? 'true' : '', packId: ftbPackId, versionId: ftbLatest ? '' : ftbVersionId, latest: ftbLatest ? 'true' : '' }} onApplied={onApplied} />
+              <details className="border-t border-border/60 pt-4"><summary className="cursor-pointer text-sm text-muted-foreground">Advanced: prepare an official FTB installer</summary><p className="my-3 text-xs text-muted-foreground">Preparation is separate from installation. You will still need to upload the matching installer.</p><FtbOfficialPrepare /></details>
+            </TabsContent>
+          </Tabs> : <>
+            <div><h3 className="text-sm font-semibold">Choose a {kind} JAR</h3><p className="mt-2 text-sm text-muted-foreground">Upload a .jar file from CurseForge or your computer. Use a {kind} that matches your server software and Minecraft version.</p></div>
+            <UploadSource provider="curseforge" kind={kind} accept=".jar,application/java-archive" label="Choose JAR file" onApplied={onApplied} />
+          </>}
+        </DialogBody>
+      </DialogContent>
+    </Dialog>
+  </div>;
 }
 
 function ModsTab({ compat, serverLabel, onInstalled }) {
@@ -541,7 +724,7 @@ function InstalledPackTab({ history = false, refreshKey = 0 }) {
     <div key={item.id} className="flex gap-4 rounded-lg border border-border/60 bg-secondary/20 p-4">
       {item.iconUrl && <img src={item.iconUrl} alt="" className="h-14 w-14 shrink-0 rounded-lg object-cover" />}
       <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2"><span className="font-semibold">{item.projectName || item.project_id}</span><Badge variant="softPrimary">{item.loader}</Badge><Badge variant="default">MC {item.mc_version}</Badge></div>
+        <div className="flex flex-wrap items-center gap-2"><span className="font-semibold">{item.display_name || item.projectName || item.project_id}</span><Badge variant="softPrimary">{item.provider || 'modrinth'}</Badge><Badge variant="default">{item.verification_status || 'verified'}</Badge><Badge variant="outline">{item.loader}</Badge><Badge variant="default">MC {item.mc_version}</Badge></div>
         <p className="mt-1 text-sm text-muted-foreground">{item.versionName || item.versionNumber || item.version_id}</p>
         <p className="mt-2 text-xs text-muted-foreground">{t('minecraft.modrinth.packFiles', { count: item.file_count })} · {t('minecraft.modrinth.packInstalledAt', { date: new Date(item.installed_at).toLocaleString() })}</p>
       </div>
@@ -549,7 +732,7 @@ function InstalledPackTab({ history = false, refreshKey = 0 }) {
   ))}</div>;
 }
 
-export function ModrinthView() {
+export function ContentView() {
   const api = useApi();
   const t = useT();
   const { servers, setServers, activeServerId, setActiveServerId } = useServer();
@@ -637,12 +820,15 @@ export function ModrinthView() {
             </div>
           </div>
           <TabsContent value="plugins">
+            <ProviderActions kind="plugin" onApplied={() => setInstalledPackRefreshKey((k) => k + 1)} />
             <ModrinthResults compat={compat} projectType="plugin" />
           </TabsContent>
           <TabsContent value="mods">
+            <ProviderActions kind="mod" onApplied={() => setInstalledPackRefreshKey((k) => k + 1)} />
             <ModsTab compat={compat} serverLabel={compat?.label} />
           </TabsContent>
           <TabsContent value="modpacks">
+            <ProviderActions kind="modpack" onApplied={() => handleModpackInstalled({}, 'existing')} />
             <ModpacksTab
               compat={compat}
               onInstalled={handleModpackInstalled}
@@ -656,3 +842,5 @@ export function ModrinthView() {
     </div>
   );
 }
+
+export const ModrinthView = ContentView;
