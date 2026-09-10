@@ -154,7 +154,11 @@ test.describe('registering', () => {
   test('adopts a NeoForge folder launched through a generated argfile', async ({ page, newApp }) => {
     const panel = await newApp();
     const dir = path.join(panel.dirs.servers, 'neoforge-adopted');
-    const argRelative = path.join('libraries', 'net', 'neoforged', 'neoforge', '21.4.157', 'win_args.txt');
+    // findForgeLaunchTarget looks for the platform-specific argfile the
+    // installer produces, so the fixture must create the one matching the
+    // OS under test (a win-only fixture is invisible on Linux).
+    const argName = process.platform === 'win32' ? 'win_args.txt' : 'unix_args.txt';
+    const argRelative = path.join('libraries', 'net', 'neoforged', 'neoforge', '21.4.157', argName);
     fs.mkdirSync(path.dirname(path.join(dir, argRelative)), { recursive: true });
     fs.writeFileSync(path.join(dir, argRelative), [
       '--module-path',
@@ -189,7 +193,7 @@ test.describe('registering', () => {
 
     await expect(row(page, 'neoforge-adopted')).toBeVisible();
     const registered = panel.readConfig().servers.find((server) => server.name === 'neoforge-adopted');
-    expect(registered.launchArgs).toEqual(['@libraries/net/neoforged/neoforge/21.4.157/win_args.txt', 'nogui']);
+    expect(registered.launchArgs).toEqual([`@libraries/net/neoforged/neoforge/21.4.157/${argName}`, 'nogui']);
     expect(registered.mcVersion).toBe('1.21.4');
   });
 

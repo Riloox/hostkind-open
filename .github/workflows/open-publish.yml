@@ -197,12 +197,14 @@ jobs:
           # Poll for the RELEASE ITSELF, not check-runs: check-runs on the
           # tagged commit also include the earlier green main-branch CI run
           # on that same commit, which would report success before the
-          # tag-triggered release job has even started.
+          # tag-triggered release job has even started. Select the CI
+          # workflow by name: .[0] can be any other workflow (e.g. Install
+          # E2E) whose success would end the wait before the release exists.
           verdict=""
           for i in $(seq 1 60); do
             sleep 30
             verdict="$(gh api "repos/Riloox/hostkind-open/actions/runs?event=push&branch=${VERSION}" \
-              --jq '[.workflow_runs[]] | if length == 0 then "pending"
+              --jq '[.workflow_runs[] | select(.name == "CI")] | if length == 0 then "pending"
                     else (.[0] | if .status != "completed" then "pending"
                          elif .conclusion == "success" then "success"
                          else "failure" end) end' || echo pending)"
