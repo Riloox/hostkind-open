@@ -41,6 +41,9 @@ jobs:
       - name: Backend and module tests
         run: npm test
 
+      - name: Desktop build version compatibility
+        run: node --test test/desktop-build-version.test.cjs
+
       - name: Build the SPA into public/
         run: npm run build
 
@@ -147,7 +150,7 @@ jobs:
         run: npm run desktop:install-app-deps
 
       - name: Build the Windows installer
-        run: npx electron-builder --config packaging/windows/electron-builder.cjs --win nsis --publish never
+        run: node scripts/build-desktop.cjs --config packaging/windows/electron-builder.cjs --win nsis --publish never
 
       - name: Zip the portable fallback
         run: node scripts/collect-installer-artifacts.cjs --portable-zip --version "${GITHUB_REF_NAME#v}"
@@ -194,7 +197,7 @@ jobs:
         run: npm run desktop:install-app-deps
 
       - name: Build the Linux installers
-        run: npx electron-builder --config packaging/windows/electron-builder.cjs --linux AppImage deb --publish never
+        run: node scripts/build-desktop.cjs --config packaging/windows/electron-builder.cjs --linux AppImage deb --publish never
 
       - name: Upload Linux installer artifacts
         uses: actions/upload-artifact@v5
