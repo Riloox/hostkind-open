@@ -12,6 +12,7 @@ permissions:
 
 jobs:
   gitleaks:
+    if: github.repository == 'Riloox/hostkind-open'
     name: Secret scan (gitleaks)
     runs-on: ubuntu-latest
     timeout-minutes: 10

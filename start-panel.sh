@@ -29,7 +29,16 @@ if [ -x "$BINARY_LAUNCHER" ]; then
   exec "$BINARY_LAUNCHER" "$@"
 fi
 
+# Preliminary port from the environment only; refined from config.json once
+# Node is verified below. Shared precedence (scripts/resolve-port.cjs, same
+# as server.js): FLEETDECK_PORT > LODESTONE_PORT > config panelPort > 2121.
 PORT="${FLEETDECK_PORT:-${LODESTONE_PORT:-2121}}"
+
+# Portable short sleep for the port-wait loops below: GNU sleep accepts
+# fractions, BSD sleep (macOS) only whole seconds. Probe once so the wait
+# stays fast where fractions work without hanging where they don't.
+PORT_WAIT_SLEEP="0.2"
+sleep 0.2 2>/dev/null || PORT_WAIT_SLEEP="1"
 
 # ---------------------------------------------------------------------------
 # Package-manager detection + dependency helpers
@@ -164,17 +173,35 @@ if [ ! -f config.json ]; then
   fi
 fi
 
-# --- Free the port if a previous panel instance is still holding it ---
-# Prefer lsof (macOS ships it; most Linux distros have it); fall back to
-# fuser or ss so the launcher works where lsof is absent.
-OLD_PIDS=""
-if command -v lsof >/dev/null 2>&1; then
-  OLD_PIDS="$(lsof -ti tcp:"$PORT" -sTCP:LISTEN 2>/dev/null || true)"
-elif command -v fuser >/dev/null 2>&1; then
-  OLD_PIDS="$(fuser "$PORT/tcp" 2>/dev/null | tr ' ' '\n' || true)"
-elif command -v ss >/dev/null 2>&1; then
-  OLD_PIDS="$(ss -tlnp 2>/dev/null | awk -v p=":$PORT" '$4 ~ p { gsub(/.*pid=/, "", $NF); gsub(/,.*/, "", $NF); print $NF }' || true)"
+# --- Refine the port from config.json now that Node is available, then ---
+# --- free it if a previous panel instance is still holding it ------------
+# The shared resolver applies FLEETDECK_PORT > LODESTONE_PORT > config
+# panelPort > 2121 and always prints one valid port. Export the result so
+# the backend binds this same port (server.js honors FLEETDECK_PORT).
+if RESOLVED_PORT="$(node scripts/resolve-port.cjs 2>/dev/null)" && [ -n "$RESOLVED_PORT" ]; then
+  PORT="$RESOLVED_PORT"
 fi
+export FLEETDECK_PORT="$PORT"
+
+# List PIDs listening on $PORT (listeners only, never connected clients).
+# Prefers lsof (macOS ships it; most Linux distros have it), then ss, then
+# netstat (Windows/Git Bash style and Linux net-tools style), then fuser,
+# which cannot tell listeners from clients and is only a last resort on a
+# dedicated port. The :PORT anchor is end-anchored so :2121 never matches
+# :21210.
+panel_listen_pids() {
+  if command -v lsof >/dev/null 2>&1; then
+    lsof -ti tcp:"$PORT" -sTCP:LISTEN 2>/dev/null || true
+  elif command -v ss >/dev/null 2>&1; then
+    ss -tlnp 2>/dev/null | awk -v port="$PORT" '$4 ~ (":"port"$") { gsub(/.*pid=/, "", $NF); gsub(/,.*/, "", $NF); print $NF }' || true
+  elif command -v netstat >/dev/null 2>&1; then
+    netstat -ano 2>/dev/null | awk -v port="$PORT" '/LISTENING/ && $2 ~ (":"port"$") { print $NF }' || true
+    netstat -tlnp 2>/dev/null | awk -v port="$PORT" '$1 ~ /^tcp/ && $4 ~ (":"port"$") && $6 == "LISTEN" { split($7, a, "/"); if (a[1] ~ /^[0-9]+$/) print a[1] }' || true
+  elif command -v fuser >/dev/null 2>&1; then
+    fuser "$PORT/tcp" 2>/dev/null | tr ' ' '\n' || true
+  fi
+}
+OLD_PIDS="$(panel_listen_pids)"
 if [ -n "$OLD_PIDS" ]; then
   echo "Stopping previous panel instance (PID $OLD_PIDS)..."
   # shellcheck disable=SC2086
@@ -182,17 +209,12 @@ if [ -n "$OLD_PIDS" ]; then
   # Wait for the port to actually be released; a listener that is only
   # SIGTERM'd lingers briefly and would otherwise make the new server exit
   # with EADDRINUSE.
-  for _ in {1..50}; do
-    REMAINING=""
-    if command -v lsof >/dev/null 2>&1; then
-      REMAINING="$(lsof -ti tcp:"$PORT" -sTCP:LISTEN 2>/dev/null || true)"
-    elif command -v fuser >/dev/null 2>&1; then
-      REMAINING="$(fuser "$PORT/tcp" 2>/dev/null || true)"
-    elif command -v ss >/dev/null 2>&1; then
-      REMAINING="$(ss -tln 2>/dev/null | awk -v p=":$PORT" '$4 ~ p { print $NF }' || true)"
-    fi
+  tries=0
+  while [ "$tries" -lt 15 ]; do
+    REMAINING="$(panel_listen_pids)"
     [ -z "$REMAINING" ] && break
-    sleep 0.1
+    sleep "$PORT_WAIT_SLEEP"
+    tries=$((tries + 1))
   done
   [ -z "${REMAINING:-}" ] || {
     echo "[ERROR] Port $PORT is still in use after stopping the previous panel."
@@ -202,7 +224,7 @@ fi
 
 echo
 echo "Starting Hostkind panel..."
-echo "Open http://localhost:$PORT in your browser (default port)."
+echo "Open http://localhost:$PORT in your browser."
 echo "Press Ctrl+C to stop the panel."
 echo
 

@@ -7,6 +7,32 @@ All notable changes to Hostkind are documented here. This project follows
 
 No entries yet.
 
+## [0.1.3] - 2026-09-10
+
+### Added
+
+- Minecraft Content brings Modrinth browsing, local plugin/mod JAR uploads, CurseForge server-pack ZIP imports, and FTB installer imports into one page.
+- API-free CurseForge imports inspect user-supplied files before installation and report unsupported client exports that require unresolved downloads.
+- Administrator-only FTB imports support pack IDs, latest or specific versions, source attestation, and explicit Minecraft EULA acceptance. Advanced controls prepare an official installer.
+- Content APIs and database migration 16 record provider metadata and import provenance while preserving compatibility with existing routes.
+
+### Improved
+
+- Dedicated import dialogs separate CurseForge and FTB workflows, explain file requirements, label required fields, and show why an action is unavailable.
+- Import inspection and installation display progress and errors, prevent duplicate installation, and adapt to mobile screens with keyboard-accessible controls.
+- Panel, development, and tunnel launchers resolve configured ports consistently. Vite proxies follow the selected panel port.
+- Windows and shell launch/stop scripts improve listener detection and port-release handling; a shell launcher is now available for the development manager.
+- Public-repository guards cover install, secret-scan, and ZAP workflows. Contributor documentation describes local snapshot publication and public release validation.
+
+### Fixed
+
+- Updated database upgrade and server-template fixtures for the expanded content metadata schema.
+
+### Compatibility
+
+- CurseForge imports require local JARs or a self-contained server pack; Hostkind does not resolve client-export references through the CurseForge API.
+- FTB installation requires an appropriate installer supplied by the administrator and explicit EULA acceptance.
+
 ## [0.1.2.3]
 
 This release puts one-click installers on the Releases tab so non-technical

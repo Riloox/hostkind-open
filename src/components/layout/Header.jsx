@@ -23,7 +23,7 @@ const VIEW_KEYS = {
   files:    'nav.files',
   tasks:    'nav.schedules',
   backups:  'nav.backups',
-  modrinth: 'nav.modrinth',
+  content:  'nav.modrinth',
   map:      'nav.map',
   users:    'nav.users',
   worlds:   'nav.worlds',

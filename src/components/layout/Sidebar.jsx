@@ -39,7 +39,7 @@ const NAV_GROUPS = [
     key: 'nav.groupContent',
     items: [
       { view: 'addons',   labelKey: 'nav.addons',   icon: Puzzle, requiresServer: true, moduleCapability: ['addons', 'terraria-mods'] },
-      { view: 'modrinth', labelKey: 'nav.modrinth', icon: Package, requiresServer: true, moduleCapability: 'content-install' },
+      { view: 'content', labelKey: 'nav.modrinth', icon: Package, requiresServer: true, moduleCapability: 'content-install' },
       { view: 'files',    labelKey: 'nav.files',    icon: FolderOpen, requiresServer: true, moduleCapability: 'files' },
       { view: 'configs',  labelKey: 'nav.configs',  icon: FileText, requiresServer: true, moduleCapability: 'configs' },
       // Two world models, one view: Minecraft's folder-per-world and Terraria's

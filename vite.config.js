@@ -4,14 +4,24 @@ import { transformSync } from 'esbuild';
 import path from 'path';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
+import { createRequire } from 'module';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const require = createRequire(import.meta.url);
 
 // The panel build the login screen reports. Read from package.json so it can
 // never drift from the released version.
 const pkg = JSON.parse(readFileSync(path.join(__dirname, 'package.json'), 'utf8'));
 
-// The dev server proxies to the panel on :2121. Browsers send an Origin
+// The backend port the dev proxy targets, from the shared resolver
+// (scripts/resolve-port.cjs: FLEETDECK_PORT > LODESTONE_PORT >
+// config.json panelPort > 2121). A hardcoded 2121 here used to break
+// `start-dev` for anyone with a custom panelPort: Vite proxied to an empty
+// port while the backend listened on the configured one.
+const { resolvePanelPort } = require('./scripts/resolve-port.cjs');
+const panelPort = resolvePanelPort();
+
+// The dev server proxies to the panel (see panelPort above). Browsers send an Origin
 // header on POSTs and WS upgrades, and the panel's cross-origin defense
 // (server.js originAllowed) rejects any Origin that isn't the panel's own
 // loopback port or an allowedOrigins entry. Through the proxy the page's
@@ -87,15 +97,15 @@ export default defineConfig({
     },
     proxy: {
       '/api': {
-        target: 'http://localhost:2121',
+        target: `http://localhost:${panelPort}`,
         configure: stripOrigin,
       },
       '/resources': {
-        target: 'http://localhost:2121',
+        target: `http://localhost:${panelPort}`,
         configure: stripOrigin,
       },
       '/ws': {
-        target: 'ws://localhost:2121',
+        target: `ws://localhost:${panelPort}`,
         ws: true,
         configure: stripOrigin,
       },
