@@ -7,6 +7,12 @@ All notable changes to Hostkind are documented here. This project follows
 
 No entries yet.
 
+## [0.1.3.2] - 2026-09-11
+
+### Added
+
+- In-app updates are live: releases now ship a signed Ed25519 update manifest and installed binaries carry the built-in release public key, so outdated installs detect new versions and update with one click. `HOSTKIND_UPDATE_PUBLIC_KEY` overrides the built-in key for rotation and testing. Installs before 0.1.3.2 need one manual installer run to pick up the key.
+
 ## [0.1.3.1] - 2026-09-11
 
 ### Added
@@ -15,7 +21,7 @@ No entries yet.
 
 ### Improved
 
-- The application updater now detects four-part versions (`X.Y.Z.W`): `0.1.3.1` registers as newer than `0.1.3`. Release packaging, signed update manifests, and the installer accept strict `X.Y.Z[.W]` versions, so four-part releases ship a signed in-app update manifest instead of manual-download-only installers.
+- The application updater now detects four-part versions (`X.Y.Z.W`): `0.1.3.1` registers as newer than `0.1.3`. Release packaging, signed update manifests, and the installer accept strict `X.Y.Z[.W]` versions, so four-part releases can ship a signed in-app update manifest instead of manual-download-only installers (activated in 0.1.3.2).
 
 ## [0.1.3] - 2026-09-10
 
