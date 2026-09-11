@@ -97,7 +97,7 @@ function parseArgs(argv) {
 function main(argv = process.argv.slice(2)) {
   const args = parseArgs(argv);
   if (!args.version || !args['release-notes-url'] || !args['artifacts-file'] || !args.output || !args['signing-key-file']) {
-    throw new Error('usage: node scripts/create-update-manifest.cjs --version X.Y.Z --release-notes-url URL --artifacts-file FILE --output FILE --signing-key-file FILE [--priority normal|high]');
+    throw new Error('usage: node scripts/create-update-manifest.cjs --version X.Y.Z[.W] --release-notes-url URL --artifacts-file FILE --output FILE --signing-key-file FILE [--priority normal|high]');
   }
   const raw = JSON.parse(fs.readFileSync(path.resolve(args['artifacts-file']), 'utf8'));
   const artifacts = raw && raw.artifacts ? raw.artifacts : raw;

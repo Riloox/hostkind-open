@@ -124,7 +124,7 @@ async function main() {
 
   const pkg = require(path.join(ROOT, 'package.json'));
   const version = parseVersion(process.argv) || pkg.version;
-  if (!/^[0-9]+\.[0-9]+\.[0-9]+/.test(version)) {
+  if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:\.(0|[1-9]\d*))?$/.test(version)) {
     throw new Error(`refusing to package a non-semver version: ${version}`);
   }
 

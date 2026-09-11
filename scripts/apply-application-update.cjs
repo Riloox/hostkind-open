@@ -38,7 +38,7 @@ const crypto = require('crypto');
 const SUPPORTED_PLATFORMS = new Set(['windows-x64', 'linux-x64']);
 const ALLOWED_RELEASE_ORIGIN_HOST = 'github.com';
 const ALLOWED_RELEASE_ORIGIN_PATH = '/Riloox/hostkind-open/releases/download/';
-const STRICT_STABLE_SEMVER_RE = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
+const STRICT_STABLE_SEMVER_RE = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:\.(0|[1-9]\d*))?$/;
 const SHA256_HEX_RE = /^[0-9a-f]{64}$/;
 
 class UpdaterError extends Error {
@@ -58,7 +58,7 @@ function fail(code, message) {
 
 function assertStableVersion(version) {
   if (typeof version !== 'string' || !STRICT_STABLE_SEMVER_RE.test(version)) {
-    fail('invalid_version', `version must be strict stable semver (X.Y.Z), got: ${String(version)}`);
+    fail('invalid_version', `version must be strict stable semver (X.Y.Z[.W]), got: ${String(version)}`);
   }
 }
 
