@@ -227,8 +227,10 @@ test('createVersionedInstallDir creates <installRoot>/versions/<version> and rej
   assert.strictEqual(result.installDir, path.join(root, 'versions', '1.2.3'));
   assert.strictEqual(fs.existsSync(result.installDir), true);
   assert.strictEqual(fs.statSync(result.installDir).isDirectory(), true);
+  const fourPart = applyUpdate.createVersionedInstallDir({ installRoot: root, version: '1.2.3.4' });
+  assert.strictEqual(fourPart.installDir, path.join(root, 'versions', '1.2.3.4'));
 
-  for (const version of ['1.2.3-beta.1', 'v1.2.3', '01.2.3', '1.2', '1.2.3.4', '1.2.3+build']) {
+  for (const version of ['1.2.3-beta.1', 'v1.2.3', '01.2.3', '1.2', '1.2.3.4.5', '1.2.3+build']) {
     assert.throws(
       () => applyUpdate.createVersionedInstallDir({ installRoot: root, version }),
       (error) => error.code === 'invalid_version',

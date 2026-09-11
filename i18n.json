@@ -309,7 +309,11 @@
         "applicationUpdateRestarting": "Restarting Hostkind",
         "applicationUpdateHighPriority": "High-priority update will install at the next safe restart.",
         "applicationUpdateFailed": "Update failed",
-        "applicationUpdateAvailable": "Application update available"
+        "applicationUpdateAvailable": "Application update available",
+        "applicationUpdateToastTitle": "Hostkind update available",
+        "applicationUpdateToastMessage": "Version {latest} is available (current: {current}).",
+        "applicationUpdateUpdateNow": "Update now",
+        "applicationUpdateLater": "Later"
       },
       "header": {
         "start": "Start",
@@ -3196,7 +3200,11 @@
         "applicationUpdateRestarting": "Reiniciando Hostkind",
         "applicationUpdateHighPriority": "La actualización prioritaria se instalará en el próximo reinicio seguro.",
         "applicationUpdateFailed": "Falló la actualización",
-        "applicationUpdateAvailable": "Hay una actualización de la aplicación"
+        "applicationUpdateAvailable": "Hay una actualización de la aplicación",
+        "applicationUpdateToastTitle": "Actualización de Hostkind disponible",
+        "applicationUpdateToastMessage": "La versión {latest} está disponible (actual: {current}).",
+        "applicationUpdateUpdateNow": "Actualizar ahora",
+        "applicationUpdateLater": "Más tarde"
       },
       "header": {
         "start": "Iniciar",

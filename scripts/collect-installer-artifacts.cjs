@@ -130,11 +130,11 @@ async function writePortableZip({ version, distElectron = DIST_ELECTRON }) {
 async function writeManifest({ version, tag, repository, assetsDir, output }) {
   if (!tag) throw new Error('--manifest requires --tag (e.g. v0.1.2.3)');
   // Same convention as scripts/package.cjs: the project versions patch builds
-  // with a fourth component (0.1.2.3), so accept a leading X.Y.Z rather than
-  // strict semver. This payload is version-agnostic (names, URLs, hashes);
-  // the strict-semver gate lives in scripts/create-update-manifest.cjs, which
-  // fail-closes when a four-part version reaches the signed updater manifest.
-  if (!/^[0-9]+\.[0-9]+\.[0-9]+/.test(version)) {
+  // with a fourth component (0.1.2.3), so accept X.Y.Z or X.Y.Z.W with no
+  // leading zeros. This payload is version-agnostic (names, URLs, hashes);
+  // four-part versions are now signable: scripts/create-update-manifest.cjs
+  // delegates to validateManifest, which accepts X.Y.Z[.W].
+  if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:\.(0|[1-9]\d*))?$/.test(version)) {
     throw new Error(`refusing to manifest a non-semver version: ${version}`);
   }
   const found = findInstallerAssets(assetsDir);
@@ -175,7 +175,7 @@ async function writeManifest({ version, tag, repository, assetsDir, output }) {
 async function main(argv = process.argv.slice(2)) {
   const args = parseArgs(argv);
   if (args.help || (!args.portableZip && !args.manifest)) {
-    console.log('Usage: node scripts/collect-installer-artifacts.cjs [--portable-zip] [--manifest --tag vX.Y.Z [--repository Riloox/hostkind-open] [--version X.Y.Z] [--assets-dir dist] [--output dist/application-artifacts.json]]');
+    console.log('Usage: node scripts/collect-installer-artifacts.cjs [--portable-zip] [--manifest --tag vX.Y.Z[.W] [--repository Riloox/hostkind-open] [--version X.Y.Z[.W]] [--assets-dir dist] [--output dist/application-artifacts.json]]');
     return;
   }
   const version = readVersion(args.version);

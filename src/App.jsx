@@ -18,6 +18,7 @@ import { Page } from '@/components/layout/Page';
 import { FirstStartDialog } from '@/components/shared/FirstStartDialog';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { SettingsDialog } from '@/components/shared/SettingsDialog';
+import { ApplicationUpdateNotice } from '@/components/shared/ApplicationUpdateNotice';
 import { BugReportButton } from '@/components/shared/BugReportButton';
 import { OnboardingTour } from '@/components/shared/OnboardingTour';
 import { ChangelogDialog } from '@/components/shared/ChangelogDialog';
@@ -842,6 +843,9 @@ function AppShell({ onLoggedIn }) {
         onOpenChange={setSettingsOpen}
         onStartTour={startTour}
       />
+      {!showGames && (
+        <ApplicationUpdateNotice onOpenSettings={() => setSettingsOpen(true)} />
+      )}
       {!showGames && (
         <ControlBar
           onServerSwitch={handleSetActive}
