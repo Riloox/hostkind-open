@@ -59,7 +59,7 @@ jobs:
 
       - name: Upload Playwright report on failure
         if: failure()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report
           path: |
@@ -112,7 +112,7 @@ jobs:
 
       - name: Upload Playwright report on failure
         if: failure()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report-windows
           path: |
@@ -157,7 +157,7 @@ jobs:
         shell: bash
 
       - name: Upload Windows installer artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: installer-windows
           path: |
@@ -200,7 +200,7 @@ jobs:
         run: node scripts/build-desktop.cjs --config packaging/windows/electron-builder.cjs --linux AppImage deb --publish never
 
       - name: Upload Linux installer artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: installer-linux
           path: |
