@@ -137,7 +137,7 @@ continuously synced fork.
 ## Releases
 
 Maintainers publish validated source snapshots to `main` here. After the public
-checks pass, a version tag (`vX.Y.Z`) runs the release pipeline in this repository
+checks pass, a version tag (`vX.Y.Z[.W]`) runs the release pipeline in this repository
 and publishes a GitHub Release with:
 
 - `hostkind-<version>.zip` (prebuilt source distribution) with its SHA256

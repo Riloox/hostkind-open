@@ -7,6 +7,16 @@ All notable changes to Hostkind are documented here. This project follows
 
 No entries yet.
 
+## [0.1.3.1] - 2026-09-11
+
+### Added
+
+- Persistent, closeable in-app update notice: launching an outdated install shows a non-invasive toast with a one-click update flow (download, install, restart) plus a release-notes link. It reappears on next launch until updated and never interferes with other toasts.
+
+### Improved
+
+- The application updater now detects four-part versions (`X.Y.Z.W`): `0.1.3.1` registers as newer than `0.1.3`. Release packaging, signed update manifests, and the installer accept strict `X.Y.Z[.W]` versions, so four-part releases ship a signed in-app update manifest instead of manual-download-only installers.
+
 ## [0.1.3] - 2026-09-10
 
 ### Added

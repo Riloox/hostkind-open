@@ -76,9 +76,9 @@ async function main() {
 
     // The emitted payload satisfies the updater's fail-closed artifact shape.
     // Note the manifest version here is strict X.Y.Z while the file names
-    // carry the project's four-part patch version: the signed updater
-    // manifest only activates for strict-semver releases, while 0.1.2.3
-    // installers ship for manual download (see UPGRADING.md).
+    // carry the project's four-part patch version. Four-part releases
+    // (X.Y.Z.W) also validate and receive a signed updater manifest; older
+    // 0.1.2.x installers shipped for manual download only (see UPGRADING.md).
     const manifest = {
       schema: 1,
       product: 'hostkind',
