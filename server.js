@@ -6146,6 +6146,16 @@ async function lifecycleApply(req, res, kind) {
 }
 
 const contentUploadRoot = path.join(__dirname, 'data', 'content-uploads');
+function cleanupUploadDir(filePath) {
+  try {
+    if (typeof filePath !== 'string' || !filePath || filePath.includes('\0')) return;
+    const root = path.resolve(contentUploadRoot);
+    const dir = path.resolve(path.dirname(filePath));
+    if (dir === root) return;
+    if (!dir.startsWith(root + path.sep)) return;
+    fs.rmSync(dir, { recursive: true, force: true });
+  } catch { /* best-effort cleanup only; never throw in guards/catch paths */ }
+}
 const contentUpload = multer({
   storage: multer.diskStorage({
     destination(req, file, cb) {
@@ -6194,9 +6204,9 @@ app.post('/api/minecraft/content/previews', (req, res) => {
 app.post('/api/minecraft/content/upload-previews', contentUpload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'A ZIP, JAR, or FTB installer is required.', code: 'file_required' });
   const provider = String(req.body?.provider || (/\.jar$/i.test(req.file.originalname) ? 'curseforge' : 'curseforge')).toLowerCase();
-  if (!['curseforge', 'ftb'].includes(provider)) { fs.rmSync(path.dirname(req.file.path), { recursive: true, force: true }); return res.status(400).json({ error: 'Unsupported upload provider.' }); }
-  if (provider === 'ftb' && (!isAdmin(req.user) || req.body?.attested !== 'true')) { fs.rmSync(path.dirname(req.file.path), { recursive: true, force: true }); return res.status(403).json({ error: 'An administrator must attest that the installer came from FTB.', code: 'attestation_required' }); }
-  if (provider === 'ftb' && req.body?.acceptEula !== 'true') { fs.rmSync(path.dirname(req.file.path), { recursive: true, force: true }); return res.status(403).json({ error: 'Explicit Minecraft EULA acknowledgement is required.', code: 'eula_required' }); }
+  if (!['curseforge', 'ftb'].includes(provider)) { cleanupUploadDir(req.file?.path); return res.status(400).json({ error: 'Unsupported upload provider.' }); }
+  if (provider === 'ftb' && (!isAdmin(req.user) || req.body?.attested !== 'true')) { cleanupUploadDir(req.file?.path); return res.status(403).json({ error: 'An administrator must attest that the installer came from FTB.', code: 'attestation_required' }); }
+  if (provider === 'ftb' && req.body?.acceptEula !== 'true') { cleanupUploadDir(req.file?.path); return res.status(403).json({ error: 'Explicit Minecraft EULA acknowledgement is required.', code: 'eula_required' }); }
   const m = targetManager(req); const op = foundationOperations.create({ kind: `content-${provider}-upload-prepare`, actorId: req.user.id, serverId: m?.id || null, summary: { provider, originalName: path.basename(req.file.originalname) } });
   res.status(202).json({ operationId: op.id });
   setImmediate(async () => {
@@ -6216,7 +6226,7 @@ app.post('/api/minecraft/content/upload-previews', contentUpload.single('file'),
       else throw Object.assign(new Error('CurseForge imports must be .jar or .zip files.'), { code: 'invalid_file_type' });
       if (preview.clientOnly) throw Object.assign(new Error(`${preview.error} Unresolved: ${preview.unresolved.join(', ')}`), { code: 'unresolved_curseforge_files' });
       foundationOperations.finish(op.id, { ...preview, uploadPath: req.file.path, expiresAt: Date.now() + 30 * 60 * 1000, snapshotRequired: !!m });
-    } catch (error) { fs.rmSync(path.dirname(req.file.path), { recursive: true, force: true }); foundationOperations.fail(op.id, { code: error.code || 'content_upload_invalid', text: sanitizeErrorMessage(error.message) }); }
+    } catch (error) { cleanupUploadDir(req.file?.path); foundationOperations.fail(op.id, { code: error.code || 'content_upload_invalid', text: sanitizeErrorMessage(error.message) }); }
   });
 });
 
