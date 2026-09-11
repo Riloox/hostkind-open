@@ -23,10 +23,9 @@ outside the install directory (see
 [WINDOWS-DISTRIBUTION.md](WINDOWS-DISTRIBUTION.md) and
 [LINUX-DISTRIBUTION.md](LINUX-DISTRIBUTION.md)), so they are preserved
 automatically. Database migrations still run on first boot as described
-below. Desktop installers update by re-downloading the next release: the
-signed in-app update manifest only activates for strict `X.Y.Z` releases
-(the updater fail-closes on other schemes), so patch builds like `0.1.2.3`
-upgrade through a fresh installer run. The rest of this guide covers the
+below. Desktop installs can also update in-app when the release ships a
+signed update manifest (strict `X.Y.Z[.W]` releases); otherwise upgrade
+through a fresh installer run. The rest of this guide covers the
 advanced ZIP layout.
 
 ## Requirements

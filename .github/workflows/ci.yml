@@ -284,11 +284,11 @@ jobs:
         run: |
           set -eu
           version="${GITHUB_REF_NAME#v}"
-          # The updater fail-closes on strict stable X.Y.Z (see
-          # lib/application-release.cjs). Patch-build tags like v0.1.2.3 ship
-          # their installers for manual download; the signed in-app update
-          # manifest activates again for strict-semver releases.
-          if ! printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+          # The updater fail-closes on strict stable X.Y.Z[.W] (see
+          # lib/application-release.cjs). Only stable numeric releases get a
+          # signed in-app update manifest; anything else ships installers for
+          # manual download.
+          if ! printf '%s' "$version" | grep -Eq '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))?$'; then
             echo "::notice::skipping signed update manifest for non-strict-semver version $version"
             exit 0
           fi
