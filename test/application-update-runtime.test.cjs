@@ -121,6 +121,42 @@ assert.strictEqual(packagedWithoutKey.service.getStatus().state, 'idle');
     (error) => error.code === 'VERIFICATION_ERROR' && /Ed25519/i.test(error.message),
   );
 
+  const {
+    BUILTIN_UPDATE_PUBLIC_KEY,
+  } = require('../lib/application-update-runtime.cjs');
+  const builtinKey = crypto.createPublicKey(BUILTIN_UPDATE_PUBLIC_KEY);
+  assert.strictEqual(builtinKey.asymmetricKeyType, 'ed25519');
+  const builtinVerifier = createManifestVerifier(BUILTIN_UPDATE_PUBLIC_KEY);
+  await assert.rejects(
+    () => builtinVerifier({ version: '0.1.3.2' }),
+    (error) => error.code === 'VERIFICATION_ERROR' && /no detached signature/i.test(error.message),
+  );
+  await assert.rejects(
+    () => builtinVerifier({ version: '0.1.3.2', manifestSignature: Buffer.alloc(64).toString('base64') }),
+    (error) => error.code === 'VERIFICATION_ERROR' && /does not match/i.test(error.message),
+  );
+
+  const overridePair = crypto.generateKeyPairSync('ed25519');
+  const overridePem = overridePair.publicKey.export({ type: 'spki', format: 'pem' });
+  const { createUpdateManifest } = require('../scripts/create-update-manifest.cjs');
+  const overrideManifest = createUpdateManifest({
+    version: '0.1.3.2',
+    releaseNotesUrl: 'https://github.com/Riloox/hostkind-open/releases/tag/v0.1.3.2',
+    artifacts: {
+      'windows-x64': {
+        name: 'Hostkind-0.1.3.2-Setup.exe',
+        url: 'https://github.com/Riloox/hostkind-open/releases/download/v0.1.3.2/Hostkind-0.1.3.2-Setup.exe',
+        sha256: 'b'.repeat(64),
+      },
+    },
+    signingKey: overridePair.privateKey,
+  });
+  await createManifestVerifier(overridePem)(overrideManifest);
+  await assert.rejects(
+    () => builtinVerifier(overrideManifest),
+    (error) => error.code === 'VERIFICATION_ERROR' && /does not match/i.test(error.message),
+  );
+
   const helperFailures = [];
   const failingInstaller = createBinaryInstaller({
     installRoot: '/opt/hostkind',
