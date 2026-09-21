@@ -73,7 +73,9 @@ test.describe('worlds', () => {
     await openView(page, 'valheim', 'dashboard');
 
     const worlds = appShell(page).navItem('worlds');
-    await expect(worlds).toHaveAttribute('aria-disabled', 'false');
+    // Natively disabled when there is nothing to show (Sidebar renders
+    // disabled=, not aria-disabled=, so assert the enabled state directly).
+    await expect(worlds).toBeEnabled();
 
     await worlds.click();
 
