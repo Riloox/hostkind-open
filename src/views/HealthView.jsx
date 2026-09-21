@@ -326,7 +326,7 @@ function CrashDetail({ data, onBack, onToggle, onNavigate, t }) {
                 </div>
                 <h4 className="mt-4 text-label font-semibold uppercase tracking-[0.12em] text-muted-foreground">{t('health.suggestedChecks')}</h4>
                 <ul className="mt-2 list-disc space-y-1.5 pl-5 text-sm leading-6">
-                  {c.suggestions.map((x, i) => <li key={i}>{ruleKey(t, c.ruleId, 'suggestions', i, x)}</li>)}
+                  {c.suggestions.map((x, i) => <li key={`${c.ruleId}-suggestion-${i}-${String(x).slice(0, 48)}`}>{ruleKey(t, c.ruleId, 'suggestions', i, x)}</li>)}
                 </ul>
                 {actionFor(c.ruleId) && (
                   <Button className="mt-4" size="sm" variant="outline" onClick={() => onNavigate(actionFor(c.ruleId))}>

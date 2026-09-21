@@ -35,11 +35,23 @@ function resolvePanelPort(configPath) {
   const fromEnv = toValidPort(process.env.FLEETDECK_PORT)
     ?? toValidPort(process.env.LODESTONE_PORT);
   if (fromEnv !== null) return fromEnv;
+  const file = configPath || defaultConfigPath();
+  let raw;
   try {
-    const raw = fs.readFileSync(configPath || defaultConfigPath(), 'utf8');
-    const parsed = toValidPort(JSON.parse(raw).panelPort);
-    if (parsed !== null) return parsed;
-  } catch (_) { /* missing/unreadable config: use the default */ }
+    raw = fs.readFileSync(file, 'utf8');
+  } catch (_) { /* missing/unreadable config: use the default */ return DEFAULT_PORT; }
+  let data;
+  try {
+    data = JSON.parse(raw);
+  } catch (err) {
+    // A corrupt config is almost certainly a real problem (a half-written
+    // save, a merge conflict), so say so on stderr instead of silently
+    // falling back to 2121 and splitting the panel across two ports.
+    console.warn(`resolve-port: ignoring invalid JSON in ${file} (${err.message}); using default ${DEFAULT_PORT}`);
+    return DEFAULT_PORT;
+  }
+  const parsed = toValidPort(data && typeof data === 'object' ? data.panelPort : undefined);
+  if (parsed !== null) return parsed;
   return DEFAULT_PORT;
 }
 

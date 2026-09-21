@@ -665,7 +665,6 @@ async function waitForOperation(api, operationId, { intervalMs = 1500 } = {}) {
 function TemplateModal({ open, onOpenChange, servers, initialSource, onCreated }) {
   const api = useApi();
   const t = useT();
-  const { token } = useAuth();
   const { picking, pick } = useFolderPicker(api);
   const [items, setItems] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -744,9 +743,11 @@ function TemplateModal({ open, onOpenChange, servers, initialSource, onCreated }
     const item = selected?.template;
     if (!item) return;
     try {
-      const response = await fetch(`/api/templates/${item.id}/export`, { headers: { Authorization: `Bearer ${token}` } });
-      if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || t('servers.exportFailed'));
-      const blob = await response.blob(); const url = URL.createObjectURL(blob); const anchor = document.createElement('a');
+      // Blob through the shared client: same bearer header as the manual fetch
+      // it replaces, and no server header (the export is addressed by template
+      // id, not by the active server).
+      const blob = await api(`/api/templates/${item.id}/export`, { responseType: 'blob', serverScoped: false });
+      const url = URL.createObjectURL(blob); const anchor = document.createElement('a');
       anchor.href = url; anchor.download = `${item.name}-v${item.version}-template.zip`; anchor.click(); URL.revokeObjectURL(url);
     } catch (e) { toast.error(e.message); }
   }

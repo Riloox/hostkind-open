@@ -38,10 +38,10 @@ export function PasswordStrength({ password }) {
   return (
     <div className="space-y-1">
       <div className="flex gap-1">
-        {[0, 1, 2, 3].map((i) => (
+        {[1, 2, 3, 4].map((level) => (
           <div
-            key={i}
-            className={cn('h-1 flex-1 rounded-full transition-colors', i < score ? tier.color : 'bg-border')}
+            key={`strength-${level}`}
+            className={cn('h-1 flex-1 rounded-full transition-colors', level <= score ? tier.color : 'bg-border')}
           />
         ))}
       </div>

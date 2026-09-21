@@ -77,6 +77,7 @@
       },
       "errors": {
         "viewCrashed": "Something went wrong rendering this view.",
+        "shellCrashed": "Something went wrong in this part of the app shell.",
         "reloadView": "Reload",
         "wrongCredentials": "Wrong username or password",
         "emailRequired": "A valid email is required",
@@ -1802,7 +1803,14 @@
           "noInstalledPack": "No managed modpack is installed on this server.",
           "packFiles": "{count} managed files",
           "packInstalledAt": "Installed {date}",
-          "packVersion": "Version {version}"
+          "packVersion": "Version {version}",
+          "browseModrinth": "Browse Modrinth",
+          "browseHintPack": "Find a modpack below, or import one you already have.",
+          "browseHintMod": "Find mods below, or import a JAR from your computer.",
+          "browseHintPlugin": "Find plugins below, or import a JAR from your computer.",
+          "importCurseforge": "CurseForge ZIP",
+          "importFtb": "FTB installer",
+          "ftbOfficial": "FTB official"
         },
         "worlds": {
           "title": "Worlds",
@@ -2968,6 +2976,7 @@
       },
       "errors": {
         "viewCrashed": "Algo salió mal al mostrar esta vista.",
+        "shellCrashed": "Algo salió mal en esta parte del panel.",
         "reloadView": "Recargar",
         "wrongCredentials": "Usuario o contraseña incorrectos",
         "emailRequired": "Se requiere un email válido",
@@ -4693,7 +4702,14 @@
           "noInstalledPack": "No hay ningún modpack administrado instalado en este servidor.",
           "packFiles": "{count} archivos administrados",
           "packInstalledAt": "Instalado el {date}",
-          "packVersion": "Versión {version}"
+          "packVersion": "Versión {version}",
+          "browseModrinth": "Explorar Modrinth",
+          "browseHintPack": "Busca un modpack abajo o importa uno que ya tengas.",
+          "browseHintMod": "Busca mods abajo o importa un JAR desde tu equipo.",
+          "browseHintPlugin": "Busca plugins abajo o importa un JAR desde tu equipo.",
+          "importCurseforge": "ZIP de CurseForge",
+          "importFtb": "Instalador de FTB",
+          "ftbOfficial": "FTB oficial"
         },
         "worlds": {
           "title": "Mundos",

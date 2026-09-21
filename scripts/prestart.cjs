@@ -11,9 +11,29 @@
 const fs = require('fs');
 const path = require('path');
 
-const index = path.join(__dirname, '..', 'public', 'index.html');
+const publicDir = path.join(__dirname, '..', 'public');
+const index = path.join(publicDir, 'index.html');
+const problems = [];
 if (!fs.existsSync(index)) {
-  console.error('Hostkind: public/index.html is missing - the SPA has not been built.');
+  problems.push('public/index.html is missing - the SPA has not been built.');
+}
+// An index.html alone is not a working SPA: a stale or partial `vite build`
+// (or a lone hand-written file) leaves the panel serving a shell with no
+// bundle. Require at least one built .js chunk under public/assets/.
+let assetCount = 0;
+try {
+  const assetsDir = path.join(publicDir, 'assets');
+  if (fs.existsSync(assetsDir)) {
+    for (const entry of fs.readdirSync(assetsDir)) {
+      if (entry.endsWith('.js')) assetCount += 1;
+    }
+  }
+} catch (_) { /* unreadable assets dir counts as zero assets */ }
+if (assetCount === 0) {
+  problems.push('public/assets/ has no built .js bundle - the SPA build is missing or incomplete.');
+}
+if (problems.length > 0) {
+  for (const problem of problems) console.error(`Hostkind: ${problem}`);
   console.error('Run `npm run build` first, then start the panel again.');
   process.exit(1);
 }

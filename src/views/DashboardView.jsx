@@ -1,9 +1,10 @@
-import { useEffect, useRef, useCallback, useState } from 'react';
+import { useEffect, useRef, useCallback, useState, useMemo, memo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { AreaChart } from '@/components/ui/chart';
 import { useServer } from '@/context/ServerContext';
+import { useStats } from '@/context/StatsContext';
 import { useT } from '@/context/I18nContext';
 import { fmtUptime } from '@/lib/utils';
 import { gameById } from '@/lib/games';
@@ -20,6 +21,7 @@ const MAX_SPARK = 150;
 // in the resources panel so the two never restate the same number.
 export function DashboardView({ active, onNavigate, onServerAction }) {
   const { activeServerId, statuses, servers, supports } = useServer();
+  const { subscribe, getLatest } = useStats();
   const t = useT();
   const dash = t('common.dashPlaceholder');
   const status = activeServerId ? (statuses[activeServerId] || { status: 'offline' }) : { status: 'offline' };
@@ -39,10 +41,15 @@ export function DashboardView({ active, onNavigate, onServerAction }) {
     push('sysmem', s.memSystemUsed / 1073741824);
   }, []);
 
+  // Subscribed only while this view is the shown one, so WS stats ticks update
+  // the dashboard only when it is mounted (and active). Catch up on the latest
+  // tick on activation in case ticks arrived while another view was shown.
   useEffect(() => {
-    if (active) window.__dashOnStats = onStats;
-    return () => { if (active) delete window.__dashOnStats; };
-  }, [active, onStats]);
+    if (!active) return undefined;
+    const latest = getLatest();
+    if (latest) onStats(latest);
+    return subscribe(onStats);
+  }, [active, onStats, subscribe, getLatest]);
 
   // Reset the live buffers when the operator switches servers so a new
   // server's charts never inherit the previous one's trend.
@@ -54,6 +61,61 @@ export function DashboardView({ active, onNavigate, onServerAction }) {
   const running = status.status !== 'offline';
   const online = status.status === 'online' || status.status === 'starting';
   const waitingForStats = running && !stats;
+
+  // Scalar derives stay plain consts (cheap arithmetic); the tile *array* is
+  // memoized below so a stats tick doesn't rebuild every tile object.
+  const uptime = running ? fmtUptime(status.uptimeMs) : dash;
+  const procMemMB = stats ? Math.round(stats.procMem / 1048576) : null;
+  const procCpu = stats ? Math.round(stats.procCpu || 0) : null;
+  const diskUsedGB = stats?.disk?.total ? (stats.disk.total - stats.disk.free) / 1073741824 : null;
+  const diskTotalGB = stats?.disk?.total ? stats.disk.total / 1073741824 : null;
+  const diskPct = stats?.disk?.total ? ((stats.disk.total - stats.disk.free) / stats.disk.total) * 100 : 0;
+
+  // KPI tiles: server-level live metrics. Sparklines are the trend, the number
+  // is the headline. Adapts to whether the module tracks players/TPS.
+  // Memoized on the inputs that actually change per stats tick; tiles whose
+  // props are unchanged (players/TPS while only CPU/RAM moved) are additionally
+  // skipped by memo(KpiTile), so a WS tick doesn't re-render the whole strip.
+  // NOTE: this hook must stay above the no-server early return - hooks can't
+  // be added or removed when activeServerId toggles.
+  const kpiTiles = useMemo(() => {
+    const cpuTone = (v) => v == null ? 'neutral' : v >= 85 ? 'error' : v >= 60 ? 'warn' : 'online';
+    const tpsTone = status.tps >= 19 ? 'online' : status.tps >= 15 ? 'warn' : status.tps ? 'error' : 'neutral';
+    return [
+      ...(supports('players') ? [
+        {
+          icon: Users, label: t('minecraft.dashboard.playersOnline'),
+          value: running ? `${status.playerCount || 0}` : dash,
+          sub: t('minecraft.dashboard.playersOnlineSub', { max: status.maxPlayers || 0, maxWord: t('common.maxWord') }),
+          tone: 'primary',
+        },
+        {
+          icon: Activity, label: t('minecraft.dashboard.tps'),
+          value: running && status.tps != null ? Number(status.serverFps ?? status.tps).toFixed(1) : dash,
+          tone: tpsTone,
+        },
+      ] : [
+        {
+          icon: Clock, label: t('dashboard.uptime'),
+          value: uptime, tone: 'neutral',
+        },
+        ...(diskPct ? [{
+          icon: HardDrive, label: t('dashboard.disk'),
+          value: `${Math.round(diskPct)} ${t('common.unitPercent')}`, tone: cpuTone(diskPct),
+        }] : []),
+      ]),
+      {
+        icon: Cpu, label: t('dashboard.serverCpu'),
+        value: procCpu != null ? `${procCpu} ${t('common.unitPercent')}` : dash,
+        tone: cpuTone(procCpu), sparkData: sparkRef.current.proccpu,
+      },
+      {
+        icon: MemoryStick, label: t('dashboard.serverRam'),
+        value: procMemMB != null ? `${procMemMB} ${t('common.unitMB')}` : dash,
+        tone: 'primary', sparkData: sparkRef.current.procmem,
+      },
+    ].slice(0, 4);
+  }, [supports, t, dash, running, status, stats, uptime, procMemMB, procCpu, diskPct]);
 
   // ── No server selected ────────────────────────────────────────────────
   if (!activeServerId) {
@@ -72,53 +134,6 @@ export function DashboardView({ active, onNavigate, onServerAction }) {
       </div>
     );
   }
-
-  const uptime = running ? fmtUptime(status.uptimeMs) : dash;
-  const cpuTone = (v) => v == null ? 'neutral' : v >= 85 ? 'error' : v >= 60 ? 'warn' : 'online';
-  const tpsTone = status.tps >= 19 ? 'online' : status.tps >= 15 ? 'warn' : status.tps ? 'error' : 'neutral';
-
-  const procMemMB = stats ? Math.round(stats.procMem / 1048576) : null;
-  const procCpu = stats ? Math.round(stats.procCpu || 0) : null;
-  const diskUsedGB = stats?.disk?.total ? (stats.disk.total - stats.disk.free) / 1073741824 : null;
-  const diskTotalGB = stats?.disk?.total ? stats.disk.total / 1073741824 : null;
-  const diskPct = stats?.disk?.total ? ((stats.disk.total - stats.disk.free) / stats.disk.total) * 100 : 0;
-
-  // KPI tiles: server-level live metrics. Sparklines are the trend, the number
-  // is the headline. Adapts to whether the module tracks players/TPS.
-  const kpiTiles = [
-    ...(supports('players') ? [
-      {
-        icon: Users, label: t('minecraft.dashboard.playersOnline'),
-        value: running ? `${status.playerCount || 0}` : dash,
-        sub: t('minecraft.dashboard.playersOnlineSub', { max: status.maxPlayers || 0, maxWord: t('common.maxWord') }),
-        tone: 'primary',
-      },
-      {
-        icon: Activity, label: t('minecraft.dashboard.tps'),
-        value: running && status.tps != null ? Number(status.serverFps ?? status.tps).toFixed(1) : dash,
-        tone: tpsTone,
-      },
-    ] : [
-      {
-        icon: Clock, label: t('dashboard.uptime'),
-        value: uptime, tone: 'neutral',
-      },
-      ...(diskPct ? [{
-        icon: HardDrive, label: t('dashboard.disk'),
-        value: `${Math.round(diskPct)} ${t('common.unitPercent')}`, tone: cpuTone(diskPct),
-      }] : []),
-    ]),
-    {
-      icon: Cpu, label: t('dashboard.serverCpu'),
-      value: procCpu != null ? `${procCpu} ${t('common.unitPercent')}` : dash,
-      tone: cpuTone(procCpu), sparkData: sparkRef.current.proccpu,
-    },
-    {
-      icon: MemoryStick, label: t('dashboard.serverRam'),
-      value: procMemMB != null ? `${procMemMB} ${t('common.unitMB')}` : dash,
-      tone: 'primary', sparkData: sparkRef.current.procmem,
-    },
-  ].slice(0, 4);
 
   const serverInfoRows = [
     ...(supports('players') ? [
@@ -276,7 +291,15 @@ export function DashboardView({ active, onNavigate, onServerAction }) {
 
 // A labeled live trend: the current value is the headline, the sparkline is the
 // history. Used for host-level telemetry in the resources panel.
-function MetricTrend({ label, value, data, max }) {
+// Memoized for the same reason as KpiTile; the point mapping is memoized so it
+// is only rebuilt when the underlying samples (or the label) actually change.
+const MetricTrend = memo(function MetricTrend({ label, value, data, max }) {
+  const series = useMemo(
+    () => (data && data.length > 1
+      ? [{ name: label, data: data.map((v, i) => ({ x: i, y: Math.round(v * 100) / 100 })) }]
+      : []),
+    [data, label]
+  );
   return (
     <div>
       <div className="mb-2 flex items-baseline justify-between">
@@ -284,7 +307,7 @@ function MetricTrend({ label, value, data, max }) {
         <span className="text-xs tabular-nums text-muted-foreground">{value}</span>
       </div>
       <AreaChart
-        data={data && data.length > 1 ? [{ name: label, data: data.map((v, i) => ({ x: i, y: Math.round(v * 100) / 100 })) }] : []}
+        data={series}
         height={72}
         sparkline
         yMin={0}
@@ -292,4 +315,4 @@ function MetricTrend({ label, value, data, max }) {
       />
     </div>
   );
-}
+});

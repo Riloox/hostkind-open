@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Clock, Download, Search, ShieldCheck } from 'lucide-react';
 import { useApi } from '@/hooks/useApi';
-import { useAuth, useBranding } from '@/context/AuthContext';
+import { useBranding } from '@/context/AuthContext';
 import { useT } from '@/context/I18nContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -43,7 +43,6 @@ function relativeSuffix(ts, t) {
 
 export function AuditView() {
   const api = useApi();
-  const { token } = useAuth();
   const branding = useBranding();
   const t = useT();
   const [filters, setFilters] = useState(INITIAL);
@@ -81,9 +80,10 @@ export function AuditView() {
 
   async function download(format) {
     try {
-      const response = await fetch(`/api/audit/export?format=${format}&${query(applied)}`, { headers: { Authorization: `Bearer ${token}` } });
-      if (!response.ok) throw new Error(t('audit.exportFailed'));
-      const blob = await response.blob();
+      // Blob through the shared client: same bearer header as the manual fetch
+      // it replaces (serverScoped: false keeps the server header off, since
+      // the export is driven entirely by the query-string filters).
+      const blob = await api(`/api/audit/export?format=${format}&${query(applied)}`, { responseType: 'blob', serverScoped: false });
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
       anchor.href = url;

@@ -18,6 +18,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useServer } from '@/context/ServerContext';
 import { useT } from '@/context/I18nContext';
 import { useApi } from '@/hooks/useApi';
+import { usePolling } from '@/hooks/usePolling';
 
 const STALE_MS = 30_000;
 const CONTROL_RE = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/;
@@ -82,10 +83,7 @@ export function PalworldPlayersView() {
   }, [api]);
 
   useEffect(() => { load(); }, [load, activeServerId]);
-  useEffect(() => {
-    const timer = setInterval(() => load(true), 10_000);
-    return () => clearInterval(timer);
-  }, [load]);
+  usePolling(() => load(true), { activeInterval: 10_000, hiddenInterval: 30_000 });
 
   const players = useMemo(() => {
     const needle = query.trim().toLowerCase();

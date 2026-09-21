@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { Loading } from '@/components/shared/Loading';
 import { useApi } from '@/hooks/useApi';
+import { usePolling } from '@/hooks/usePolling';
 import { useT } from '@/context/I18nContext';
 import { useServer } from '@/context/ServerContext';
 import { useAuth } from '@/context/AuthContext';
@@ -54,17 +55,19 @@ export function PalworldUpdatesView() {
 
   useEffect(() => { load(false); }, [load]);
 
-  useEffect(() => {
+  const pollOperation = useCallback(async () => {
     if (!operation?.id || ['succeeded', 'failed', 'recovery_required', 'cancelled'].includes(operation.state)) return;
-    const timer = setInterval(async () => {
-      try {
-        const result = await api(`/api/operations/${operation.id}`);
-        setOperation(result.operation);
-        if (result.operation.state === 'succeeded') { toast.success(t('palworldUpdates.applied')); load(false); }
-      } catch {}
-    }, 1500);
-    return () => clearInterval(timer);
+    try {
+      const result = await api(`/api/operations/${operation.id}`);
+      setOperation(result.operation);
+      if (result.operation.state === 'succeeded') { toast.success(t('palworldUpdates.applied')); load(false); }
+    } catch {}
   }, [operation?.id, operation?.state, api, load, t]);
+  usePolling(pollOperation, {
+    activeInterval: 1500,
+    hiddenInterval: 15000,
+    enabled: !!operation?.id && !['succeeded', 'failed', 'recovery_required', 'cancelled'].includes(operation.state),
+  });
 
   async function preview() {
     setBusy(true);

@@ -14,9 +14,9 @@ jobs:
   # push to main, every pull request, and every tag push (so a tag cannot ship
   # untested).
   #
-  # Node 22 only: `engines` still declares >=20 (older tooling keeps working),
-  # but Node 20 reached end-of-life in April 2026 and CI gates the oldest
-  # actively supported LTS instead of a retired runtime.
+  # Node 22 only: `engines` declares >=22, and CI gates that floor directly.
+  # Node 20 reached end-of-life in April 2026, so no job targets a retired
+  # runtime.
   test:
     if: github.repository == 'Riloox/hostkind-open'
     name: test (node 22)
@@ -37,6 +37,9 @@ jobs:
 
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
+
+      - name: Lint (oxlint + anti-slop)
+        run: npm run lint:anti-slop
 
       - name: Backend and module tests
         run: npm test

@@ -1,14 +1,29 @@
 import { createContext, useContext, useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { gameForServer } from '@/lib/games';
+import { StatusProvider, useStatus } from '@/context/StatusContext';
 
-const ServerContext = createContext(null);
+// Compatibility seam: StatusProvider owns the high-frequency statuses state,
+// so status ticks no longer live in the same provider as the server list.
+// useServer() below merges both contexts, so the 20+ existing consumers keep
+// working unchanged; new code that only needs the list (or only statuses)
+// should use useServerList() (or useStatus()) to skip unrelated re-renders.
+export { StatusProvider, useStatus } from '@/context/StatusContext';
+
+const ServerListContext = createContext(null);
 
 export function ServerProvider({ children }) {
+  return (
+    <StatusProvider>
+      <ServerListProvider>{children}</ServerListProvider>
+    </StatusProvider>
+  );
+}
+
+function ServerListProvider({ children }) {
   const { user } = useAuth();
   const [servers, setServers] = useState([]);
   const [activeServerId, setActiveServerIdState] = useState(null);
-  const [statuses, setStatuses] = useState({});
   const [notifications, setNotifications] = useState([]);
   const [modules, setModules] = useState([]);
   const [currentGame, setCurrentGame] = useState(null);
@@ -23,10 +38,6 @@ export function ServerProvider({ children }) {
     setNotifications((prev) => (
       prev.some((x) => x.id === n.id) ? prev : [n, ...prev].slice(0, 200)
     ));
-  }, []);
-
-  const updateStatus = useCallback((status) => {
-    setStatuses(prev => ({ ...prev, [status.serverId]: status }));
   }, []);
 
   const setActiveServerId = useCallback((id) => {
@@ -56,10 +67,6 @@ export function ServerProvider({ children }) {
     setActiveServerIdState(candidates.some(server => server.id === selected) ? selected : (candidates[0]?.id || null));
   }, [currentGame, servers, activeServerByGame]);
 
-  const getServerStatus = useCallback((serverId) => {
-    return statuses[serverId] || { status: 'offline', playerCount: 0, maxPlayers: 0 };
-  }, [statuses]);
-
   // Look up the active server once per render; MapView and any other
   // consumer needs to react whenever the user switches servers or any
   // server's mapUrl is updated (via PUT /api/servers/:id/map or the regular
@@ -85,23 +92,39 @@ export function ServerProvider({ children }) {
     [moduleCapabilities]
   );
 
+  const value = useMemo(() => ({
+    servers, setServers,
+    activeServerId, setActiveServerId,
+    activeServer,
+    notifications, setNotifications, pushNotification,
+    modules, setModules, activeModule, moduleCapabilities, supports,
+    currentGame, setCurrentGame, activeServerByGame,
+    mapUrl,
+    wsRef,
+  }), [
+    servers, activeServerId, setActiveServerId, activeServer,
+    notifications, pushNotification,
+    modules, activeModule, moduleCapabilities, supports,
+    currentGame, activeServerByGame, mapUrl,
+  ]);
+
   return (
-    <ServerContext.Provider value={{
-      servers, setServers,
-      activeServerId, setActiveServerId,
-      activeServer,
-      statuses, updateStatus, getServerStatus,
-      notifications, setNotifications, pushNotification,
-      modules, setModules, activeModule, moduleCapabilities, supports,
-      currentGame, setCurrentGame, activeServerByGame,
-      mapUrl,
-      wsRef,
-    }}>
+    <ServerListContext.Provider value={value}>
       {children}
-    </ServerContext.Provider>
+    </ServerListContext.Provider>
   );
 }
 
+// List / selection / modules slice only: does not subscribe to StatusContext,
+// so status ticks never re-render consumers of this hook.
+export function useServerList() {
+  const ctx = useContext(ServerListContext);
+  if (!ctx) throw new Error('useServerList must be used within a ServerProvider');
+  return ctx;
+}
+
+// Full pre-split API: merges the list slice with StatusContext so existing
+// consumers keep working unchanged.
 export function useServer() {
-  return useContext(ServerContext);
+  return { ...useServerList(), ...useStatus() };
 }

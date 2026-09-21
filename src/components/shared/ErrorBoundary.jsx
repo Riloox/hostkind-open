@@ -1,14 +1,17 @@
 import { Component } from 'react';
+import { Button } from '@/components/ui/button';
 
 /*
- * View-level error boundary. Catches render/lifecycle errors in the view
- * subtree so one broken view can never white-screen the whole shell: the
- * sidebar, header and navigation stay usable, and the operator sees an inline
- * recovery surface instead of a dead page.
+ * Two-tier error boundary. The view-level instance in App.jsx catches
+ * render/lifecycle errors in the view subtree so one broken view can never
+ * white-screen the whole shell. Per-panel instances wrap Sidebar, Header and
+ * ControlBar individually so a crash in one shell panel degrades to an inline
+ * recovery surface instead of taking the app down, and a top-level instance
+ * guards the whole AppShell as the last resort.
  *
- * Scope it around the view area only (App.jsx), never the whole app - a crash
- * in the sidebar should still take the shell down loudly rather than render
- * half the UI inside a recovery card.
+ * `resetKeys` (compared shallowly) clears a caught error when the app moves
+ * on - e.g. resetKeys={[viewNonce]} re-mounts the recovery surface into a
+ * fresh attempt after the server comes online.
  */
 export default class ErrorBoundary extends Component {
   constructor(props) {
@@ -25,23 +28,33 @@ export default class ErrorBoundary extends Component {
     console.error('view error boundary:', error, info);
   }
 
+  componentDidUpdate(prevProps) {
+    if (!this.state.error) return;
+    const next = this.props.resetKeys;
+    const prev = prevProps.resetKeys;
+    if (next === prev) return;
+    const changed = Array.isArray(next) && Array.isArray(prev)
+      ? next.length !== prev.length || next.some((v, i) => v !== prev[i])
+      : true;
+    if (changed) this.setState({ error: null });
+  }
+
   render() {
     if (this.state.error) {
       return (
         <div
-          data-testid="view-error-boundary"
+          data-testid={this.props.testId || 'view-error-boundary'}
           className="flex flex-col items-center justify-center gap-4 py-24 text-center"
         >
           <p className="max-w-md text-sm text-foreground">
             {this.props.fallbackText || 'Something went wrong rendering this view.'}
           </p>
-          <button
-            type="button"
-            className="h-11 shrink-0 rounded-md border border-border bg-card px-4 text-sm text-foreground hover:bg-accent"
+          <Button
+            variant="outline"
             onClick={() => window.location.reload()}
           >
             {this.props.reloadText || 'Reload'}
-          </button>
+          </Button>
         </div>
       );
     }

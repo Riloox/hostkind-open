@@ -26,7 +26,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { spawnSync } = require('child_process');
+const { isHelpFlag, splitFlag, flagValue, runChecked } = require('./lib/args.cjs');
 
 const DEFAULT_NAME = 'hostkind';
 
@@ -52,9 +52,16 @@ function serviceName(name) {
 function parseArgs(argv) {
   const args = { name: DEFAULT_NAME, user: null };
   for (let i = 0; i < argv.length; i += 1) {
-    if (argv[i] === '--name') args.name = argv[++i] || DEFAULT_NAME;
-    else if (argv[i] === '--user') args.user = argv[++i] || null;
-    else if (argv[i] === '--help' || argv[i] === '-h') args.help = true;
+    const parsed = splitFlag(argv[i]);
+    if (parsed.name === 'name') {
+      const resolved = flagValue(argv, i, parsed, DEFAULT_NAME);
+      args.name = resolved.value || DEFAULT_NAME;
+      i = resolved.nextIndex;
+    } else if (parsed.name === 'user') {
+      const resolved = flagValue(argv, i, parsed, null);
+      args.user = resolved.value || null;
+      i = resolved.nextIndex;
+    } else if (isHelpFlag(argv[i])) args.help = true;
   }
   return args;
 }
@@ -128,9 +135,7 @@ function schtasksDeleteCommand({ name }) {
 }
 
 function run(cmd, args) {
-  const r = spawnSync(cmd, args, { stdio: 'inherit', shell: false });
-  if (r.error) throw r.error;
-  return r.status;
+  return runChecked(cmd, args);
 }
 
 function main() {

@@ -1,14 +1,33 @@
-import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
 import { isJwtExpired } from '@/lib/utils';
 import { applyBranding } from '@/lib/branding';
+import { publicJson } from '@/lib/apiClient';
+import { BrandingProvider, NO_BRANDING, useBrandingContext } from '@/context/BrandingContext';
+
+// Compatibility seam: panel identity (branding/gameThemes/accents/
+// geoLanguageDetection) now owns its own provider in BrandingContext, so
+// branding reads never re-render auth consumers and vice versa. The hooks are
+// re-exported here, so existing imports from '@/context/AuthContext' keep
+// working unchanged.
+export { BrandingProvider, NO_BRANDING, useBranding, useGameThemes, useGameAccents } from '@/context/BrandingContext';
 
 const AuthContext = createContext(null);
 
-// What the panel calls itself before /api/auth-mode answers, and if it ever
-// fails to. Keeping the shape complete means no consumer needs a null check.
-const NO_BRANDING = Object.freeze({ name: '', logoUrl: '', faviconUrl: '', supportUrl: '', legalFooter: '', accent: null });
-
 export function AuthProvider({ children }) {
+  return (
+    <BrandingProvider>
+      <AuthInner>{children}</AuthInner>
+    </BrandingProvider>
+  );
+}
+
+function AuthInner({ children }) {
+  const {
+    branding, setBranding,
+    geoLanguageDetection, setGeoLanguageDetection,
+    gameThemes, setGameThemes,
+    gameAccents, setGameAccents,
+  } = useBrandingContext();
   const [token, setToken] = useState(() => localStorage.getItem('fleetdeck_token') || '');
   const [user, setUser] = useState(null);
   // Discovered once on boot from the unauthenticated /api/auth-mode endpoint.
@@ -20,22 +39,14 @@ export function AuthProvider({ children }) {
   // discovered from the same bootstrap call. Only used before sign-in and
   // only when the browser has no explicitly-saved language preference.
   const [defaultLanguage, setDefaultLanguage] = useState(null);
-  // Branding comes from the same bootstrap call because the login screen needs
-  // it: it renders before any token exists, and a white-labelled panel must not
-  // flash someone else's wordmark on the way in.
-  const [branding, setBranding] = useState(NO_BRANDING);
-  // When false (the default) the login page will NOT call ipify.org or any
-  // external service to auto-detect the client's IP / language.  The backend
-  // exposes this as config.geoLanguageDetection (default false) through
-  // GET /api/auth-mode.
-  const [geoLanguageDetection, setGeoLanguageDetection] = useState(false);
-  const [gameThemes, setGameThemes] = useState({});
-  const [gameAccents, setGameAccents] = useState({});
 
+  // Unauthenticated bootstrap: useApi is unusable here (this provider sits
+  // above the Auth/I18n/Server contexts it needs), so the shared context-free
+  // helper performs the call. It sends no Authorization header - identical to
+  // the raw fetch it replaces.
   useEffect(() => {
     let alive = true;
-    fetch('/api/auth-mode')
-      .then((r) => (r.ok ? r.json() : null))
+    publicJson('/api/auth-mode')
       .then((data) => {
         if (!alive || !data) return;
         if (data.authRequired === false) setAuthDisabled(true);
@@ -51,7 +62,7 @@ export function AuthProvider({ children }) {
       .catch(() => {})
       .finally(() => { if (alive) setAuthChecked(true); });
     return () => { alive = false; };
-  }, []);
+  }, [setBranding, setGeoLanguageDetection, setGameThemes, setGameAccents]);
 
   const login = useCallback((newToken, newUser) => {
     localStorage.setItem('fleetdeck_token', newToken);
@@ -74,8 +85,16 @@ export function AuthProvider({ children }) {
     return !!user?.permissions?.grants?.some((grant) => grant.capability === capability && (grant.serverId || null) === (serverId || null));
   }, [user]);
 
+  const value = useMemo(() => ({
+    token, user, setUser, login, logout, isLoggedIn, hasCapability, authDisabled, authChecked, defaultLanguage,
+    branding, gameThemes, setGameThemes, gameAccents, setGameAccents, geoLanguageDetection,
+  }), [
+    token, user, login, logout, isLoggedIn, hasCapability, authDisabled, authChecked, defaultLanguage,
+    branding, gameThemes, gameAccents, geoLanguageDetection, setGameThemes, setGameAccents,
+  ]);
+
   return (
-    <AuthContext.Provider value={{ token, user, setUser, login, logout, isLoggedIn, hasCapability, authDisabled, authChecked, defaultLanguage, branding, gameThemes, setGameThemes, gameAccents, setGameAccents, geoLanguageDetection }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
@@ -84,15 +103,3 @@ export function AuthProvider({ children }) {
 export function useAuth() {
   return useContext(AuthContext);
 }
-
-/*
- * Branding is not authentication, but it arrives on the auth bootstrap call and
- * splitting it into its own provider would mean fetching /api/auth-mode twice.
- * This hook is the seam: everything that renders the panel's identity asks for
- * it here and never learns where it came from.
- */
-export function useBranding() {
-  return useContext(AuthContext)?.branding || NO_BRANDING;
-}
-export function useGameThemes() { return useContext(AuthContext)?.gameThemes || {}; }
-export function useGameAccents() { return useContext(AuthContext)?.gameAccents || {}; }

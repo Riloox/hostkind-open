@@ -31,6 +31,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const archiver = require('archiver');
+const { isHelpFlag, splitFlag, flagValue } = require('./lib/args.cjs');
 
 const ROOT = path.resolve(__dirname, '..');
 const DIST_ELECTRON = path.join(ROOT, 'dist-electron');
@@ -47,19 +48,32 @@ function parseArgs(argv) {
   };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
+    const parsed = splitFlag(arg);
     if (arg === '--portable-zip') out.portableZip = true;
     else if (arg === '--manifest') out.manifest = true;
-    else if (arg === '--tag') out.tag = argv[(i += 1)] || null;
-    else if (arg.startsWith('--tag=')) out.tag = arg.slice('--tag='.length);
-    else if (arg === '--repository') out.repository = argv[(i += 1)] || out.repository;
-    else if (arg.startsWith('--repository=')) out.repository = arg.slice('--repository='.length);
-    else if (arg === '--version') out.version = argv[(i += 1)] || null;
-    else if (arg.startsWith('--version=')) out.version = arg.slice('--version='.length);
-    else if (arg === '--assets-dir') out.assetsDir = path.resolve(argv[(i += 1)] || out.assetsDir);
-    else if (arg.startsWith('--assets-dir=')) out.assetsDir = path.resolve(arg.slice('--assets-dir='.length));
-    else if (arg === '--output') out.output = path.resolve(argv[(i += 1)] || out.output);
-    else if (arg.startsWith('--output=')) out.output = path.resolve(arg.slice('--output='.length));
-    else if (arg === '--help' || arg === '-h') out.help = true;
+    else if (parsed.name === 'tag') {
+      const resolved = flagValue(argv, i, parsed, null);
+      out.tag = parsed.inline ? resolved.value : (resolved.value || null);
+      i = resolved.nextIndex;
+    } else if (parsed.name === 'repository') {
+      const resolved = flagValue(argv, i, parsed, out.repository);
+      out.repository = parsed.inline ? resolved.value : (resolved.value || out.repository);
+      i = resolved.nextIndex;
+    } else if (parsed.name === 'version') {
+      const resolved = flagValue(argv, i, parsed, null);
+      out.version = parsed.inline ? resolved.value : (resolved.value || null);
+      i = resolved.nextIndex;
+    } else if (parsed.name === 'assets-dir') {
+      const resolved = flagValue(argv, i, parsed, out.assetsDir);
+      const raw = parsed.inline ? resolved.value : (resolved.value || out.assetsDir);
+      out.assetsDir = path.resolve(raw);
+      i = resolved.nextIndex;
+    } else if (parsed.name === 'output') {
+      const resolved = flagValue(argv, i, parsed, out.output);
+      const raw = parsed.inline ? resolved.value : (resolved.value || out.output);
+      out.output = path.resolve(raw);
+      i = resolved.nextIndex;
+    } else if (isHelpFlag(arg)) out.help = true;
   }
   return out;
 }

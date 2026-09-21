@@ -24,7 +24,7 @@ export function ValidationPanel({ issues = [] }) {
       {has ? (
         <ul className="mt-1.5 space-y-0.5">
           {issues.map((i, idx) => (
-            <li key={idx} className="flex items-start gap-1.5">
+            <li key={`${i.severity || 'info'}-${String(i.message || '').slice(0, 64)}-${idx}`} className="flex items-start gap-1.5">
               <span className="text-current/70">•</span>
               <span>{i.message}</span>
             </li>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import {
   CalendarClock, CheckCircle2, Database, Download, Ellipsis, FileArchive, FileBox,
@@ -17,6 +17,7 @@ import { ErrorState } from '@/components/shared/ErrorState';
 import { Loading } from '@/components/shared/Loading';
 import { PageIntro, SummaryGrid, SummaryItem } from '@/components/layout/Page';
 import { useApi } from '@/hooks/useApi';
+import { useWorldOperation } from '@/hooks/useWorldOperation';
 import { useAuth } from '@/context/AuthContext';
 import { useT } from '@/context/I18nContext';
 import { useServer } from '@/context/ServerContext';
@@ -30,41 +31,8 @@ const API = '/api/valheim/worlds';
  * The panel follows a running operation rather than holding the request open,
  * the same way TerrariaWorldsView does: a mutation outlives any one HTTP
  * call, and a reload has to pick it back up.
+ * Shared via useWorldOperation (see src/hooks/useWorldOperation.js).
  */
-function useOperation(api, t, onDone) {
-  const [op, setOp] = useState(null);
-  const [events, setEvents] = useState([]);
-  const timer = useRef(null);
-
-  const stop = useCallback(() => { clearTimeout(timer.current); timer.current = null; }, []);
-
-  const follow = useCallback((operationId) => {
-    const tick = async () => {
-      try {
-        const r = await api(`/api/operations/${operationId}`);
-        setOp(r.operation);
-        setEvents(r.events || []);
-        if (['succeeded', 'failed', 'cancelled', 'recovery_required'].includes(r.operation.state)) {
-          if (r.operation.state === 'succeeded') toast.success(t('valheim.worlds.opDone'));
-          else if (r.operation.state === 'cancelled') toast.info(t('valheim.worlds.opCancelled'));
-          else toast.error(r.operation.error?.text || t('valheim.worlds.opFailed'));
-          setTimeout(() => setOp(null), 3000);
-          onDone();
-          return;
-        }
-        timer.current = setTimeout(tick, 1000);
-      } catch (e) {
-        toast.error(e.message);
-        setOp(null);
-      }
-    };
-    tick();
-  }, [api, t, onDone]);
-
-  useEffect(() => stop, [stop]);
-
-  return { op, events, follow };
-}
 
 // Every mutation shows what it would do before it does it: impact, disk, and
 // why it might be refused - the same payload the backend re-validates at
@@ -454,7 +422,12 @@ export function ValheimWorldsView() {
 
   useEffect(() => { setLoading(true); load(); }, [load]);
 
-  const { op, events, follow } = useOperation(api, t, load);
+  const { op, events, follow } = useWorldOperation(api, t, load, {
+    successKey: 'valheim.worlds.opDone',
+    cancelledKey: 'valheim.worlds.opCancelled',
+    failedKey: 'valheim.worlds.opFailed',
+    clearDelay: 3000,
+  });
   const operationStarted = useCallback((operationId) => { follow(operationId); load(); }, [follow, load]);
 
   // A world download is a plain GET, so it goes through the browser with the

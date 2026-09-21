@@ -66,17 +66,25 @@ const auditRouter = require('./lib/routes/audit.cjs');
 const foundationCapabilities = require('./lib/capabilities.cjs');
 const branding = require('./lib/branding.cjs');
 const apiKeys = require('./lib/apiKeys.cjs');
+const usersRouter = require('./lib/routes/users.cjs');
 const crashIntelligence = require('./lib/crashes.cjs');
+const crashesRouter = require('./lib/routes/crashes.cjs');
+const trashRouter = require('./lib/routes/trash.cjs');
 const updateCenter = require('./lib/updates.cjs');
 const modpackLifecycle = require('./lib/modpacks.cjs');
 const minecraftContent = require('./lib/minecraft-content.cjs');
+const minecraftContentRouter = require('./lib/routes/minecraft-content.cjs');
+const modpacksRouter = require('./lib/routes/modpacks.cjs');
 const curseforgeImport = require('./lib/curseforge-import.cjs');
 const ftbInstaller = require('./lib/ftb-installer.cjs');
 const contentApply = require('./lib/content-apply.cjs');
 const foundationSnapshots = require('./lib/snapshots.cjs');
+const backupsRouter = require('./lib/routes/backups.cjs');
 const foundationOperations = require('./lib/operations.cjs');
+const serversRouter = require('./lib/routes/servers.cjs');
 const recovery = require('./lib/recovery.cjs');
 const health = require('./lib/health.cjs');
+const systemRouter = require('./lib/routes/system.cjs');
 const healthRouter = require('./lib/routes/health.cjs');
 const worlds = require('./lib/worlds.cjs');
 const worldsRouter = require('./lib/routes/worlds.cjs');
@@ -88,28 +96,31 @@ const { createApplicationUpdateRuntime } = require('./lib/application-update-run
 const { isPublicApiPath } = require('./lib/api-public.cjs');
 const { createRegistry } = require('./lib/modules/registry.cjs');
 const { createModuleGate } = require('./lib/modules/gating.cjs');
-const { validateManualRegistration } = require('./lib/modules/registration.cjs');
 const valheimLaunch = require('./lib/modules/valheim/launch.cjs');
 const { valheimRouteCapability } = require('./lib/modules/valheim/routes.cjs');
 const valheimWorlds = require('./lib/valheim-worlds.cjs');
 const valheimWorldsRouter = require('./lib/routes/valheim.cjs');
 const { terrariaRouteCapability } = require('./lib/modules/terraria/routes.cjs');
 const terrariaVariants = require('./lib/modules/terraria/variants.cjs');
-const terrariaInstall = require('./lib/terraria-install.cjs');
 const terrariaConfig = require('./lib/terraria-config.cjs');
+const terrariaConfigRouter = require('./lib/routes/terraria-config.cjs');
 const terrariaWorlds = require('./lib/terraria-worlds.cjs');
 const terrariaWorldsRouter = require('./lib/routes/terraria.cjs');
 const terrariaImport = require('./lib/terraria-import.cjs');
 const terrariaModsRouter = require('./lib/routes/terraria-mods.cjs');
 const terrariaTshockRouter = require('./lib/routes/terraria-tshock.cjs');
-const { installDedicatedServer } = require('./lib/dedicatedServerInstaller.cjs');
+const createRouter = require('./lib/routes/create.cjs');
 const { CAPABILITIES, requireCap } = foundationCapabilities;
 const palworldOperations = require('./lib/palworld-operations.cjs');
 const palworldSettings = require('./lib/palworld-settings.cjs');
+const palworldSettingsRouter = require('./lib/routes/palworld-settings.cjs');
+const palworldUpdatesRouter = require('./lib/routes/palworld-updates.cjs');
 const palworldMap = require('./lib/palworld-map.cjs');
+const palworldPlayersRouter = require('./lib/routes/palworld-players.cjs');
 const palworldUpdates = require('./lib/palworld-updates.cjs');
 const valheimInstall = require('./lib/valheim-install.cjs');
 const palworldMods = require('./lib/palworld-mods.cjs');
+const palworldModsRouter = require('./lib/routes/palworld-mods.cjs');
 const palworldWorkshop = require('./lib/palworld-workshop.cjs');
 const palworldPlatform = require('./lib/palworld-platform.cjs');
 const palworldPortability = require('./lib/palworld-portability.cjs');
@@ -117,13 +128,33 @@ const palworldConnectivity = require('./lib/palworld-connectivity.cjs');
 const minecraftPortabilityRouter = require('./lib/routes/minecraft-portability.cjs');
 const { installBatch: installModrinthBatch } = require('./lib/modrinth-batch.cjs');
 const addonState = require('./lib/addon-state.cjs');
+const playersRouter = require('./lib/routes/players.cjs');
+const addonsRouter = require('./lib/routes/addons.cjs');
+const tasksRouter = require('./lib/routes/tasks.cjs');
+const { createNotificationStore } = require('./lib/notifications.cjs');
+const notificationsRouter = require('./lib/routes/notifications.cjs');
 const trash = require('./lib/trash.cjs');
+const configsRouter = require('./lib/routes/configs.cjs');
 const pathSafety = require('./lib/pathSafety.cjs');
+const filesRouter = require('./lib/routes/files.cjs');
 const automation = require('./lib/palworld-automation.cjs');
 const { pickFolder, PICKER_BUSY, PICKER_UNAVAILABLE, PICKER_TIMEOUT } = require('./lib/folderPicker.cjs');
+const panelConfigRouter = require('./lib/routes/panel-config.cjs');
+const {
+  JSON_BODY_LIMIT,
+  RATE_LIMIT_WINDOW_MS,
+  PALWORLD_ANNOUNCE_LIMIT,
+  PALWORLD_PLAYERS_LIMIT,
+  ADOPTED_WATCH_INTERVAL_MS,
+  PID_MATCH_TOLERANCE_MS,
+  MIN_JWT_SECRET_LENGTH,
+  WATCHDOG_WINDOW_MINUTES_MAX,
+  METRICS_RETAIN_MS,
+  METRICS_SAVE_INTERVAL_MS,
+} = require('./config/constants.cjs');
 const palworldReplays = palworldOperations.createReplayStore({});
-const limitPalworldAnnouncements = palworldOperations.createRateLimiter({ limit: 5, windowMs: 60_000 });
-const limitPalworldPlayers = palworldOperations.createRateLimiter({ limit: 10, windowMs: 60_000 });
+const limitPalworldAnnouncements = palworldOperations.createRateLimiter({ limit: PALWORLD_ANNOUNCE_LIMIT, windowMs: RATE_LIMIT_WINDOW_MS });
+const limitPalworldPlayers = palworldOperations.createRateLimiter({ limit: PALWORLD_PLAYERS_LIMIT, windowMs: RATE_LIMIT_WINDOW_MS });
 
 
 // pidusage on Windows shells out to wmic.exe, which Microsoft removed from
@@ -248,7 +279,6 @@ function saveConfig(next) {
 // can mint admin tokens. The first boot after an upgrade must replace it (or a
 // missing/too-short value) with an unguessable one before it signs a session.
 const DEFAULT_JWT_SECRET = 'CHANGE-THIS-SECRET-TO-SOMETHING-LONG-AND-RANDOM';
-const MIN_JWT_SECRET_LENGTH = 32;
 
 function ensureSafeJwtSecret() {
   const current = config.jwtSecret;
@@ -740,15 +770,6 @@ function log(...args) {
   console.log(`[${config.appName || 'Hostkind'} ${ts}]`, ...args);
 }
 
-// ---------------------------------------------------------------------------
-// Discord integration removed (batch E). notifyDiscord is retained as a
-// no-op because the Minecraft module and several server-manager call sites
-// still reference it; those callers will be cleaned up in a future batch.
-// ---------------------------------------------------------------------------
-
-function notifyDiscord() {}
-
-// ---------------------------------------------------------------------------
 // Server modules: everything specific to one kind of managed process
 // (Minecraft today; more types register here later) lives behind this
 // registry instead of being hardcoded into ServerManager. See
@@ -764,7 +785,6 @@ const moduleRegistry = createRegistry({
   probePortInUse,
   eKey,
   getConfig: () => config,
-  notifyDiscord,
   fetchText: (url) => fetchText(url),
   downloadToFile: (url, dest, onProgress, signal) => downloadToFile(url, dest, onProgress, signal),
   installerCacheDir: INSTALLER_CACHE_DIR,
@@ -1231,7 +1251,6 @@ class ServerManager {
         lifecycle: statusBeforeExit === STATUS.STARTING ? 'failed_start' : 'crash',
         sources: mod.crashEvidence ? mod.crashEvidence(this.desc()) : undefined,
         rules: mod.crashRules ? mod.crashRules(this.desc()) : undefined });
-      notifyDiscord(this.id, 'unexpected_exit', `:red_circle: "${this.name()}" **crashed** unexpectedly (code=${code}).`);
       addNotification('server_crashed', 'Server Crashed', `Server "${this.name()}" crashed unexpectedly (code=${code}).`, this.id);
       this._maybeWatchdogRestart();
     }
@@ -1261,7 +1280,7 @@ class ServerManager {
       let alive = true;
       try { process.kill(this.adoptedPid, 0); } catch (_) { alive = false; }
       if (!alive) this._onAdoptedExit();
-    }, 3000);
+    }, ADOPTED_WATCH_INTERVAL_MS);
   }
 
   _stopAdoptedWatch() {
@@ -1294,7 +1313,6 @@ class ServerManager {
     if (!wasManual) {
       { const mod = this.module(); queueCrashCapture({ serverId: this.id, root: this.dir(), history: this.history.slice(), exitCode: null, signal: null, occurredAt: crashOccurredAt, runtimeMs: crashRuntimeMs,
         lifecycle: 'crash', sources: mod.crashEvidence ? mod.crashEvidence(this.desc()) : undefined, rules: mod.crashRules ? mod.crashRules(this.desc()) : undefined }); }
-      notifyDiscord(this.id, 'unexpected_exit', `:red_circle: "${this.name()}" **crashed** unexpectedly (was running detached).`);
       this._maybeWatchdogRestart();
     }
   }
@@ -1314,13 +1332,11 @@ class ServerManager {
     const recent = this._recentRestartCount();
     if (recent >= (wd.maxRestarts || 3)) {
       this.pushLine(`[Hostkind] Watchdog: ${recent} restarts within the window, NOT relaunching (possible crash-loop).`, 'error');
-      notifyDiscord(this.id, 'watchdog_action', `:no_entry: Watchdog "${this.name()}": restart limit reached (${recent}). Not relaunching to avoid a crash-loop.`);
       addNotification('watchdog_limit', 'Watchdog Crash Limit', `Server "${this.name()}" hit the watchdog restart limit (${recent}). Not relaunching to avoid a crash-loop.`, this.id);
       return;
     }
     this.restartTimestamps.push(Date.now());
     this.pushLine('[Hostkind] Watchdog: relaunching the server in 5s...', 'warn');
-    notifyDiscord(this.id, 'watchdog_action', `:yellow_circle: Watchdog "${this.name()}": relaunching automatically...`);
     addNotification('watchdog_restart', 'Watchdog Restart', `Server "${this.name()}" crashed and will be automatically restarted in 5s.`, this.id);
     setTimeout(() => {
       if (!this.isRunning()) this.start();
@@ -1371,7 +1387,7 @@ async function pidMatches(pid, startedAt) {
     const u = await pidusage(pid);
     if (!u || typeof u.elapsed !== 'number' || !startedAt) return false;
     const apparentStart = Date.now() - u.elapsed;
-    return Math.abs(apparentStart - startedAt) < 5 * 60 * 1000; // 5-min tolerance
+    return Math.abs(apparentStart - startedAt) < PID_MATCH_TOLERANCE_MS; // 5-min tolerance
   } catch (_) {
     return false;
   }
@@ -1398,7 +1414,7 @@ async function adoptOrphans() {
 // ---------------------------------------------------------------------------
 
 const app = express();
-app.use(express.json({ limit: '24mb' }));
+app.use(express.json({ limit: JSON_BODY_LIMIT }));
 app.use('/api', rateLimit({
   windowMs: 60 * 1000,
   limit: 600,
@@ -1475,6 +1491,11 @@ function originAllowed(origin) {
   } catch (_) { return false; }
 }
 app.use((req, res, next) => {
+  // Phase 2B: Vary: Origin so caches key cross-origin responses correctly.
+  // Documented behavior of originAllowed (same-origin loopback on the panel
+  // port + config.allowedOrigins hostnames; absent Origin allowed for
+  // non-browser clients; non-http(s) rejected): see test/origin-allowed.test.cjs.
+  if (req.headers.origin) res.setHeader('Vary', 'Origin');
   if (req.method !== 'GET' && req.method !== 'HEAD' && req.method !== 'OPTIONS') {
     const origin = req.headers.origin;
     if (origin && !originAllowed(origin)) {
@@ -1659,15 +1680,15 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-// --- login brute-force throttling (in-memory; single-process panel) ---
+// --- login brute-force throttling (Phase 2B: persistent + rate-limited) ---
 // Two independent counters: one per account identifier (so guessing one
 // account's password can't be done indefinitely) and one per client IP (so a
 // single host can't spray many accounts). Both reset on a successful login.
-const LOGIN_MAX_ATTEMPTS = 5;       // per identifier
-const LOGIN_IP_MAX_ATTEMPTS = 15;   // per IP across all identifiers
-const LOGIN_WINDOW_MS = 15 * 60 * 1000;
-const LOGIN_LOCK_MS = 15 * 60 * 1000;
-const loginAttempts = new Map(); // key -> { count, firstAt, lockUntil }
+// Counters live in SQLite (lib/login-throttle.cjs, migration 17) so a panel
+// restart does not reset brute-force locks; an express-rate-limit middleware
+// provides the standard 429 + Retry-After backstop per IP.
+const loginThrottle = require('./lib/login-throttle.cjs');
+const { LOGIN_MAX_ATTEMPTS, LOGIN_IP_MAX_ATTEMPTS } = loginThrottle;
 
 function clientKey(req, body) {
   // Prefer the socket's remote address (can't be spoofed by a request header).
@@ -1677,32 +1698,27 @@ function clientKey(req, body) {
   return String(ip);
 }
 
-function loginLockRemainingMs(key) {
-  const rec = loginAttempts.get(key);
-  if (!rec) return 0;
-  const now = Date.now();
-  if (rec.lockUntil && rec.lockUntil > now) return rec.lockUntil - now;
-  // Window expired: forget the record so counts don't accumulate forever.
-  if (now - rec.firstAt > LOGIN_WINDOW_MS) loginAttempts.delete(key);
-  return 0;
-}
+const loginLockRemainingMs = (key) => loginThrottle.lockRemainingMs(key);
+const noteLoginFailure = (key, max) => loginThrottle.noteFailure(key, max);
+const clearLoginFailures = (...keys) => loginThrottle.clearFailures(...keys);
 
-function noteLoginFailure(key, max) {
-  const now = Date.now();
-  let rec = loginAttempts.get(key);
-  if (!rec || now - rec.firstAt > LOGIN_WINDOW_MS) {
-    rec = { count: 0, firstAt: now, lockUntil: 0 };
-  }
-  rec.count += 1;
-  if (rec.count >= max) rec.lockUntil = now + LOGIN_LOCK_MS;
-  loginAttempts.set(key, rec);
-}
+// Per-IP backstop: 30 attempts / 15min / IP on the login route itself, with a
+// standard rate-limit 429 payload. The persistent per-identifier + per-IP
+// locks below still own the brute-force policy; this only bounds raw request
+// volume (CodeQL js/missing-rate-limiting).
+const limitLogin = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  standardHeaders: false,
+  legacyHeaders: false,
+  keyGenerator: (req) => `login:${clientKey(req, req.body)}`,
+  handler: (req, res) => {
+    res.set('Retry-After', '900');
+    res.status(429).json({ error: tErr({ language: req.body && req.body.lang }, 'errors.tooManyAttempts', { minutes: 15 }), code: 'rate_limited' });
+  },
+});
 
-function clearLoginFailures(...keys) {
-  for (const k of keys) loginAttempts.delete(k);
-}
-
-app.post('/api/login', async (req, res) => {
+app.post('/api/login', limitLogin, async (req, res) => {
   const { email, username, password, clientIp, lang } = req.body || {};
   const identifier = (username != null && String(username).trim()) || (email != null && String(email).trim()) || '';
   const ipKey = `ip:${clientKey(req, req.body)}`;
@@ -1774,6 +1790,70 @@ app.use('/api', (req, res, next) => {
   if (isPublicApiPath(req.path)) return next();
   return authMiddleware(req, res, next);
 });
+
+// Phase 2B: per-group rate limiters for the 100+ inline routes, mirroring the
+// audit.cjs:61-67 / templates.cjs:26,53 pattern (per-user buckets, 429 with
+// Retry-After). Mounted as prefix middleware so every route in the palworld,
+// terraria, valheim, files, and backups groups is covered without touching
+// each handler. Authorization is untouched: capability checks still run.
+function tooManyInline(res, req, scope) {
+  const reset = req.rateLimit && req.rateLimit.resetTime;
+  const retryAfter = reset ? Math.max(1, Math.ceil((reset.getTime() - Date.now()) / 1000)) : 60;
+  res.setHeader('Retry-After', String(retryAfter));
+  return res.status(429).json({ error: `Too many ${scope} requests. Try again shortly.`, code: 'rate_limited' });
+}
+function inlineLimiter(scope, { windowMs = 60_000, limit = 120 } = {}) {
+  return rateLimit({
+    windowMs, limit, standardHeaders: false, legacyHeaders: false,
+    keyGenerator: (req) => `${scope}:${(req.user && req.user.id) || 'anon'}`,
+    handler: (req, res) => tooManyInline(res, req, scope),
+  });
+}
+// Reads: generous. Mutations (POST/PUT/PATCH/DELETE): tighter.
+const limitPalworldRead = inlineLimiter('palworld-read', { limit: 300 });
+const limitPalworldWrite = inlineLimiter('palworld-write', { limit: 60 });
+const limitTerrariaRead = inlineLimiter('terraria-read', { limit: 300 });
+const limitTerrariaWrite = inlineLimiter('terraria-write', { limit: 60 });
+const limitValheimRead = inlineLimiter('valheim-read', { limit: 300 });
+const limitValheimWrite = inlineLimiter('valheim-write', { limit: 60 });
+const limitFilesRead = inlineLimiter('files-read', { limit: 300 });
+const limitFilesWrite = inlineLimiter('files-write', { limit: 60 });
+const limitBackups = inlineLimiter('backups', { limit: 30 });
+const limitServersWrite = inlineLimiter('servers-write', { limit: 60 });
+function methodSplit(readLimiter, writeLimiter) {
+  return (req, res, next) => (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS'
+    ? readLimiter(req, res, next) : writeLimiter(req, res, next));
+}
+app.use('/api/palworld', methodSplit(limitPalworldRead, limitPalworldWrite));
+app.use('/api/terraria', methodSplit(limitTerrariaRead, limitTerrariaWrite));
+app.use('/api/valheim', methodSplit(limitValheimRead, limitValheimWrite));
+app.use('/api/files', methodSplit(limitFilesRead, limitFilesWrite));
+app.use('/api/backups', limitBackups);
+app.use('/api/servers', (req, res, next) => (req.method === 'GET' ? next() : limitServersWrite(req, res, next)));
+
+// Phase 2B: destructive POSTs require Idempotency-Key or answer with the
+// existing operation. Applies to inline server/file/backup mutations that
+// create durable operations; safe replay returns the original op instead of
+// duplicating work. GET/HEAD/OPTIONS never require a key.
+function requireDestructiveIdempotency(req, res, next) {
+  if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') return next();
+  if (!foundationOperations || typeof foundationOperations.requireIdempotencyKey !== 'function') return next();
+  // Only destructive mutations: restores, deletes, imports, applies, purges.
+  if (!/(restore|delete|import|apply|purge|clone|instantiate|rollback|remove)/i.test(req.path)) return next();
+  const checked = foundationOperations.requireIdempotencyKey(req, res);
+  if (!checked) return; // 400 already sent
+  // Replay: same actor + key already created an operation -> return it.
+  try {
+    const existing = require('./lib/db.cjs').open()
+      .prepare('SELECT id, state FROM operations WHERE actor_id = ? AND idempotency_key = ?')
+      .get(req.user && req.user.id, checked.key);
+    if (existing) return res.status(202).json({ ok: true, operationId: existing.id, replay: true, state: existing.state });
+  } catch { /* fall through to the handler */ }
+  next();
+}
+app.use('/api/backups', requireDestructiveIdempotency);
+app.use('/api/files', requireDestructiveIdempotency);
+app.use('/api/servers', requireDestructiveIdempotency);
 
 function requestServerId(req) {
   if (req.path.startsWith('/crashes/')) {
@@ -2015,265 +2095,36 @@ app.post('/api/terraria/import', requireAdmin, (req, res) => {
 });
 
 /*
- * The installable builds of one Terraria variant, resolved from upstream at
- * request time (docs/terraria/01-installation-versions.md).
- *
- * Unsupported entries stay in the response with the reason they cannot be
- * installed here - the wizard disables them visibly rather than hiding them,
- * because "TShock has no arm64 build" is an answer and an empty list is not.
- * `force=1` is the "check again" button; without it the ten-minute cache
- * answers.
+ * Terraria players + config surface (docs/terraria/02-configuration.md). The
+ * routes live in lib/routes/terraria-config.cjs; the mount stays here so the
+ * /api/terraria prefix guards above keep applying in the same order.
  */
-app.get('/api/terraria/versions', async (req, res) => {
-  const variant = String(req.query.variant || 'vanilla').toLowerCase();
-  if (!terrariaVariants.isVariant(variant)) {
-    return res.status(400).json({ error: `Unknown Terraria variant: ${variant}`, code: 'unknown_variant' });
-  }
-  try {
-    const list = await terrariaInstall.listVersions(variant, { force: req.query.force === '1' || req.query.force === 'true' });
-    res.json({ ok: true, ...list });
-  } catch (error) {
-    sendTerrariaError(res, error);
-  }
-});
+app.use('/api/terraria', terrariaConfigRouter({ targetManager }));
 
-function terrariaPlayersTarget(req, res) {
-  const manager = targetManager(req);
-  const desc = manager && manager.desc();
-  if (!manager || !desc || desc.type !== 'terraria') {
-    res.status(404).json({ error: 'Terraria players are not available for this server.', code: 'not_supported' });
-    return null;
-  }
-  // TShock has its own REST-backed player surface and must not be mixed with
-  // the vanilla console roster or its action semantics.
-  if (String(desc.terrariaVariant || '').toLowerCase() === 'tshock') {
-    res.status(404).json({ error: 'Use the TShock player surface for this server.', code: 'not_supported' });
-    return null;
-  }
-  return manager;
-}
+// Palworld status + friendly settings editor. The routes live in
+// lib/routes/palworld-settings.cjs; the mount stays here so registration
+// order against the sibling slices is unchanged.
+app.use('/api/palworld', palworldSettingsRouter({
+  targetManager,
+  tErr,
+  settings: palworldSettings,
+}));
 
-app.get('/api/terraria/players', (req, res) => {
-  const manager = terrariaPlayersTarget(req, res);
-  if (!manager) return;
-  try {
-    const terraria = manager.module();
-    const fields = terraria.statusFields(manager);
-    const players = typeof terraria.listPlayers === 'function' ? terraria.listPlayers(manager) : [];
-    res.json({
-      ok: true,
-      players: players.map((player) => ({ ...player, characterImage: null })),
-      maxPlayers: Number(fields.maxPlayers) || 0,
-      source: 'console',
-      characterImageAvailable: false,
-    });
-  } catch (error) {
-    res.status(error.status || 500).json({ error: error.message, code: error.code || 'invalid_action' });
-  }
-});
-
-app.post('/api/terraria/players/:action', (req, res) => {
-  const manager = terrariaPlayersTarget(req, res);
-  if (!manager) return;
-  const target = req.body?.target;
-  try {
-    const result = manager.module().playerAction(manager, req.params.action, target);
-    res.json(result);
-  } catch (error) {
-    res.status(error.status || 500).json({ error: error.message, code: error.code || 'invalid_action' });
-  }
-});
-
-function terrariaConfigTarget(req, res) {
-  const manager = targetManager(req);
-  const desc = manager && manager.desc();
-  if (!manager || !desc || desc.type !== 'terraria') {
-    res.status(404).json({ error: 'Terraria configuration is not available for this server.' });
-    return null;
-  }
-  return { id: manager.id, dir: manager.dir(), desc, manager };
-}
-
-function sendTerrariaConfigError(res, error) {
-  const payload = {
-    error: error?.message || 'Terraria configuration request failed.',
-    code: error?.code || 'terraria_config_error',
-  };
-  if (error?.key) payload.key = error.key;
-  res.status(Number(error?.status) || 500).json(payload);
-}
-
-app.get('/api/terraria/config', (req, res) => {
-  const server = terrariaConfigTarget(req, res);
-  if (!server) return;
-  try {
-    const result = terrariaConfig.read(server);
-    result.restartRequired = !!server.manager.moduleState?.configRestartRequired;
-    res.json(result);
-  } catch (error) { sendTerrariaConfigError(res, error); }
-});
-
-app.post('/api/terraria/config/preview', (req, res) => {
-  const server = terrariaConfigTarget(req, res);
-  if (!server) return;
-  try { res.json(terrariaConfig.preview(server, req.user.id, req.body || {})); }
-  catch (error) { sendTerrariaConfigError(res, error); }
-});
-
-app.put('/api/terraria/config', (req, res) => {
-  const server = terrariaConfigTarget(req, res);
-  if (!server) return;
-  try {
-    const result = terrariaConfig.apply(server, req.user.id, req.body || {}, req.get('Idempotency-Key'));
-    if (result.restartRequired) (server.manager.moduleState ||= {}).configRestartRequired = true;
-    foundationAudit.record({
-      actorId: req.user.id, actorUsername: req.user.username, serverId: server.id,
-      action: 'configs.edit', targetType: 'terraria-config', outcome: 'success',
-      metadata: { changedKeys: [] },
-    });
-    res.json(result);
-  } catch (error) { sendTerrariaConfigError(res, error); }
-});
-
-app.get('/api/terraria/config/raw', (req, res) => {
-  const server = terrariaConfigTarget(req, res);
-  if (!server) return;
-  try { res.json(terrariaConfig.readRaw(server, String(req.query.file || ''))); }
-  catch (error) { sendTerrariaConfigError(res, error); }
-});
-
-app.put('/api/terraria/config/raw', (req, res) => {
-  const server = terrariaConfigTarget(req, res);
-  if (!server) return;
-  try {
-    const result = terrariaConfig.writeRaw(server, req.user.id, req.body || {});
-    if (result.restartRequired) (server.manager.moduleState ||= {}).configRestartRequired = true;
-    foundationAudit.record({
-      actorId: req.user.id, actorUsername: req.user.username, serverId: server.id,
-      action: 'configs.edit', targetType: 'terraria-config-raw',
-      targetId: String(req.body?.file || ''), outcome: 'success',
-    });
-    res.json(result);
-  } catch (error) { sendTerrariaConfigError(res, error); }
-});
-
-app.get('/api/terraria/config/history', (req, res) => {
-  const server = terrariaConfigTarget(req, res);
-  if (!server) return;
-  try { res.json({ ok: true, history: terrariaConfig.history(server) }); }
-  catch (error) { sendTerrariaConfigError(res, error); }
-});
-
-app.post('/api/terraria/config/history/:id/restore', (req, res) => {
-  const server = terrariaConfigTarget(req, res);
-  if (!server) return;
-  try {
-    const result = terrariaConfig.restore(server, req.params.id);
-    (server.manager.moduleState ||= {}).configRestartRequired = true;
-    foundationAudit.record({
-      actorId: req.user.id, actorUsername: req.user.username, serverId: server.id,
-      action: 'configs.restore', targetType: 'terraria-config',
-      targetId: req.params.id, outcome: 'success',
-    });
-    res.json(result);
-  } catch (error) { sendTerrariaConfigError(res, error); }
-});
-
-// Palworld's official administration API is never proxied to a user-supplied
-// address. The module always connects to the configured port on 127.0.0.1,
-// authenticates with the generated admin password, and keeps that credential
-// out of responses and logs.
-app.get('/api/palworld/status', async (req, res) => {
-  const manager = targetManager(req);
-  if (!manager) return res.status(400).json({ error: tErr(req.user, 'errors.noActiveServer') });
-  try {
-    await manager.module().refresh(manager);
-    res.json({ ok: true, status: manager.statusPayload() });
-  } catch (_) {
-    res.status(503).json({ error: 'Palworld REST API is unavailable.' });
-  }
-});
-
-function palworldSettingsTarget(req, res) {
-  const manager = targetManager(req);
-  if (!manager) {
-    res.status(400).json({ error: tErr(req.user, 'errors.noActiveServer') });
-    return null;
-  }
-  return { id: manager.id, dir: manager.dir(), manager };
-}
-
-function sendPalworldSettingsError(res, error) {
-  const status = Number(error?.status) || 500;
-  res.status(status).json({ error: error?.message || 'Palworld settings request failed.', code: error?.code || 'settings_error' });
-}
-
-app.get('/api/palworld/settings', (req, res) => {
-  const server = palworldSettingsTarget(req, res);
-  if (!server) return;
-  try {
-    const result = palworldSettings.read(server);
-    result.restartRequired = !!server.manager.moduleState?.settingsRestartRequired;
-    res.json(result);
-  } catch (error) {
-    sendPalworldSettingsError(res, error);
-  }
-});
-
-app.post('/api/palworld/settings/preview', (req, res) => {
-  const server = palworldSettingsTarget(req, res);
-  if (!server) return;
-  try {
-    const result = palworldSettings.preview(server, req.user.id, req.body || {});
-    res.status(result.ok ? 200 : 422).json(result);
-  } catch (error) {
-    sendPalworldSettingsError(res, error);
-  }
-});
-
-app.put('/api/palworld/settings', (req, res) => {
-  const server = palworldSettingsTarget(req, res);
-  if (!server) return;
-  try {
-    const result = palworldSettings.apply(server, req.user.id, req.body || {}, req.get('Idempotency-Key'));
-    if (result.restartRequired) server.manager.moduleState.settingsRestartRequired = true;
-    res.json(result);
-  } catch (error) {
-    sendPalworldSettingsError(res, error);
-  }
-});
-
-app.get('/api/palworld/settings/history', (req, res) => {
-  const server = palworldSettingsTarget(req, res);
-  if (!server) return;
-  try {
-    res.json({ ok: true, history: palworldSettings.history(server) });
-  } catch (error) {
-    sendPalworldSettingsError(res, error);
-  }
-});
-
-app.post('/api/palworld/settings/history/:id/restore', (req, res) => {
-  const server = palworldSettingsTarget(req, res);
-  if (!server) return;
-  try {
-    const result = palworldSettings.restore(server, req.params.id);
-    server.manager.moduleState.settingsRestartRequired = true;
-    res.json(result);
-  } catch (error) {
-    sendPalworldSettingsError(res, error);
-  }
-});
-
-function palworldUpdateTarget(req, res) {
-  const manager = targetManager(req);
-  const server = manager && findServer(manager.id);
-  if (!manager || !server || server.type !== 'palworld') {
-    res.status(404).json({ error: 'Palworld updates are not available for this server.' });
-    return null;
-  }
-  return { server, manager };
-}
+// Palworld + Valheim SteamCMD update flows. The routes live in
+// lib/routes/palworld-updates.cjs; steamUpdateDeps/palworldLatest stay here
+// because the automation scheduler below calls them too. Mount position
+// preserves the original registration order (after settings, before mods).
+app.use('/api', palworldUpdatesRouter({
+  targetManager,
+  findServer,
+  palworldUpdates,
+  valheimInstall,
+  steamUpdateDeps,
+  palworldLatest,
+  createBackup,
+  persistConfig: () => saveConfig(config),
+  audit: foundationAudit,
+}));
 
 function steamUpdateDeps() {
   const cacheDir = INSTALLER_CACHE_DIR;
@@ -2288,559 +2139,37 @@ async function palworldLatest(force = false) {
   return palworldUpdates.discoverLatest({ ...steamUpdateDeps(), force });
 }
 
-function sendPalworldUpdateError(res, error) {
-  res.status(error.status || 500).json({ error: error.message, code: error.code || 'update_failed' });
-}
+// Palworld mods, platform, profile portability and connectivity. The routes
+// live in lib/routes/palworld-mods.cjs; the mount stays here so registration
+// order against the sibling slices is unchanged (after updates, before the
+// Minecraft portability mount). steamUpdateDeps stays here because the
+// automation scheduler calls it too; the router receives it as a dep.
+app.use('/api', palworldModsRouter({
+  targetManager,
+  findServer,
+  palworldMods,
+  palworldWorkshop,
+  palworldPlatform,
+  palworldPortability,
+  palworldConnectivity,
+  steamUpdateDeps,
+  createBackup,
+  audit: foundationAudit,
+  requireAdmin,
+  getConfig: () => config,
+  persistConfig: () => saveConfig(config),
+  genId,
+  getManager,
+  serverWithStatus,
+  addNotification,
+  log,
+  sanitizeErrorMessage,
+  automation,
+}));
 
-app.get('/api/palworld/updates', async (req, res) => {
-  const target = palworldUpdateTarget(req, res);
-  if (!target) return;
-  try {
-    const latest = await palworldLatest(false);
-    res.json({ ok: true, update: await palworldUpdates.status({ ...target, latest }) });
-  } catch (error) { sendPalworldUpdateError(res, error); }
-});
-
-app.post('/api/palworld/updates/check', async (req, res) => {
-  const target = palworldUpdateTarget(req, res);
-  if (!target) return;
-  try {
-    const latest = await palworldLatest(true);
-    res.json({ ok: true, update: await palworldUpdates.status({ ...target, latest }) });
-  } catch (error) { sendPalworldUpdateError(res, error); }
-});
-
-app.post('/api/palworld/updates/preview', async (req, res) => {
-  const target = palworldUpdateTarget(req, res);
-  if (!target) return;
-  try {
-    const latest = await palworldLatest(false);
-    const plan = await palworldUpdates.preview({ ...target, latest, input: req.body || {} });
-    res.json({ ok: true, plan });
-  } catch (error) { sendPalworldUpdateError(res, error); }
-});
-
-app.post('/api/palworld/updates/apply', async (req, res) => {
-  const target = palworldUpdateTarget(req, res);
-  if (!target) return;
-  try {
-    const result = await palworldUpdates.apply({
-      ...target,
-      actorId: req.user.id,
-      idempotencyKey: req.get('Idempotency-Key'),
-      plan: req.body?.plan,
-      planRevision: req.body?.revision,
-      ...steamUpdateDeps(),
-      announce: async (seconds) => {
-        await target.manager.module().request(target.manager, 'POST', '/announce', {
-          message: `Server update in ${seconds} seconds. Please move to a safe location.`,
-        });
-        await new Promise((resolve) => setTimeout(resolve, seconds * 1000));
-      },
-      createBackup: () => createBackup(target.manager, { applyRetention: false }),
-    });
-    foundationAudit.record({
-      actorId: req.user.id,
-      actorUsername: req.user.username,
-      serverId: target.server.id,
-      action: 'palworld.update.apply',
-      target: { fromBuildId: req.body?.plan?.installedBuildId, toBuildId: req.body?.plan?.targetBuildId },
-      outcome: result.replay ? 'replayed' : 'started',
-      requestId: req.requestId,
-      operationId: result.operation.id,
-      metadata: { policy: { restart: req.body?.plan?.restart, backupRequired: req.body?.plan?.backupRequired } },
-    });
-    res.status(202).json({ ok: true, operationId: result.operation.id, replay: result.replay });
-  } catch (error) { sendPalworldUpdateError(res, error); }
-});
-
-app.get('/api/palworld/updates/policy', (req, res) => {
-  const target = palworldUpdateTarget(req, res);
-  if (!target) return;
-  res.json({ ok: true, policy: palworldUpdates.safePolicy(target.server.palworldUpdatePolicy) });
-});
-
-app.put('/api/palworld/updates/policy', (req, res) => {
-  const target = palworldUpdateTarget(req, res);
-  if (!target) return;
-  target.server.palworldUpdatePolicy = palworldUpdates.safePolicy(req.body);
-  saveConfig(config);
-  foundationAudit.record({
-    actorId: req.user.id,
-    actorUsername: req.user.username,
-    serverId: target.server.id,
-    action: 'palworld.update.policy',
-    targetType: 'server',
-    targetId: target.server.id,
-    outcome: 'success',
-    requestId: req.requestId,
-    metadata: { policy: target.server.palworldUpdatePolicy },
-  });
-  res.json({ ok: true, policy: target.server.palworldUpdatePolicy });
-});
-
-function valheimUpdateTarget(req, res) {
-  const manager = targetManager(req);
-  const server = manager && findServer(manager.id);
-  if (!manager || !server || server.type !== 'valheim') {
-    res.status(404).json({ error: 'Valheim updates are not available for this server.' });
-    return null;
-  }
-  return { server, manager };
-}
-
-async function valheimLatest(force = false) {
-  return valheimInstall.discoverAvailable({ ...steamUpdateDeps(), force });
-}
-
-function sendValheimUpdateError(res, error) {
-  res.status(error.status || 500).json({ error: error.message, code: error.code || 'valheim_update_failed' });
-}
-
-app.get('/api/valheim/updates', async (req, res) => {
-  const target = valheimUpdateTarget(req, res);
-  if (!target) return;
-  try { res.json({ ok: true, update: valheimInstall.updateStatus({ server: target.server, latest: await valheimLatest(false) }) }); }
-  catch (error) { sendValheimUpdateError(res, error); }
-});
-
-app.post('/api/valheim/updates/check', async (req, res) => {
-  const target = valheimUpdateTarget(req, res);
-  if (!target) return;
-  try { res.json({ ok: true, update: valheimInstall.updateStatus({ server: target.server, latest: await valheimLatest(true) }) }); }
-  catch (error) { sendValheimUpdateError(res, error); }
-});
-
-app.post('/api/valheim/updates/preview', async (req, res) => {
-  const target = valheimUpdateTarget(req, res);
-  if (!target) return;
-  try {
-    const plan = valheimInstall.createPreview({
-      ...target, actorId: req.user.id, latest: await valheimLatest(false), restart: req.body?.restart,
-    });
-    res.json({ ok: true, plan });
-  } catch (error) { sendValheimUpdateError(res, error); }
-});
-
-app.post('/api/valheim/updates/apply', async (req, res) => {
-  const target = valheimUpdateTarget(req, res);
-  if (!target) return;
-  try {
-    const result = await valheimInstall.applyUpdate({
-      ...target,
-      actorId: req.user.id,
-      previewToken: req.body?.previewToken,
-      latest: await valheimLatest(false),
-      restart: req.body?.restart !== false,
-      options: {
-        ...steamUpdateDeps(),
-        operationId: req.get('Idempotency-Key') || crypto.randomUUID(),
-        idempotencyKey: req.get('Idempotency-Key'),
-        saveDescriptor: () => saveConfig(config),
-      },
-    });
-    res.json({ ok: true, ...result });
-  } catch (error) { sendValheimUpdateError(res, error); }
-});
-
-app.post('/api/valheim/updates/:operationId/rollback', async (req, res) => {
-  const target = valheimUpdateTarget(req, res);
-  if (!target) return;
-  try {
-    const result = await valheimInstall.rollbackUpdate({
-      rollbackId: req.params.operationId,
-      ...target,
-      restart: req.body?.restart === true,
-      saveDescriptor: () => saveConfig(config),
-    });
-    res.json({ ok: true, ...result });
-  } catch (error) { sendValheimUpdateError(res, error); }
-});
-
-app.get('/api/valheim/updates/policy', (req, res) => {
-  if (!valheimUpdateTarget(req, res)) return;
-  res.json({ ok: true, policy: { enabled: false, mode: 'manual' } });
-});
-
-app.put('/api/valheim/updates/policy', (req, res) => {
-  if (!valheimUpdateTarget(req, res)) return;
-  res.status(409).json({ error: 'Automatic Valheim updates are not implemented. Manual updates remain available.', code: 'policy_not_implemented' });
-});
-
-// --- Palworld mods and extension frameworks (docs/palworld/06-mods.md) -----
-//
-// Uploaded packages are data, never programs: the archive lands in a scratch
-// directory, the guard validates it, and only a previewed, staged, hash-verified
-// copy is ever committed into the server folder.
-
-function palworldModTarget(req, res) {
-  const manager = targetManager(req);
-  const server = manager && findServer(manager.id);
-  if (!manager || !server || server.type !== 'palworld') {
-    res.status(404).json({ error: 'Palworld mods are not available for this server.' });
-    return null;
-  }
-  return { server: { ...server, dir: manager.dir() }, manager };
-}
-
-function sendPalworldModError(res, error) {
-  res.status(Number(error?.status) || 500).json({ error: error?.message || 'The mod request failed.', code: error?.code || 'mod_error' });
-}
-
-const palworldModUpload = multer({
-  storage: multer.diskStorage({
-    destination: (req, file, cb) => {
-      const dir = path.join(require('./lib/db.cjs').dataDir(), 'palworld-mod-imports');
-      try { fs.mkdirSync(dir, { recursive: true }); } catch (_) { /* reported by multer */ }
-      cb(null, dir);
-    },
-    filename: (req, file, cb) => cb(null, `${crypto.randomUUID()}.zip`),
-  }),
-  fileFilter: (req, file, cb) => {
-    if (!/\.zip$/i.test(file.originalname || '')) return cb(new Error('Only .zip mod packages can be imported.'));
-    cb(null, true);
-  },
-  limits: { fileSize: 512 * 1024 * 1024, files: 1 },
-});
-
-app.get('/api/palworld/mods', async (req, res) => {
-  const target = palworldModTarget(req, res);
-  if (!target) return;
-  try {
-    res.json(await palworldMods.inventory({ server: target.server, verify: req.query.verify === '1' }));
-  } catch (error) { sendPalworldModError(res, error); }
-});
-
-app.get('/api/palworld/mods/catalog', async (req, res) => {
-  const target = palworldModTarget(req, res);
-  if (!target) return;
-  try {
-    res.json(await palworldWorkshop.catalog({
-      query: req.query.q,
-      page: req.query.page,
-      sort: req.query.sort,
-      tag: req.query.tag,
-      force: req.query.force === '1',
-    }));
-  } catch (error) { sendPalworldModError(res, error); }
-});
-
-app.post('/api/palworld/mods/catalog/download', async (req, res) => {
-  const target = palworldModTarget(req, res);
-  if (!target) return;
-  try {
-    const result = await palworldWorkshop.downloadBatch({
-      server: target.server,
-      workshopIds: req.body?.workshopIds,
-      ...steamUpdateDeps(),
-    });
-    foundationAudit.record({
-      actorId: req.user.id,
-      actorUsername: req.user.username,
-      serverId: target.server.id,
-      action: 'palworld.mods.workshop.batch-download',
-      targetType: 'palworld-mod',
-      targetId: target.server.id,
-      outcome: result.ok ? 'success' : 'partial',
-      requestId: req.requestId,
-      metadata: { requested: result.requested.length, downloaded: result.downloaded.length },
-    });
-    res.json(result);
-  } catch (error) { sendPalworldModError(res, error); }
-});
-
-app.get('/api/palworld/mods/catalog/:workshopId', async (req, res) => {
-  const target = palworldModTarget(req, res);
-  if (!target) return;
-  try {
-    const items = await palworldWorkshop.details([req.params.workshopId]);
-    const item = items.get(String(req.params.workshopId));
-    if (!item?.ok) return res.status(404).json({ error: 'That Workshop item is unavailable.', code: 'workshop_item_unavailable' });
-    res.json({ ok: true, item, cached: palworldWorkshop.cachedPackages(target.server).some((entry) => entry.workshopId === item.workshopId) });
-  } catch (error) { sendPalworldModError(res, error); }
-});
-
-app.get('/api/palworld/mods/sources', (req, res) => {
-  const target = palworldModTarget(req, res);
-  if (!target) return;
-  try {
-    const source = palworldWorkshop.sourceConfig(target.server);
-    res.json({ ok: true, ...source, libraries: palworldWorkshop.discoverLibraries({ manualPaths: source.manualPaths, serverDir: target.server.dir }) });
-  } catch (error) { sendPalworldModError(res, error); }
-});
-
-app.put('/api/palworld/mods/sources', (req, res) => {
-  const target = palworldModTarget(req, res);
-  if (!target) return;
-  try { res.json({ ok: true, ...palworldWorkshop.saveSources(target.server, req.body || {}) }); }
-  catch (error) { sendPalworldModError(res, error); }
-});
-
-app.get('/api/palworld/mods/official', async (req, res) => {
-  const target = palworldModTarget(req, res);
-  if (!target) return;
-  try {
-    const compatibility = await palworldMods.compatibility({ server: target.server });
-    res.json({ ...(await palworldWorkshop.checkUpdates(target.server)), compatibility });
-  } catch (error) { sendPalworldModError(res, error); }
-});
-
-app.post('/api/palworld/mods/preview', palworldModUpload.single('package'), async (req, res) => {
-  const target = palworldModTarget(req, res);
-  if (!target) return;
-  if (!req.file && !req.body?.workshopId) return res.status(400).json({ error: 'Choose a cached Workshop item or upload an official package ZIP.', code: 'package_required' });
-  try {
-    const result = await palworldWorkshop.preview({
-      server: target.server,
-      manager: target.manager,
-      actorId: req.user.id,
-      archivePath: req.file?.path,
-      workshopId: req.body?.workshopId,
-      serverRevision: req.body?.serverRevision == null ? null : Number(req.body.serverRevision),
-      allowUnknownRevision: req.body?.allowUnknownRevision === true || req.body?.allowUnknownRevision === 'true',
-    });
-    res.json(result);
-  } catch (error) {
-    try {
-      const staged = stagedUploadPath(req.file, palworldModImportsDir());
-      if (staged) {
-        // Inline resolve + startsWith barrier at the cleanup sink
-        // (js/path-injection); stagedUploadPath already proved containment,
-        // this restates it on the sink's own taint path.
-        const uploadsRoot = path.resolve(palworldModImportsDir());
-        const stagedResolved = path.resolve(staged);
-        if (stagedResolved.startsWith(uploadsRoot + path.sep)) {
-          fs.unlinkSync(stagedResolved);
-        }
-      }
-    } catch (_) { /* swept later */ }    sendPalworldModError(res, error);
-  }
-}, (err, req, res, next) => {
-  log('upload failed:', err.message);
-  res.status(400).json({ error: sanitizeErrorMessage(err.message || 'The upload failed.'), code: 'upload_failed' });
-});
-
-app.post('/api/palworld/mods/install', async (req, res) => {
-  const target = palworldModTarget(req, res);
-  if (!target) return;
-  try {
-    const result = await palworldWorkshop.install({
-      server: target.server,
-      manager: target.manager,
-      actorId: req.user.id,
-      idempotencyKey: req.get('Idempotency-Key'),
-      previewToken: req.body?.previewToken,
-      revision: req.body?.revision,
-    });
-    foundationAudit.record({
-      actorId: req.user.id,
-      actorUsername: req.user.username,
-      serverId: target.server.id,
-      action: 'palworld.mods.install',
-      targetType: 'palworld-mod',
-      targetId: result.operation.summary?.workshopId || target.server.id,
-      outcome: result.replay ? 'replayed' : 'started',
-      requestId: req.requestId,
-      operationId: result.operation.id,
-      metadata: { summary: result.operation.summary },
-    });
-    res.status(202).json({ ok: true, operationId: result.operation.id, replay: !!result.replay });
-  } catch (error) { sendPalworldModError(res, error); }
-});
-
-app.post('/api/palworld/mods/import', async (req, res) => {
-  const target = palworldModTarget(req, res);
-  if (!target) return;
-  try {
-    const result = await palworldMods.applyImport({
-      server: target.server,
-      manager: target.manager,
-      actorId: req.user.id,
-      idempotencyKey: req.get('Idempotency-Key'),
-      previewToken: req.body?.previewToken,
-      revision: req.body?.revision,
-      restart: req.body?.restart !== false,
-      backupRequired: req.body?.backupRequired === true,
-      announce: async (seconds) => {
-        await target.manager.module().request(target.manager, 'POST', '/announce', {
-          message: `Server maintenance in ${seconds} seconds. Please move to a safe location.`,
-        });
-        await new Promise((resolve) => setTimeout(resolve, seconds * 1000));
-      },
-      createBackup: () => createBackup(target.manager, { applyRetention: false }),
-    });
-    foundationAudit.record({
-      actorId: req.user.id,
-      actorUsername: req.user.username,
-      serverId: target.server.id,
-      action: 'palworld.mods.import',
-      targetType: 'server',
-      targetId: target.server.id,
-      outcome: result.replay ? 'replayed' : 'started',
-      requestId: req.requestId,
-      operationId: result.operation.id,
-      metadata: { summary: result.operation.summary },
-    });
-    res.status(202).json({ ok: true, operationId: result.operation.id, replay: !!result.replay });
-  } catch (error) { sendPalworldModError(res, error); }
-});
-
-app.post('/api/palworld/mods/enabled-batch', (req, res) => {
-  const target = palworldModTarget(req, res);
-  if (!target) return;
-  try {
-    const enabled = req.body?.enabled;
-    if (typeof enabled !== 'boolean') return res.status(400).json({ error: 'enabled must be a boolean.', code: 'invalid_enabled' });
-    const result = palworldWorkshop.setEnabledBatch({
-      server: target.server,
-      manager: target.manager,
-      workshopIds: req.body?.workshopIds,
-      enabled,
-    });
-    foundationAudit.record({
-      actorId: req.user.id,
-      actorUsername: req.user.username,
-      serverId: target.server.id,
-      action: enabled ? 'palworld.mods.batch-enable' : 'palworld.mods.batch-disable',
-      targetType: 'palworld-mod',
-      targetId: target.server.id,
-      outcome: 'success',
-      requestId: req.requestId,
-      metadata: { count: result.changed.length },
-    });
-    res.json(result);
-  } catch (error) { sendPalworldModError(res, error); }
-});
-
-app.post('/api/palworld/mods/:id/enabled', (req, res) => {
-  const target = palworldModTarget(req, res);
-  if (!target) return;
-  try {
-    const result = palworldWorkshop.setEnabled({
-      server: target.server,
-      manager: target.manager,
-      workshopId: req.params.id,
-      enabled: req.body?.enabled === true,
-    });
-    foundationAudit.record({
-      actorId: req.user.id,
-      actorUsername: req.user.username,
-      serverId: target.server.id,
-      action: req.body?.enabled === true ? 'palworld.mods.enable' : 'palworld.mods.disable',
-      targetType: 'palworld-mod',
-      targetId: req.params.id,
-      outcome: 'success',
-      requestId: req.requestId,
-    });
-    res.json(result);
-  } catch (error) { sendPalworldModError(res, error); }
-});
-
-app.delete('/api/palworld/mods/:id', (req, res) => {
-  const target = palworldModTarget(req, res);
-  if (!target) return;
-  try {
-    const result = palworldWorkshop.remove({ server: target.server, manager: target.manager, workshopId: req.params.id });
-    foundationAudit.record({
-      actorId: req.user.id,
-      actorUsername: req.user.username,
-      serverId: target.server.id,
-      action: 'palworld.mods.remove',
-      targetType: 'palworld-mod',
-      targetId: req.params.id,
-      outcome: 'success',
-      requestId: req.requestId,
-      metadata: { trashId: result.trashId, snapshotId: result.snapshotId },
-    });
-    res.json(result);
-  } catch (error) { sendPalworldModError(res, error); }
-});
-
-app.post('/api/palworld/mods/trash/:id/restore', (req, res) => {
-  const target = palworldModTarget(req, res);
-  if (!target) return;
-  try {
-    res.json(palworldWorkshop.restore({ server: target.server, manager: target.manager, trashId: req.params.id }));
-  } catch (error) { sendPalworldModError(res, error); }
-});
-
-app.post('/api/palworld/mods/adopt', (req, res) => {
-  const target = palworldModTarget(req, res);
-  if (!target) return;
-  try {
-    res.json(palworldMods.adopt({
-      server: target.server,
-      relPath: req.body?.path,
-      name: req.body?.name,
-      provider: req.body?.provider,
-      sourceItemId: req.body?.sourceItemId,
-    }));
-  } catch (error) { sendPalworldModError(res, error); }
-});
-
-app.post('/api/palworld/mods/updates/check', async (req, res) => {
-  const target = palworldModTarget(req, res);
-  if (!target) return;
-  try {
-    res.json(await palworldWorkshop.checkUpdates(target.server));
-  } catch (error) { sendPalworldModError(res, error); }
-});
-
-// The Wine runtime is an advanced per-server setting. Environment values are
-// stored in the ignored configuration and never returned to a browser.
-app.get('/api/palworld/platform', async (req, res) => {
-  const target = palworldModTarget(req, res);
-  if (!target) return;
-  try {
-    res.json({ ok: true, compatibility: await palworldMods.compatibility({ server: target.server }) });
-  } catch (error) { sendPalworldModError(res, error); }
-});
-
-app.put('/api/palworld/platform/wine', async (req, res) => {
-  const target = palworldModTarget(req, res);
-  if (!target) return;
-  const server = findServer(target.server.id);
-  const safe = palworldPlatform.safeWine(req.body || {});
-  server.palworldWine = { enabled: safe.enabled, executable: safe.executable, prefix: safe.prefix, args: safe.args, env: safe.env };
-  saveConfig(config);
-  foundationAudit.record({
-    actorId: req.user.id,
-    actorUsername: req.user.username,
-    serverId: server.id,
-    action: 'palworld.platform.wine',
-    targetType: 'server',
-    targetId: server.id,
-    outcome: 'success',
-    requestId: req.requestId,
-    metadata: { enabled: safe.enabled, executable: safe.executable, envKeys: Object.keys(safe.env) },
-  });
-  try {
-    res.json({ ok: true, compatibility: await palworldMods.compatibility({ server: { ...server, dir: target.manager.dir() } }) });
-  } catch (error) { sendPalworldModError(res, error); }
-});
-
-// --- Palworld portability and connectivity (docs/palworld/07-portability-safety.md)
-//
-// Exports are built from the registered server; imports and adoption create a
-// *new* server and therefore live outside /api/palworld (which requires an
-// active REST-capable server) under /api/portability, next to registration.
-
-const palworldProfileUpload = multer({
-  storage: multer.diskStorage({
-    destination: (req, file, cb) => {
-      const dir = path.join(require('./lib/db.cjs').dataDir(), 'palworld-profile-uploads');
-      try { fs.mkdirSync(dir, { recursive: true }); } catch (_) { /* reported by multer */ }
-      cb(null, dir);
-    },
-    filename: (req, file, cb) => cb(null, `${crypto.randomUUID()}.zip`),
-  }),
-  fileFilter: (req, file, cb) => {
-    if (!/\.(?:zip|fdprofile\.zip)$/i.test(file.originalname || '')) return cb(new Error('Only a Hostkind profile archive can be imported.'));
-    cb(null, true);
-  },
-  limits: { fileSize: 8 * 1024 * 1024 * 1024, files: 1 },
-});
-
+// sendPortabilityError stays here (it was defined alongside the Palworld
+// portability routes, now in lib/routes/palworld-mods.cjs) because the
+// Minecraft portability mount below also uses it as its sendError dep.
 function sendPortabilityError(res, error) {
   res.status(Number(error?.status) || 500).json({
     error: error?.message || 'The request failed.',
@@ -2848,195 +2177,6 @@ function sendPortabilityError(res, error) {
     conflict: error?.conflict || undefined,
   });
 }
-
-function tasksForServer(serverId) {
-  return (config.tasks || []).filter((task) => task.serverId === serverId).map((task) => automation.migrateTask(task));
-}
-
-app.get('/api/palworld/profile/preview', (req, res) => {
-  const target = palworldModTarget(req, res);
-  if (!target) return;
-  try {
-    res.json(palworldPortability.exportPreview({
-      server: target.server,
-      selection: req.query.selection,
-      tasks: tasksForServer(target.server.id),
-      updatePolicy: target.server.palworldUpdatePolicy || null,
-    }));
-  } catch (error) { sendPortabilityError(res, error); }
-});
-
-app.post('/api/palworld/profile/export', async (req, res) => {
-  const target = palworldModTarget(req, res);
-  if (!target) return;
-  try {
-    const result = await palworldPortability.exportProfile({
-      server: target.server,
-      selection: req.body?.selection,
-      actorId: req.user.id,
-      tasks: tasksForServer(target.server.id),
-      updatePolicy: target.server.palworldUpdatePolicy || null,
-    });
-    foundationAudit.record({
-      actorId: req.user.id,
-      actorUsername: req.user.username,
-      serverId: target.server.id,
-      action: 'palworld.profile.export',
-      targetType: 'server',
-      targetId: target.server.id,
-      outcome: 'success',
-      requestId: req.requestId,
-      metadata: { selection: result.manifest.selection, files: result.manifest.entries.length, bytes: result.bytes },
-    });
-    res.json({
-      ok: true,
-      id: result.id,
-      fileName: result.fileName,
-      bytes: result.bytes,
-      sha256: result.sha256,
-      manifest: result.manifest,
-      warnings: result.warnings,
-    });
-  } catch (error) { sendPortabilityError(res, error); }
-});
-
-app.get('/api/palworld/profile/export/:id/download', (req, res) => {
-  try {
-    const file = palworldPortability.exportFile(req.params.id);
-    res.download(file, `${path.basename(file)}`);
-  } catch (error) { sendPortabilityError(res, error); }
-});
-
-app.get('/api/palworld/connectivity', async (req, res) => {
-  const target = palworldModTarget(req, res);
-  if (!target) return;
-  try {
-    res.json(await palworldConnectivity.report({
-      server: target.server,
-      online: target.manager.status === 'online',
-    }));
-  } catch (error) { sendPortabilityError(res, error); }
-});
-
-// An external probe only ever runs when the operator asks for one, and its
-// result is reported as an observation, never as a verdict on their router.
-app.post('/api/palworld/connectivity/test', async (req, res) => {
-  const target = palworldModTarget(req, res);
-  if (!target) return;
-  try {
-    res.json(await palworldConnectivity.testEndpoint({ host: req.body?.host, port: req.body?.port }));
-  } catch (error) { sendPortabilityError(res, error); }
-});
-
-app.post('/api/portability/palworld/adopt/preview', requireAdmin, (req, res) => {
-  try {
-    res.json(palworldPortability.inspectAdoption({
-      dir: req.body?.dir,
-      servers: config.servers,
-      desiredRestPort: req.body?.restPort,
-    }));
-  } catch (error) { sendPortabilityError(res, error); }
-});
-
-app.post('/api/portability/palworld/adopt', requireAdmin, (req, res) => {
-  try {
-    const result = palworldPortability.adopt({
-      dir: req.body?.dir,
-      name: req.body?.name,
-      servers: config.servers,
-      desiredRestPort: req.body?.restPort,
-    });
-    const entry = { id: genId(), ...result.descriptor };
-    config.servers.push(entry);
-    if (!config.activeServerId) config.activeServerId = entry.id;
-    saveConfig(config);
-    getManager(entry.id);
-    foundationAudit.record({
-      actorId: req.user.id,
-      actorUsername: req.user.username,
-      serverId: entry.id,
-      action: 'palworld.adopt',
-      targetType: 'server',
-      targetId: entry.id,
-      outcome: 'success',
-      requestId: req.requestId,
-      metadata: { reconciled: result.reconciled, snapshotId: result.snapshotId, buildId: result.build?.buildId || null },
-    });
-    addNotification('server_added', 'Server Adopted', `Existing Palworld server "${entry.name}" has been adopted.`, entry.id);
-    res.json({
-      ok: true,
-      server: serverWithStatus(entry),
-      reconciled: result.reconciled,
-      snapshotId: result.snapshotId,
-      preserved: result.preserved,
-    });
-  } catch (error) { sendPortabilityError(res, error); }
-});
-
-app.post('/api/portability/palworld/import/preview', requireAdmin, palworldProfileUpload.single('profile'), async (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'A Hostkind profile archive is required.', code: 'archive_required' });
-  try {
-    res.json(await palworldPortability.importPreview({
-      file: req.file.path,
-      actorId: req.user.id,
-      servers: config.servers,
-    }));
-  } catch (error) {
-    sendPortabilityError(res, error);
-  } finally {
-    try {
-      const staged = stagedUploadPath(req.file, palworldProfileUploadsDir());
-      if (staged) {
-        // Inline resolve + startsWith barrier at the cleanup sink
-        // (js/path-injection); stagedUploadPath already proved containment,
-        // this restates it on the sink's own taint path.
-        const uploadsRoot = path.resolve(palworldProfileUploadsDir());
-        const stagedResolved = path.resolve(staged);
-        if (stagedResolved.startsWith(uploadsRoot + path.sep)) {
-          fs.rmSync(stagedResolved, { force: true });
-        }
-      }
-    } catch (_) { /* swept on restart */ }  }
-});
-
-app.post('/api/portability/palworld/import', requireAdmin, (req, res) => {
-  try {
-    const result = palworldPortability.confirmImport({
-      token: req.body?.token,
-      actorId: req.user.id,
-      name: req.body?.name,
-      dir: req.body?.dir,
-      port: req.body?.port,
-      restPort: req.body?.restPort,
-      servers: config.servers,
-    });
-    const entry = { id: genId(), ...result.descriptor };
-    config.servers.push(entry);
-    if (!config.activeServerId) config.activeServerId = entry.id;
-    saveConfig(config);
-    getManager(entry.id);
-    foundationAudit.record({
-      actorId: req.user.id,
-      actorUsername: req.user.username,
-      serverId: entry.id,
-      action: 'palworld.profile.import',
-      targetType: 'server',
-      targetId: entry.id,
-      outcome: 'success',
-      requestId: req.requestId,
-      metadata: { requiresServerFiles: result.requiresServerFiles, schedules: result.schedules.length },
-    });
-    addNotification('server_added', 'Profile Imported', `Palworld server "${entry.name}" has been imported.`, entry.id);
-    res.json({
-      ok: true,
-      server: serverWithStatus(entry),
-      requiresServerFiles: result.requiresServerFiles,
-      schedules: result.schedules,
-      updatePolicy: result.updatePolicy,
-      nextSteps: result.nextSteps,
-    });
-  } catch (error) { sendPortabilityError(res, error); }
-});
 
 // Minecraft adoption preview. Mirrors the Palworld adopt/preview flow: the
 // frontend cannot run Node.js filesystem detection, so this route exists for
@@ -3047,269 +2187,24 @@ app.use('/api/portability/minecraft', minecraftPortabilityRouter({
   sendError: sendPortabilityError,
 }));
 
-app.get('/api/palworld/players', async (req, res) => {
-  const manager = targetManager(req);
-  if (!manager) return res.status(400).json({ error: tErr(req.user, 'errors.noActiveServer') });
-  try {
-    await manager.module().refresh(manager);
-    const health = manager.moduleState.restHealth;
-    if (health?.state !== 'healthy') {
-      return res.status(503).json({ error: 'Palworld REST API is unavailable.', restHealth: health });
-    }
-    const status = manager.statusPayload();
-    res.json({
-      ok: true,
-      players: manager.module().listPlayers(manager),
-      playerCount: status.playerCount || 0,
-      maxPlayers: status.maxPlayers || 0,
-      sampledAt: status.sampledAt || null,
-      restHealth: health,
-    });
-  } catch (_) {
-    res.status(503).json({ error: 'Palworld REST API is unavailable.' });
-  }
-});
-
-app.get('/api/palworld/map', async (req, res) => {
-  const manager = targetManager(req);
-  if (!manager) return res.status(400).json({ error: tErr(req.user, 'errors.noActiveServer') });
-  if (manager.desc().type !== 'palworld') return res.status(409).json({ error: 'This server is not a Palworld server.' });
-  if (!foundationCapabilities.has(req.user, manager.id, CAPABILITIES.PLAYERS_VIEW)) {
-    return res.status(403).json({ error: tErr(req.user, 'errors.forbidden'), capability: CAPABILITIES.PLAYERS_VIEW });
-  }
-  await manager.module().refresh(manager).catch(() => {});
-  const map = palworldMap.publicState(manager.desc());
-  const health = manager.moduleState.restHealth;
-  const healthy = health?.state === 'healthy';
-  res.json({
-    ok: true,
-    ...map,
-    restHealth: health,
-    sampledAt: manager.statusPayload().sampledAt || null,
-    players: (manager.module().listPlayers(manager) || []).map((player) => ({
-      ...player,
-      mapPosition: palworldMap.project(player.location, map.calibration),
-      mapGrid: palworldMap.grid(player.location),
-      state: healthy ? 'live' : 'stale',
-    })).concat(healthy ? (manager.module().listDepartedPlayers?.(manager) || []).map((player) => ({
-      ...player,
-      mapPosition: palworldMap.project(player.location, map.calibration),
-      mapGrid: palworldMap.grid(player.location),
-      state: 'offline',
-    })) : []),
-  });
-});
-
-app.get('/api/palworld/map/asset', (req, res) => {
-  const manager = targetManager(req);
-  if (manager && manager.desc().type !== 'palworld') return res.status(409).json({ error: 'This server is not a Palworld server.' });
-  const asset = manager ? palworldMap.assetFile(manager.desc()) : null;
-  if (!asset) return res.status(404).json({ error: 'Map asset not found.' });
-  const resolved = path.resolve(asset.file);
-  if (!asset.builtin) {
-    const allowed = path.resolve(manager.dir(), '.fleetdeck', 'palworld-map') + path.sep;
-    if (!resolved.startsWith(allowed)) return res.status(404).json({ error: 'Map asset not found.' });
-  }
-  if (!fs.existsSync(resolved)) return res.status(404).json({ error: 'Map asset not found.' });
-  res.type(asset.mediaType).sendFile(resolved);
-});
-
-app.put('/api/palworld/map/calibration', (req, res) => {
-  const manager = targetManager(req);
-  if (!manager) return res.status(400).json({ error: tErr(req.user, 'errors.noActiveServer') });
-  if (req.user.role !== 'admin') return res.status(403).json({ error: tErr(req.user, 'errors.forbidden') });
-  if (manager.desc().type !== 'palworld') return res.status(409).json({ error: 'This server is not a Palworld server.' });
-  try {
-    if (req.body?.restoreRevision) {
-      const result = palworldMap.restore(manager.desc(), req.body.restoreRevision);
-      saveConfig(config);
-      foundationAudit.record({
-        actorId: req.user.id, actorUsername: req.user.username, serverId: manager.id,
-        action: 'palworld.map.restore', targetType: 'server', targetId: manager.id,
-        outcome: 'success', requestId: req.requestId, metadata: { revision: result.revision },
-      });
-      return res.json({ ok: true, ...result });
-    }
-    if (req.body?.resetToDefault) {
-      const result = palworldMap.resetToDefault(manager.desc());
-      saveConfig(config);
-      foundationAudit.record({
-        actorId: req.user.id, actorUsername: req.user.username, serverId: manager.id,
-        action: 'palworld.map.reset', targetType: 'server', targetId: manager.id,
-        outcome: 'success', requestId: req.requestId, metadata: { revision: result.revision },
-      });
-      return res.json({ ok: true, ...result });
-    }
-    const result = req.body?.preview
-      ? palworldMap.preview(manager.desc(), req.body)
-      : palworldMap.apply(manager.desc(), req.body);
-    if (!req.body?.preview) saveConfig(config);
-    if (!req.body?.preview) foundationAudit.record({
-      actorId: req.user.id, actorUsername: req.user.username, serverId: manager.id,
-      action: 'palworld.map.calibrate', targetType: 'server', targetId: manager.id,
-      outcome: 'success', requestId: req.requestId,
-      metadata: { revision: result.revision, assetVersion: result.asset.version, checksum: result.asset.checksum },
-    });
-    res.json({ ok: true, ...result, _decoded: undefined });
-  } catch (error) {
-    res.status(error.status || 400).json({ error: error.message, code: error.code || 'invalid_map' });
-  }
-});
-
-function auditPalworldMutation(req, manager, action, outcome, {
-  targetId = null, content = null, idempotencyKey = null, metadata = null,
-} = {}) {
-  try {
-    const auditMetadata = {};
-    if (content != null) auditMetadata.content = palworldOperations.contentFingerprint(content);
-    if (idempotencyKey) auditMetadata.idempotencyKeyHash = palworldOperations.safeTargetId(idempotencyKey);
-    Object.assign(auditMetadata, metadata || {});
-    foundationAudit.record({
-      actorId: req.user.id,
-      actorUsername: req.user.username,
-      serverId: manager.id,
-      action: `palworld.${action}`,
-      targetType: targetId ? 'player' : 'server',
-      targetId: targetId ? palworldOperations.safeTargetId(targetId) : manager.id,
-      outcome,
-      requestId: req.requestId,
-      metadata: auditMetadata,
-    });
-  } catch (error) {
-    log('audit: Palworld mutation capture failed:', error.message);
-  }
-}
-
-function palworldMutationContext(req, res, capability, limiter) {
-  const manager = targetManager(req);
-  if (!manager) {
-    res.status(400).json({ error: tErr(req.user, 'errors.noActiveServer') });
-    return null;
-  }
-  if (!foundationCapabilities.has(req.user, manager.id, capability)) {
-    res.status(403).json({ error: tErr(req.user, 'errors.forbidden'), capability });
-    return null;
-  }
-  if (manager.status !== 'online') {
-    res.status(409).json({ error: 'The server must be online.' });
-    return null;
-  }
-  const rate = limiter(`${req.user.id}:${manager.id}`);
-  if (!rate.allowed) {
-    res.set('Retry-After', String(Math.ceil(rate.retryAfterMs / 1000)));
-    res.status(429).json({ error: 'Too many Palworld requests. Try again shortly.' });
-    return null;
-  }
-  return manager;
-}
-
-async function applyPalworldMutation(req, res, {
-  action, endpoint = action, body, targetId = null, content = null, idempotent = false,
-}) {
-  const manager = targetManager(req);
-  const key = String(req.get('Idempotency-Key') || '').trim();
-  if (idempotent && !key) return res.status(400).json({ error: 'Idempotency-Key is required.' });
-  const replayKey = `${req.user.id}:${manager.id}:${action}:${key}`;
-  const replay = idempotent ? palworldReplays.get(replayKey) : null;
-  if (replay) return res.status(replay.status).json({ ...replay.body, replayed: true });
-  try {
-    const data = await manager.module().mutate(manager, endpoint, body);
-    const result = { status: action === 'save' ? 202 : 200, body: {
-      ok: true,
-      accepted: true,
-      completed: action === 'save' ? null : true,
-      requestId: req.requestId,
-      ...(data?.result || {}),
-    } };
-    if (idempotent) palworldReplays.set(replayKey, result);
-    auditPalworldMutation(req, manager, action, 'success', { targetId, content, idempotencyKey: key });
-    manager.module().refresh(manager).catch(() => {});
-    return res.status(result.status).json(result.body);
-  } catch (error) {
-    const unknown = error?.state === 'timeout';
-    const result = {
-      status: unknown ? 504 : 503,
-      body: {
-        error: unknown
-          ? 'The Palworld REST API timed out. The outcome is unknown; refresh before retrying.'
-          : 'Palworld REST API is unavailable.',
-        outcome: unknown ? 'unknown' : 'failure',
-        requestId: req.requestId,
-      },
-    };
-    if (idempotent) palworldReplays.set(replayKey, result);
-    auditPalworldMutation(req, manager, action, unknown ? 'unknown' : 'failure', {
-      targetId, content, idempotencyKey: key, metadata: { errorCode: error?.code || 'request_failed' },
-    });
-    manager.module().refresh(manager).catch(() => {});
-    return res.status(result.status).json(result.body);
-  }
-}
-
-async function playerMutation(req, res, action, routeUserId) {
-  const manager = palworldMutationContext(req, res, CAPABILITIES.PLAYERS_MANAGE, limitPalworldPlayers);
-  if (!manager) return;
-  const parsedId = palworldOperations.userId(routeUserId ?? req.body?.userId);
-  if (parsedId.error) return res.status(400).json({ error: parsedId.error });
-  const parsedReason = palworldOperations.text(req.body?.reason ?? req.body?.message, { label: 'Reason' });
-  if (parsedReason.error) return res.status(400).json({ error: parsedReason.error, limit: palworldOperations.MESSAGE_LIMIT });
-  if (action !== 'unban') {
-    await manager.module().refresh(manager);
-    const health = manager.moduleState.restHealth;
-    if (health?.state !== 'healthy') return res.status(503).json({ error: 'Palworld REST API is unavailable.', restHealth: health });
-    const player = manager.module().listPlayers(manager).find((item) => item.userId === parsedId.value);
-    if (!player) return res.status(409).json({ error: 'The player is no longer online. Refresh the list.' });
-    if (Date.now() - Date.parse(player.observedAt) > palworldOperations.STALE_PLAYER_MS) {
-      return res.status(409).json({ error: 'The player observation is stale. Refresh the list.' });
-    }
-  }
-  const mutationBody = { userid: parsedId.value };
-  if (action !== 'unban' && parsedReason.value) mutationBody.message = parsedReason.value;
-  return applyPalworldMutation(req, res, {
-    action,
-    body: mutationBody,
-    targetId: parsedId.value,
-    content: parsedReason.value,
-    idempotent: true,
-  });
-}
-
-app.post('/api/palworld/players/:userId/kick', (req, res) => playerMutation(req, res, 'kick', req.params.userId));
-app.post('/api/palworld/players/:userId/ban', (req, res) => playerMutation(req, res, 'ban', req.params.userId));
-app.post('/api/palworld/players/unban', (req, res) => playerMutation(req, res, 'unban'));
-
-app.post('/api/palworld/announcements', (req, res) => {
-  const manager = palworldMutationContext(req, res, CAPABILITIES.ANNOUNCEMENTS_SEND, limitPalworldAnnouncements);
-  if (!manager) return;
-  const parsed = palworldOperations.text(req.body?.message, { required: true });
-  if (parsed.error) return res.status(400).json({ error: parsed.error, limit: palworldOperations.MESSAGE_LIMIT });
-  return applyPalworldMutation(req, res, { action: 'announcement', endpoint: 'announce', body: { message: parsed.value }, content: parsed.value });
-});
-
-app.post('/api/palworld/save', (req, res) => {
-  const manager = palworldMutationContext(req, res, CAPABILITIES.BACKUPS_CREATE, limitPalworldPlayers);
-  if (!manager) return;
-  return applyPalworldMutation(req, res, { action: 'save', body: undefined });
-});
-
-// Compatibility shims for clients using the original action endpoint.
-app.post('/api/palworld/:action', (req, res) => {
-  const action = String(req.params.action || '').toLowerCase();
-  if (action === 'kick' || action === 'ban' || action === 'unban') return playerMutation(req, res, action);
-  if (action === 'announce') {
-    const manager = palworldMutationContext(req, res, CAPABILITIES.ANNOUNCEMENTS_SEND, limitPalworldAnnouncements);
-    if (!manager) return;
-    const parsed = palworldOperations.text(req.body?.message, { required: true });
-    if (parsed.error) return res.status(400).json({ error: parsed.error, limit: palworldOperations.MESSAGE_LIMIT });
-    return applyPalworldMutation(req, res, { action: 'announcement', endpoint: 'announce', body: { message: parsed.value }, content: parsed.value });
-  }
-  if (action === 'save') {
-    const manager = palworldMutationContext(req, res, CAPABILITIES.BACKUPS_CREATE, limitPalworldPlayers);
-    if (!manager) return;
-    return applyPalworldMutation(req, res, { action: 'save', body: undefined });
-  }
-  return res.status(400).json({ error: tErr(req.user, 'errors.unknownAction') });
-});
+// Palworld live-player surface (players, live map, announcements, saves and
+// the legacy :action shim). The routes live in
+// lib/routes/palworld-players.cjs; the mount stays here so registration
+// order against the sibling slices is unchanged.
+app.use('/api/palworld', palworldPlayersRouter({
+  targetManager,
+  tErr,
+  CAPABILITIES,
+  foundationCapabilities,
+  audit: foundationAudit,
+  persistConfig: () => saveConfig(config),
+  log,
+  palworldMap,
+  palworldOperations,
+  palworldReplays,
+  limitPalworldPlayers,
+  limitPalworldAnnouncements,
+}));
 
 // ---------------------------------------------------------------------------
 // Bug-report sync integration (plan Task 3/4 wiring + upstream-relay Task 5)
@@ -3772,507 +2667,55 @@ app.get('/api/foundation/status', (req, res) => {
   res.json({ ok: true, foundation: foundationStatus() });
 });
 
-// --- users CRUD (any logged-in user can manage users) ---
-function normalizeEmail(email) {
-  return String(email || '').trim().toLowerCase();
-}
-function normalizeUsername(username) {
-  return String(username || '').trim().toLowerCase();
-}
-// Username rules: 1-32 chars, no leading/trailing whitespace, no '@' (so
-// usernames can't be confused with emails on login). Letters, digits,
-// dot, dash, underscore are fine.
-const USERNAME_RE = /^[A-Za-z0-9._-]{1,32}$/;
+// --- users, profile, and API keys (lib/routes/users.cjs) ---
+// Mounted here (in place) so the shared /api auth, audit, and capability
+// gates above keep running before these routes, exactly as before.
+app.use('/api', usersRouter({
+  getConfig: () => config,
+  saveConfig: (next) => saveConfig(next),
+  apiKeys,
+  foundationCapabilities,
+  foundationAudit,
+  publicUser,
+  publicPermissions,
+  publicKeyPermissions,
+  requireHuman,
+  tErr,
+  httpError,
+  findUser,
+  findUserByEmail,
+  findUserByUsername,
+  adminCount,
+  genId,
+  isGuestUser,
+  verifyPassword,
+  hashPassword,
+  passwordIssue,
+  MIN_PASSWORD_LENGTH,
+  i18n,
+  log,
+}));
 
-function validateIdentifier({ email, username }) {
-  const e = email === undefined ? undefined : normalizeEmail(email);
-  const u = username === undefined ? undefined : normalizeUsername(username);
-  if (e === undefined || e === '') {
-    // only fail if the caller tried to set email and it's malformed
-  } else if (!e.includes('@')) {
-    return { error: 'emailInvalid' };
-  }
-  if (u !== undefined && u !== '' && !USERNAME_RE.test(u)) {
-    return { error: 'usernameInvalid' };
-  }
-  return { email: e, username: u };
-}
-
-app.get('/api/me', (req, res) => res.json({ ...publicUser(req.user), permissions: publicPermissions(req.user) }));
-
-// Self-service profile edit. A user can change their own name, email, and
-// username, but never their own role (that would let an operator promote
-// themselves) and never another account.
-app.put('/api/me', (req, res) => {
-  const user = req.user;
-  if (isGuestUser(user)) return res.status(400).json({ error: tErr(user, 'errors.guestAccount') });
-  const { email, username, name } = req.body || {};
-  if (email !== undefined) {
-    const e = normalizeEmail(email);
-    if (e && !e.includes('@')) return res.status(400).json({ error: tErr(req.user, 'errors.emailInvalid') });
-    if (e) {
-      const clash = findUserByEmail(e);
-      if (clash && clash.id !== user.id) return res.status(400).json({ error: tErr(req.user, 'errors.emailTaken') });
-    }
-    user.email = e;
-  }
-  if (username !== undefined) {
-    const u = normalizeUsername(username);
-    if (u && !USERNAME_RE.test(u)) return res.status(400).json({ error: tErr(req.user, 'errors.usernameInvalid') });
-    if (u) {
-      const clash = findUserByUsername(u);
-      if (clash && clash.id !== user.id) return res.status(400).json({ error: tErr(req.user, 'errors.usernameTaken') });
-    }
-    user.username = u;
-  }
-  if (!user.email && !user.username) {
-    return res.status(400).json({ error: tErr(req.user, 'errors.identifierRequired') });
-  }
-  if (name !== undefined) user.name = String(name || '').trim();
-  saveConfig(config);
-  res.json({ user: publicUser(user) });
-});
-
-// Self-service password change. Requires the current password, so a hijacked
-// session (or a shoulder-surfer) can't silently swap it.
-app.put('/api/me/password', (req, res) => {
-  const user = req.user;
-  if (isGuestUser(user)) return res.status(400).json({ error: tErr(user, 'errors.guestAccount') });
-  const { currentPassword, newPassword } = req.body || {};
-  if (!verifyPassword(currentPassword, user.passwordHash)) {
-    return res.status(400).json({ error: tErr(req.user, 'errors.currentPasswordWrong') });
-  }
-  const pwIssue = passwordIssue(newPassword);
-  if (pwIssue) return res.status(400).json({ error: tErr(req.user, `errors.${pwIssue}`, { min: MIN_PASSWORD_LENGTH }) });
-  user.passwordHash = hashPassword(newPassword);
-  saveConfig(config);
-  res.json({ ok: true });
-});
-
-// Manual language switch. The user can change it any time from the header.
-app.put('/api/me/language', (req, res) => {
-  if (isGuestUser(req.user)) return res.status(400).json({ error: tErr(req.user, 'errors.guestAccount') });
-  const next = i18n.normalizeLang((req.body || {}).language);
-  if (!i18n.SUPPORTED_LANGS.includes(next)) {
-    return res.status(400).json({ error: tErr(req.user, 'errors.langInvalid') });
-  }
-  if (req.user.language !== next) {
-    req.user.language = next;
-    saveConfig(config);
-  }
-  res.json({ user: publicUser(req.user) });
-});
-
-function normalizeRole(role) {
-  return role === 'operator' ? 'operator' : role === 'admin' ? 'admin' : null;
-}
-
-app.get('/api/users', (req, res) => {
-  res.json({ users: (config.users || []).map((user) => ({ ...publicUser(user), permissions: publicPermissions(user) })) });
-});
-
-app.get('/api/users/:id/permissions', (req, res) => {
-  const user = findUser(req.params.id);
-  if (!user) return res.status(404).json({ error: tErr(req.user, 'errors.userNotFound') });
-  res.json({
-    permissions: publicPermissions(user),
-    capabilities: {
-      perServer: foundationCapabilities.perServerCapabilities(),
-      global: foundationCapabilities.globalCapabilities(),
-    },
-  });
-});
-
-app.put('/api/users/:id/permissions', (req, res) => {
-  const user = findUser(req.params.id);
-  if (!user) return res.status(404).json({ error: tErr(req.user, 'errors.userNotFound') });
-  if (user.role === 'admin') return res.status(400).json({ error: tErr(req.user, 'errors.adminPermissions') });
-  try {
-    const grants = foundationCapabilities.replaceForUser(user.id, req.body?.grants, req.user.id);
-    res.json({ ok: true, permissions: { admin: false, grants: grants.map((grant) => ({ serverId: grant.server_id, capability: grant.capability })) } });
-  } catch (err) {
-    httpError(res, req, err, 400);
-  }
-});
-
-app.post('/api/users', (req, res) => {
-  const { email, username, name, password, role } = req.body || {};
-  const v = validateIdentifier({ email, username });
-  if (v.error === 'emailInvalid') return res.status(400).json({ error: tErr(req.user, 'errors.emailInvalid') });
-  if (v.error === 'usernameInvalid') return res.status(400).json({ error: tErr(req.user, 'errors.usernameInvalid') });
-  if (!v.email && !v.username) return res.status(400).json({ error: tErr(req.user, 'errors.identifierRequired') });
-  const pwIssue = passwordIssue(password);
-  if (pwIssue) return res.status(400).json({ error: tErr(req.user, `errors.${pwIssue}`, { min: MIN_PASSWORD_LENGTH }) });
-  if (v.email && findUserByEmail(v.email)) return res.status(400).json({ error: tErr(req.user, 'errors.emailTaken') });
-  if (v.username && findUserByUsername(v.username)) return res.status(400).json({ error: tErr(req.user, 'errors.usernameTaken') });
-  // New accounts default to operator (least privilege); an admin can grant the
-  // admin role explicitly.
-  const newRole = normalizeRole(role) || 'operator';
-  const user = {
-    id: genId(),
-    email: v.email || '',
-    username: v.username || '',
-    name: String(name || '').trim(),
-    role: newRole,
-    passwordHash: hashPassword(password),
-  };
-  config.users.push(user);
-  saveConfig(config);
-  res.json({ user: publicUser(user) });
-});
-
-app.put('/api/users/:id', (req, res) => {
-  const user = findUser(req.params.id);
-  if (!user) return res.status(404).json({ error: tErr(req.user, 'errors.userNotFound') });
-  const { email, username, name, password, role } = req.body || {};
-  if (role !== undefined) {
-    const r = normalizeRole(role);
-    if (!r) return res.status(400).json({ error: tErr(req.user, 'errors.roleInvalid') });
-    // Don't allow demoting the last remaining admin (would lock everyone out of
-    // user management and global settings).
-    if (user.role === 'admin' && r !== 'admin' && adminCount() <= 1) {
-      return res.status(400).json({ error: tErr(req.user, 'errors.lastAdmin') });
-    }
-    user.role = r;
-  }
-  if (email !== undefined) {
-    const e = normalizeEmail(email);
-    if (e && !e.includes('@')) return res.status(400).json({ error: tErr(req.user, 'errors.emailInvalid') });
-    if (e) {
-      const clash = findUserByEmail(e);
-      if (clash && clash.id !== user.id) return res.status(400).json({ error: tErr(req.user, 'errors.emailTaken') });
-    }
-    user.email = e;
-  }
-  if (username !== undefined) {
-    const u = normalizeUsername(username);
-    if (u && !USERNAME_RE.test(u)) return res.status(400).json({ error: tErr(req.user, 'errors.usernameInvalid') });
-    if (u) {
-      const clash = findUserByUsername(u);
-      if (clash && clash.id !== user.id) return res.status(400).json({ error: tErr(req.user, 'errors.usernameTaken') });
-    }
-    user.username = u;
-  }
-  // Make sure the user still has at least one way to log in.
-  if (!user.email && !user.username) {
-    return res.status(400).json({ error: tErr(req.user, 'errors.identifierRequired') });
-  }
-  if (name !== undefined) user.name = String(name || '').trim();
-  if (password !== undefined && password !== '') {
-    const pwIssue = passwordIssue(password);
-    if (pwIssue) return res.status(400).json({ error: tErr(req.user, `errors.${pwIssue}`, { min: MIN_PASSWORD_LENGTH }) });
-    user.passwordHash = hashPassword(password);
-  }
-  saveConfig(config);
-  res.json({ user: publicUser(user) });
-});
-
-app.delete('/api/users/:id', (req, res) => {
-  const user = findUser(req.params.id);
-  if (!user) return res.status(404).json({ error: tErr(req.user, 'errors.userNotFound') });
-  if (config.users.length <= 1) return res.status(400).json({ error: tErr(req.user, 'errors.cannotDeleteLastUser') });
-  if (user.id === req.user.id) return res.status(400).json({ error: tErr(req.user, 'errors.cannotDeleteSelf') });
-  // Keep at least one admin alive.
-  if (user.role === 'admin' && adminCount() <= 1) {
-    return res.status(400).json({ error: tErr(req.user, 'errors.lastAdmin') });
-  }
-  config.users = config.users.filter((u) => u.id !== user.id);
-  saveConfig(config);
-  foundationCapabilities.deleteUserGrants(user.id);
-  res.json({ ok: true });
-});
-
-// --- API keys ---------------------------------------------------------------
-// Machine principals for provisioning: a billing system creating a server when
-// an order is paid, and stopping it when it is not. All four routes are
-// requireHuman - see the comment there for why a key may not manage keys.
-
-app.get('/api/api-keys', requireHuman, (req, res) => {
-  res.json({ keys: apiKeys.list(), roles: apiKeys.ROLES });
-});
-
-app.post('/api/api-keys', requireHuman, (req, res) => {
-  const { name, role, expiresAt, grants } = req.body || {};
-  if (!String(name || '').trim()) {
-    return res.status(400).json({ error: tErr(req.user, 'errors.apiKeyNameRequired') });
-  }
-  if (role !== undefined && !apiKeys.ROLES.includes(role)) {
-    return res.status(400).json({ error: tErr(req.user, 'errors.apiKeyRoleInvalid') });
-  }
-  // An expiry in the past would mint a key that is dead on arrival, which reads
-  // as a silent failure to whoever pastes it into their billing system.
-  if (expiresAt != null && (!Number.isFinite(expiresAt) || expiresAt <= Date.now())) {
-    return res.status(400).json({ error: tErr(req.user, 'errors.apiKeyExpiryInvalid') });
-  }
-
-  let created;
-  try {
-    created = apiKeys.create({ name, role: role || 'operator', createdBy: req.user.id, expiresAt: expiresAt ?? null });
-  } catch (err) {
-    return httpError(res, req, err, 400);
-  }
-
-  // An operator-role key is useless without grants, so they are set in the same
-  // request the key is created in - there is no window where a key exists with
-  // permissions nobody chose.
-  if (created.key.role !== 'admin' && Array.isArray(grants) && grants.length) {
-    try {
-      foundationCapabilities.replaceForUser(created.key.id, grants, req.user.id);
-    } catch (err) {
-      apiKeys.revoke(created.key.id, req.user.id);
-      return httpError(res, req, err, 400);
-    }
-  }
-
-  try {
-    foundationAudit.record({
-      actorId: req.user.id, actorUsername: req.user.username,
-      action: 'apikey.create', targetType: 'api_key', targetId: created.key.id,
-      outcome: 'success', metadata: { name: created.key.name, role: created.key.role },
-    });
-  } catch (err) { log('audit: api key creation capture failed:', err.message); }
-
-  // The only time the plaintext exists outside the caller's memory.
-  res.json({ key: created.key, token: created.token, permissions: publicKeyPermissions(created.key) });
-});
-
-app.get('/api/api-keys/:id/permissions', requireHuman, (req, res) => {
-  const key = apiKeys.get(req.params.id);
-  if (!key) return res.status(404).json({ error: tErr(req.user, 'errors.apiKeyNotFound') });
-  res.json({
-    permissions: publicKeyPermissions(key),
-    capabilities: {
-      perServer: foundationCapabilities.perServerCapabilities(),
-      global: foundationCapabilities.globalCapabilities(),
-    },
-  });
-});
-
-app.put('/api/api-keys/:id/permissions', requireHuman, (req, res) => {
-  const key = apiKeys.get(req.params.id);
-  if (!key) return res.status(404).json({ error: tErr(req.user, 'errors.apiKeyNotFound') });
-  if (key.revokedAt) return res.status(400).json({ error: tErr(req.user, 'errors.apiKeyRevoked') });
-  if (key.role === 'admin') return res.status(400).json({ error: tErr(req.user, 'errors.adminPermissions') });
-  try {
-    foundationCapabilities.replaceForUser(key.id, req.body?.grants, req.user.id);
-    res.json({ ok: true, permissions: publicKeyPermissions(apiKeys.get(key.id)) });
-  } catch (err) {
-    httpError(res, req, err, 400);
-  }
-});
-
-app.delete('/api/api-keys/:id', requireHuman, (req, res) => {
-  const key = apiKeys.get(req.params.id);
-  if (!key) return res.status(404).json({ error: tErr(req.user, 'errors.apiKeyNotFound') });
-  // Revoked rather than deleted: the row is what an audit trail dereferences
-  // when it says which key did something six months ago.
-  const revoked = apiKeys.revoke(key.id, req.user.id);
-  if (revoked) {
-    try {
-      foundationAudit.record({
-        actorId: req.user.id, actorUsername: req.user.username,
-        action: 'apikey.revoke', targetType: 'api_key', targetId: key.id,
-        outcome: 'success', metadata: { name: key.name },
-      });
-    } catch (err) { log('audit: api key revocation capture failed:', err.message); }
-  }
-  res.json({ ok: true, key: apiKeys.get(key.id) });
-});
-
-// --- config (without secrets) ---
-function publicConfig() {
-  const c = JSON.parse(JSON.stringify(config));
-  delete c.password;
-  delete c.jwtSecret;
-  delete c.users;
-  
-  for (const server of c.servers || []) {
-    delete server.adminPassword;
-    delete server.palworldIntegrations;
-  }
-  delete c.palworldIntegrations;
-  return c;
-}
-
-app.get('/api/config', (req, res) => res.json(publicConfig()));
-
-// Update only the backup-retention settings. After saving, prune every
-// server's existing backups so a newly-lowered limit takes effect right
-// away (not just on the next backup).
-app.put('/api/config/backups', requireAdmin, (req, res) => {
-  const b = req.body || {};
-  const toNonNegInt = (v) => {
-    const n = Number(v);
-    if (!Number.isFinite(n) || n < 0) return null;
-    return Math.floor(n);
-  };
-  const maxCount = toNonNegInt(b.maxCount);
-  const maxSizeMB = toNonNegInt(b.maxSizeMB);
-  if (maxCount === null || maxSizeMB === null) {
-    return res.status(400).json({ error: tErr(req.user, 'errors.invalidBackupsConfig') });
-  }
-  if (!config.backups) config.backups = {};
-  config.backups.maxCount = maxCount;
-  config.backups.maxSizeMB = maxSizeMB;
-  saveConfig(config);
-  for (const s of config.servers) {
-    try { pruneBackups(slugify(s.name)); } catch (_) { /* noop */ }
-  }
-  res.json({ ok: true, backups: config.backups });
-});
-
-// Turn password sign-in on or off (admin-only). While off, requests fall back
-// to the synthetic guest admin (see authMiddleware), so the panel stays fully
-// usable and the setting can be flipped back on at any time - including by an
-// unsigned visitor, which is exactly what "off" means.
-app.put('/api/config/auth', requireAdmin, (req, res) => {
-  const { requireAuth } = req.body || {};
-  if (typeof requireAuth !== 'boolean') {
-    return res.status(400).json({ error: tErr(req.user, 'errors.invalidAuthConfig') });
-  }
-  config.requireAuth = requireAuth;
-  saveConfig(config);
-  log(`auth: sign-in ${requireAuth ? 'enabled' : 'disabled'} by ${req.user.username || req.user.id}`);
-  res.json({ ok: true, requireAuth: config.requireAuth });
-});
-
-// The watchdog (crash-loop guard) is a panel-level switch; servers without
-// their own watchdog block inherit it (ServerManager.watchdogCfg). Same
-// admin-only contract as the other config writers, and the general audit
-// middleware records every config PUT, so the change is traceable.
-app.put('/api/config/watchdog', requireAdmin, (req, res) => {
-  const b = req.body || {};
-  const maxRestarts = Number(b.maxRestarts);
-  const windowMinutes = Number(b.windowMinutes);
-  if (!Number.isFinite(maxRestarts) || maxRestarts < 0 || maxRestarts > 1000) {
-    return res.status(400).json({ error: tErr(req.user, 'errors.invalidWatchdogConfig') });
-  }
-  if (!Number.isFinite(windowMinutes) || windowMinutes < 1 || windowMinutes > 100000) {
-    return res.status(400).json({ error: tErr(req.user, 'errors.invalidWatchdogConfig') });
-  }
-  config.watchdog = {
-    enabled: b.enabled === true,
-    maxRestarts: Math.floor(maxRestarts),
-    windowMinutes: Math.floor(windowMinutes),
-  };
-  saveConfig(config);
-  log(`watchdog: ${config.watchdog.enabled ? 'enabled' : 'disabled'} by ${req.user.username || req.user.id} (max ${config.watchdog.maxRestarts} / ${config.watchdog.windowMinutes}m)`);
-  res.json({ ok: true, watchdog: config.watchdog });
-});
-
-app.put('/api/config/game-accents', requireAdmin, (req, res) => {
-  config.gameAccents = branding.normalizeGameAccents(req.body?.accents);
-  saveConfig(config);
-  log(`game accents updated by ${req.user.username || req.user.id}`);
-  res.json({
-    ok: true,
-    gameAccents: config.gameAccents,
-    gameThemes: branding.resolveGameAccents(config),
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Filesystem browser (for registering a server)
-// ---------------------------------------------------------------------------
-
-// The "roots" shown when the folder browser is at the top level. On Windows
-// these are the drive letters (C:\, D:\, ...). On POSIX there are no drive
-// letters, so we offer the user's home folder and the filesystem root as
-// jumping-off points; navigation from there walks the tree normally.
-function listDrives() {
-  if (process.platform === 'win32') {
-    const drives = [];
-    for (const c of 'CDEFGHIJKLMNOPQRSTUVWXYZAB') {
-      const root = `${c}:\\`;
-      try {
-        fs.accessSync(root);
-        drives.push(root);
-      } catch (_) { /* not present */ }
-    }
-    return drives;
-  }
-  const roots = [];
-  const home = os.homedir();
-  if (home && home !== '/') roots.push(home);
-  roots.push('/');
-  return roots;
-}
-
-app.get('/api/fs', requireAdmin, (req, res) => {
-  const requestedPath = req.query.path;
-  if (requestedPath !== undefined && typeof requestedPath !== 'string') {
-    return res.status(400).json({ error: tErr(req.user, 'errors.invalidPath') });
-  }
-  const p = (requestedPath || '').trim();
-  try {
-    if (!p) {
-      return res.json({ path: '', parent: null, drives: listDrives(), dirs: [], jars: [], sep: path.sep });
-    }
-    const abs = path.resolve(p);
-    const allowedRoot = listDrives()
-      .map((root) => path.resolve(root))
-      .find((root) => abs === root || abs.startsWith(root.endsWith(path.sep) ? root : root + path.sep));
-    if (!allowedRoot) return res.status(400).json({ error: tErr(req.user, 'errors.invalidPath') });
-    let entries;
-    if (abs.startsWith(allowedRoot)) entries = fs.readdirSync(abs, { withFileTypes: true });
-    else return res.status(400).json({ error: tErr(req.user, 'errors.invalidPath') });
-    const dirs = [];
-    const jars = [];
-    for (const e of entries) {
-      try {
-        if (e.isDirectory()) dirs.push(e.name);
-        else if (e.isFile() && e.name.toLowerCase().endsWith('.jar')) jars.push(e.name);
-      } catch (_) { /* skip unreadable entry */ }
-    }
-    dirs.sort((a, b) => a.localeCompare(b));
-    jars.sort((a, b) => a.localeCompare(b));
-    const parentCandidate = path.dirname(abs);
-    const parent = parentCandidate === abs ? '' : parentCandidate; // '' => back to drive list
-    res.json({ path: abs, parent, drives: [], dirs, jars, sep: path.sep });
-  } catch (err) {
-    httpError(res, req, err, 400);
-  }
-});
-// ---------------------------------------------------------------------------
-// Native folder picker - pops the real OS folder dialog (Windows Explorer /
-// Linux zenity / macOS Finder) and returns the chosen absolute path. The
-// in-browser custom folder browser is still used for "Register server" but
-// the "Create a new server" flow uses this so the user gets the familiar
-// native dialog. The implementation lives in lib/folderPicker.cjs: it spawns
-// asynchronously (the panel stays responsive while the dialog is open),
-// compiles the Windows dialog's C# helper once and caches the DLL, and
-// refuses a second dialog (409) while one is already open.
-// ---------------------------------------------------------------------------
-
-app.get('/api/pick-folder', async (req, res) => {
-  const def = String(req.query.defaultPath || '').trim();
-  const title = String(req.query.title || 'Select the parent folder for the new server').trim().slice(0, 100);
-  try {
-    const result = await pickFolder(def, title);
-    if (res.destroyed) return;
-    if (result.cancelled) return res.json({ path: null, cancelled: true });
-    if (!fs.existsSync(result.path) || !fs.statSync(result.path).isDirectory()) {
-      return res.status(400).json({ error: `Picked path is not a folder: ${result.path}` });
-    }
-    return res.json({ path: result.path });
-  } catch (err) {
-    if (res.destroyed) return;
-    if (err.code === PICKER_BUSY) {
-      return res.status(409).json({ error: tErr(req.user, 'errors.pickFolderBusy') });
-    }
-    log('pick-folder error:', err.message);
-    // The dialog never came back and was killed. Answering is the point: the
-    // caller's Browse button is disabled until this request resolves, and it
-    // falls back to the in-panel folder browser on any error.
-    if (err.code === PICKER_TIMEOUT) {
-      return res.status(504).json({ error: tErr(req.user, 'errors.pickFolderTimeout') });
-    }
-    if (err.code === PICKER_UNAVAILABLE) {
-      return res.status(500).json({ error: tErr(req.user, 'errors.pickFolderUnavailable', { error: sanitizeErrorMessage(err.message) }) });
-    }
-    return httpError(res, req, err, 500);
-  }
-});
+// --- panel config + misc admin (lib/routes/panel-config.cjs) ---
+// Mounted here (in place) so the shared /api auth and audit gates above keep
+// running before these routes, exactly as before.
+app.use('/api', panelConfigRouter({
+  getConfig: () => config,
+  saveConfig: (next) => saveConfig(next),
+  requireAdmin,
+  branding,
+  pruneBackups,
+  slugify,
+  pickFolder,
+  PICKER_BUSY,
+  PICKER_UNAVAILABLE,
+  PICKER_TIMEOUT,
+  WATCHDOG_WINDOW_MINUTES_MAX,
+  tErr,
+  httpError,
+  sanitizeErrorMessage,
+  log,
+}));
 
 // ---------------------------------------------------------------------------
 // Servers registry (register / edit / delete / control)
@@ -4340,369 +2783,48 @@ function serverWithStatus(s) {
   return payload;
 }
 
-app.get('/api/servers', (req, res) => {
-  // SERVER_REGISTER is not grantable at NULL scope, so gating the list on it
-  // left an operator who holds per-server grants unable to see the fleet at
-  // all. They see exactly the servers they have a per-server grant on; admins
-  // (and the guest identity) pass hasAnyPerServerGrant unconditionally.
-  res.json({
-    activeServerId: config.activeServerId,
-    servers: config.servers.filter((s) => foundationCapabilities.hasAnyPerServerGrant(req.user, s.id)).map(serverWithStatus),
-  });
-});
-
-// Rebase a path that lived under `from` onto `to`. Anything outside `from`
-// (or not a path at all) is returned untouched, so launch arguments that are
-// plain flags survive a folder move unchanged.
-function rebasePath(p, from, to) {
-  if (typeof p !== 'string' || !p || !from) return p;
-  const rel = path.relative(from, p);
-  if (rel.startsWith('..') || path.isAbsolute(rel)) return p;
-  return path.join(to, rel);
-}
-
-// `existing` is the registry entry being edited (null when registering a new
-// one). Only Minecraft servers are jar-launched: every other game type is
-// installed by the panel with its own executable/args, and its gameplay
-// settings live in the game's own config files - so editing one only touches
-// the panel-side fields (name + install folder).
-function validateMinecraftLaunchArgs(dir, raw) {
-  if (!Array.isArray(raw) || !raw.length || raw.some((arg) => typeof arg !== 'string' || /[\r\n\0]/.test(arg))) {
-    return { error: eKey('errors.invalidLaunchArgs') };
-  }
-  const root = path.resolve(dir);
-  for (const arg of raw) {
-    if (!arg.startsWith('@')) continue;
-    const reference = arg.slice(1).trim();
-    if (!reference || path.isAbsolute(reference)) return { error: eKey('errors.invalidLaunchArgs') };
-    const target = path.resolve(root, reference);
-    const relative = path.relative(root, target);
-    if (relative.startsWith('..') || path.isAbsolute(relative)) return { error: eKey('errors.invalidLaunchArgs') };
-    let stat;
-    try { stat = fs.statSync(target); } catch (_) {}
-    if (!stat?.isFile()) return { error: eKey('errors.invalidLaunchArgs') };
-  }
-  return { value: [...raw] };
-}
-
-function validateServerInput(body, user, existing = null) {
-  const name = String(body.name || '').trim();
-  const dir = String(body.dir || '').trim();
-  let jar = String(body.jar || '').trim();
-  if (!name) return { error: eKey('errors.nameRequired') };
-  if (name.length > SERVER_NAME_MAX_LENGTH) return { error: eKey('errors.nameTooLong', { max: SERVER_NAME_MAX_LENGTH }) };
-  if (!dir) return { error: eKey('errors.folderRequired') };
-  if (!fs.existsSync(dir)) return { error: eKey('errors.folderDoesNotExist', { path: dir }) };
-  if (!fs.statSync(dir).isDirectory()) return { error: eKey('errors.notAFolder') };
-  const type = (existing && existing.type) || 'minecraft';
-  if (type !== 'minecraft') {
-    const value = { name, dir };
-    // The folder moved: point the stored launch command at the new location.
-    if (existing.dir && path.resolve(existing.dir) !== path.resolve(dir)) {
-      const from = existing.dir;
-      value.executable = rebasePath(existing.executable, from, dir);
-      value.cwd = rebasePath(existing.cwd, from, dir);
-      if (Array.isArray(existing.args)) value.args = existing.args.map((a) => rebasePath(a, from, dir));
-    }
-    return { value };
-  }
-  let launchArgs = null;
-  if (body.launchArgs !== undefined && body.launchArgs !== null && body.launchArgs !== '') {
-    const validated = validateMinecraftLaunchArgs(dir, body.launchArgs);
-    if (validated.error) return validated;
-    launchArgs = validated.value;
-  }
-  const hasLaunchArgs = Array.isArray(launchArgs) && launchArgs.length > 0;
-
-  // Auto-detect the jar if not supplied and exactly one exists. Forge and
-  // NeoForge argfile installs use launchArgs instead of a root jar.
-  if (!hasLaunchArgs) {
-    if (!jar) {
-      const jars = fs.readdirSync(dir).filter((f) => f.toLowerCase().endsWith('.jar'));
-      if (jars.length === 1) jar = jars[0];
-      else if (jars.length === 0) return { error: eKey('errors.noJar') };
-      else return { error: eKey('errors.multipleJars') };
-    } else if (!fs.existsSync(path.join(dir, jar))) {
-      return { error: eKey('errors.jarNotFound', { name: jar }) };
-    }
-  }
-  let javaArgs = body.javaArgs;
-  if (typeof javaArgs === 'string') {
-    javaArgs = javaArgs.trim().split(/\s+/).filter(Boolean);
-  }
-  if (!Array.isArray(javaArgs) || !javaArgs.length) javaArgs = ['-Xmx2G', '-Xms2G'];
-  let worlds = body.worlds;
-  if (typeof worlds === 'string') worlds = worlds.split(',').map((w) => w.trim()).filter(Boolean);
-  if (!Array.isArray(worlds) || !worlds.length) worlds = ['world', 'world_nether', 'world_the_end'];
-  const mapUrl = normalizeMapUrl(body.mapUrl);
-  if (mapUrl === null) return { error: eKey('errors.invalidMapUrl') };
-  const value = {
-    name,
-    dir,
-    jar,
-    javaArgs,
-    worlds,
-    mcVersion: String(body.mcVersion || '').trim(),
-    stopTimeoutSeconds: Number(body.stopTimeoutSeconds) || 30,
-    mapUrl,
-  };
-  if (hasLaunchArgs) value.launchArgs = launchArgs;
-  if (body.loader != null && String(body.loader).trim()) value.loader = String(body.loader).trim();
-  return { value };
-}
-
-// Accept an empty string (clears the map) or a http(s) URL. Returns the
-// normalized URL, or null if the input is non-empty but not a valid URL.
-function normalizeMapUrl(raw) {
-  if (raw === undefined || raw === null) return '';
-  const s = String(raw).trim();
-  if (!s) return '';
-  try {
-    const u = new URL(s);
-    if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
-    return u.toString().replace(/\/$/, '');
-  } catch (_) {
-    return null;
-  }
-}
-
-app.post('/api/servers', requireAdmin, (req, res) => {
-  const v = validateServerInput(req.body || {}, req.user);
-  if (v.error) return res.status(400).json({ error: localizeErr(req.user, v.error) });
-  const entry = {
-    id: genId(),
-    watchdog: { enabled: false, maxRestarts: 3, windowMinutes: 10 },
-    ...v.value,
-  };
-  config.servers.push(entry);
-  if (!config.activeServerId) config.activeServerId = entry.id;
-  saveConfig(config);
-  getManager(entry.id);
-  addNotification('server_added', 'Server Registered', `Server "${entry.name}" has been registered.`, entry.id);
-  res.json({ ok: true, server: serverWithStatus(entry) });
-});
-
-app.put('/api/servers/:id', requireAdmin, (req, res) => {
-  const s = findServer(req.params.id);
-  if (!s) return res.status(404).json({ error: tErr(req.user, 'errors.serverNotFound') });
-  const m = getManager(s.id);
-  if (m.isRunning()) return res.status(409).json({ error: tErr(req.user, 'errors.stopBeforeEdit') });
-  const v = validateServerInput(req.body || {}, req.user, s);
-  if (v.error) return res.status(400).json({ error: localizeErr(req.user, v.error) });
-  Object.assign(s, v.value);
-  if (req.body.watchdog && typeof req.body.watchdog === 'object' && !Array.isArray(req.body.watchdog)) {
-    s.watchdog = {
-      enabled: !!req.body.watchdog.enabled,
-      maxRestarts: Number(req.body.watchdog.maxRestarts) || 3,
-      windowMinutes: Number(req.body.watchdog.windowMinutes) || 10,
-    };
-  }
-  saveConfig(config);
-  res.json({ ok: true, server: serverWithStatus(s) });
-});
-
-// Update only the map URL for a server. The map URL is a panel-UI concern
-// (it's just a link to the web map the user wants to embed) so it can be
-// changed while the Minecraft server is running - unlike the rest of the
-// server settings, which require the server to be stopped.
-app.put('/api/servers/:id/map', requireAdmin, (req, res) => {
-  const s = findServer(req.params.id);
-  if (!s) return res.status(404).json({ error: tErr(req.user, 'errors.serverNotFound') });
-  const mapUrl = normalizeMapUrl((req.body || {}).mapUrl);
-  if (mapUrl === null) return res.status(400).json({ error: tErr(req.user, 'errors.invalidMapUrl') });
-  s.mapUrl = mapUrl;
-  saveConfig(config);
-  globalBroadcast({ type: 'server', server: serverWithStatus(s) });
-  res.json({ ok: true, server: serverWithStatus(s) });
-});
-
-app.delete('/api/servers/:id', requireAdmin, (req, res) => {
-  const s = findServer(req.params.id);
-  if (!s) return res.status(404).json({ error: tErr(req.user, 'errors.serverNotFound') });
-  const m = getManager(s.id);
-  if (m.isRunning()) return res.status(409).json({ error: tErr(req.user, 'errors.stopBeforeRemove') });
-  // Two separate decisions, two separate audit actions: removing the profile
-  // from Hostkind, and moving the server files to trash. `files=trash` is the
-  // only value that touches the disk, and it is recoverable - the legacy
-  // deleteFiles flag now means the same thing rather than deleting permanently.
-  const filesMode = String(req.query.files || '').toLowerCase() === 'trash'
-    || req.query.deleteFiles === 'true' || req.query.deleteFiles === '1'
-    ? 'trash'
-    : 'keep';
-  let trashed = null;
-  let trashError = null;
-  if (filesMode === 'trash' && s.dir) {
-    try {
-      trashed = trash.moveToTrash({
-        target: s.dir,
-        kind: 'server-files',
-        serverId: s.id,
-        label: s.name,
-        reason: 'Server removed from Hostkind',
-        actorId: req.user.id,
-        servers: config.servers,
-        selfId: s.id,
-      });
-    } catch (error) {
-      // A failed recoverable delete never becomes a permanent one: the profile
-      // stays registered so the operator can retry or fix the cause.
-      trashError = error;
-    }
-    foundationAudit.record({
-      actorId: req.user.id,
-      actorUsername: req.user.username,
-      serverId: s.id,
-      action: 'server.files.trash',
-      targetType: 'server-files',
-      targetId: s.id,
-      outcome: trashed ? 'success' : 'failure',
-      requestId: req.requestId,
-      metadata: trashed
-        ? { trashId: trashed.id, location: trashed.location, expiresAt: trashed.expiresAt, fileCount: trashed.fileCount }
-        : { code: trashError?.code || 'trash_failed' },
-    });
-    if (!trashed) {
-      return res.status(Number(trashError?.status) || 500).json({
-        error: trashError?.message || 'The server files could not be moved to trash.',
-        code: trashError?.code || 'trash_failed',
-      });
-    }
-  }
-  config.servers = config.servers.filter((x) => x.id !== s.id);
-  foundationCapabilities.deleteServerGrants(s.id);
-  try { health.deleteServerData(s.id); } catch (err) { log('health: cleanup failed for', s.id, err.message); }
-  managers.delete(s.id);
-  if (config.activeServerId === s.id) {
-    config.activeServerId = config.servers.length ? config.servers[0].id : null;
-  }
-  saveConfig(config);
-  const filesDeleted = !!trashed;
-  foundationAudit.record({
-    actorId: req.user.id,
-    actorUsername: req.user.username,
-    serverId: s.id,
-    action: 'server.remove',
-    targetType: 'server',
-    targetId: s.id,
-    outcome: 'success',
-    requestId: req.requestId,
-    metadata: { filesMode },
-  });
-  addNotification(
-    'server_removed',
-    'Server Removed',
-    `Server "${s.name}" has been removed${filesDeleted ? ' along with its files' : ''}.`,
-    s.id,
-    {
-      titleKey: 'notifications.serverRemovedTitle',
-      messageKey: filesDeleted ? 'notifications.serverRemovedWithFilesMessage' : 'notifications.serverRemovedMessage',
-      messageVars: { name: s.name },
-    }
-  );
-  res.json({
-    ok: true,
-    activeServerId: config.activeServerId,
-    filesDeleted,
-    trash: trashed
-      ? { id: trashed.id, expiresAt: trashed.expiresAt, restorable: trashed.restorable, location: trashed.location }
-      : null,
-  });
-});
+// --- server lifecycle: registry CRUD, active-server, power actions, console (lib/routes/servers.cjs) ---
+// Mounted here (in place) so the shared /api auth/capability gates and the
+// /api/servers rate-limit + idempotency prefixes above keep running before
+// these routes, exactly as before.
+app.use('/api', serversRouter({
+  getConfig: () => config,
+  saveConfig: (next) => saveConfig(next),
+  findServer,
+  getManager,
+  targetManager,
+  serverWithStatus,
+  localizeManagerResult,
+  requireAdmin,
+  tErr,
+  eKey,
+  localizeErr,
+  addNotification,
+  globalBroadcast,
+  foundationAudit,
+  foundationCapabilities,
+  health,
+  crashIntelligence,
+  trash,
+  deleteManager: (id) => managers.delete(id),
+  genId,
+  log,
+  serverNameMaxLength: SERVER_NAME_MAX_LENGTH,
+  getMaxCommandLength: () => MAX_COMMAND_LENGTH,
+}));
 
 // --- Recoverable deletion (docs/palworld/07-portability-safety.md) ----------
 //
 // Trashed files stay restorable until their retention expires or someone
 // explicitly purges them. Nothing in this section deletes as a side effect.
-
-app.get('/api/trash', (req, res) => {
-  res.json({
-    ok: true,
-    osTrash: trash.detectOsTrash(),
-    retentionDays: trash.DEFAULT_RETENTION_DAYS,
-    entries: trash.list({ serverId: req.query.serverId || null, kind: req.query.kind || null }),
-  });
-});
-
-app.post('/api/trash/:id/restore', requireAdmin, (req, res) => {
-  try {
-    const result = trash.restore(req.params.id, { servers: config.servers });
-    foundationAudit.record({
-      actorId: req.user.id,
-      actorUsername: req.user.username,
-      serverId: result.entry?.serverId || null,
-      action: 'trash.restore',
-      targetType: 'trash-entry',
-      targetId: req.params.id,
-      outcome: 'success',
-      requestId: req.requestId,
-      metadata: { restoredTo: result.restoredTo },
-    });
-    res.json(result);
-  } catch (error) { sendPortabilityError(res, error); }
-});
-
-// Permanent and irreversible, and only ever reached by asking for it directly.
-app.delete('/api/trash/:id', requireAdmin, (req, res) => {
-  try {
-    const entry = trash.get(req.params.id);
-    const result = trash.purge(req.params.id);
-    foundationAudit.record({
-      actorId: req.user.id,
-      actorUsername: req.user.username,
-      serverId: entry?.serverId || null,
-      action: 'trash.purge',
-      targetType: 'trash-entry',
-      targetId: req.params.id,
-      outcome: 'success',
-      requestId: req.requestId,
-      metadata: { label: entry?.label || null, permanent: true },
-    });
-    res.json(result);
-  } catch (error) { sendPortabilityError(res, error); }
-});
-
-app.post('/api/active', (req, res) => {
-  const id = req.body && req.body.serverId;
-  if (!findServer(id)) return res.status(404).json({ error: tErr(req.user, 'errors.serverNotFound') });
-  config.activeServerId = id;
-  saveConfig(config);
-  res.json({ ok: true, activeServerId: id });
-});
-
-app.post('/api/servers/:id/start', (req, res) => {
-  const s = findServer(req.params.id);
-  const r = localizeManagerResult(req, getManagerOr404(req, res, (m) => m.start()));
-  if (r && r.ok) {
-    addNotification('server_started', 'Server Started', `Server "${s.name}" has been started.`, s.id);
-    notifyDiscord(s.id, 'start', `:green_circle: "${s.name}" was started.`);
-  }
-  res.json(r);
-});
-app.post('/api/servers/:id/stop', (req, res) => {
-  const s = findServer(req.params.id);
-  const r = localizeManagerResult(req, getManagerOr404(req, res, (m) => m.stop(req.body && req.body.force)));
-  if (r && r.ok) {
-    addNotification('server_stopped', 'Server Stopped', `Server "${s.name}" has been stopped.`, s.id);
-    notifyDiscord(s.id, 'stop', `:black_circle: "${s.name}" was stopped.`);
-  }
-  res.json(r);
-});
-app.post('/api/servers/:id/restart', async (req, res) => {
-  const s = findServer(req.params.id);
-  if (!s) return res.status(404).json({ error: tErr(req.user, 'errors.serverNotFound') });
-  const r = await getManager(s.id).restart();
-  if (r && r.ok) {
-    addNotification('server_restarted', 'Server Restarted', `Server "${s.name}" has been restarted.`, s.id);
-    notifyDiscord(s.id, 'restart', `:arrows_counterclockwise: "${s.name}" was restarted.`);
-  }
-  res.json(localizeManagerResult(req, r));
-});
-
-function getManagerOr404(req, res, fn) {
-  const s = findServer(req.params.id);
-  if (!s) { res.status(404); return { error: eKey('errors.serverNotFound') }; }
-  return fn(getManager(s.id));
-}
+// Routes live in lib/routes/trash.cjs; mounted here (in place) so the /trash
+// prefix capability gate above keeps applying first.
+app.use('/api/trash', trashRouter({
+  requireAdmin,
+  audit: foundationAudit,
+  getConfig: () => config,
+  sendError: sendPortabilityError,
+}));
 
 // Translate the manager-shaped result ({ ok, error }) and 4xx the failure.
 function localizeManagerResult(req, r) {
@@ -4710,118 +2832,17 @@ function localizeManagerResult(req, r) {
   return { ok: false, error: localizeErr(req.user, r.error) };
 }
 
-// --- server status / actions (active server, legacy-compatible) ---
-app.get('/api/status', (req, res) => {
-  const m = targetManager(req);
-  res.json(m ? m.statusPayload() : { status: 'offline', serverId: null });
-});
-
-app.post('/api/server/start', (req, res) => {
-  const m = targetManager(req);
-  const result = localizeManagerResult(req, m ? m.start() : { ok: false, error: eKey('errors.noActiveServer') });
-  if (result?.ok && m) notifyDiscord(m.id, 'start', `:green_circle: "${m.name()}" was started.`);
-  res.json(result);
-});
-app.post('/api/server/stop', (req, res) => {
-  const m = targetManager(req);
-  const result = localizeManagerResult(req, m ? m.stop(req.body && req.body.force) : { ok: false, error: eKey('errors.noActiveServer') });
-  if (result?.ok && m) notifyDiscord(m.id, 'stop', `:black_circle: "${m.name()}" was stopped.`);
-  res.json(result);
-});
-app.post('/api/server/restart', async (req, res) => {
-  const m = targetManager(req);
-  const result = localizeManagerResult(req, m ? await m.restart() : { ok: false, error: eKey('errors.noActiveServer') });
-  if (result?.ok && m) notifyDiscord(m.id, 'restart', `:arrows_counterclockwise: "${m.name()}" was restarted.`);
-  res.json(result);
-});
-
-/*
- * Console command (docs/terraria/02-lifecycle-console.md step 5).
- *
- * The console is the console: there is no Hostkind allowlist of commands,
- * because the `commands.run` capability is the control. What is enforced is
- * that one request is one command - a newline in the text would run a second
- * command on the same authorization and put an unaudited line in the console -
- * and that the request is recorded with the actor who made it.
- */
+// Console command length cap, shared by the console route
+// (lib/routes/servers.cjs) and the WebSocket handler below.
 const MAX_COMMAND_LENGTH = 512;
 
-app.post('/api/command', (req, res) => {
-  const raw = req.body && req.body.cmd;
-  if (!raw || typeof raw !== 'string') return res.status(400).json({ error: tErr(req.user, 'errors.missingCmd') });
-  if (/[\r\n\u0000]/.test(raw)) return res.status(400).json({ error: tErr(req.user, 'errors.commandNotSingleLine') });
-  const cmd = raw.trim();
-  if (!cmd) return res.status(400).json({ error: tErr(req.user, 'errors.missingCmd') });
-  if (cmd.length > MAX_COMMAND_LENGTH) return res.status(400).json({ error: tErr(req.user, 'errors.commandTooLong') });
-  const m = targetManager(req);
-  const result = localizeManagerResult(req, m ? m.sendCommand(cmd) : { ok: false, error: eKey('errors.noActiveServer') });
-  // The command text is redacted by lib/audit.cjs before it is stored, so a
-  // `password <secret>` typed at a Terraria console does not become an audit
-  // record of the password.
-  foundationAudit.record({
-    actorId: req.user.id,
-    actorUsername: req.user.username,
-    serverId: m ? m.id : null,
-    action: 'console.command',
-    targetType: 'server',
-    targetId: m ? m.id : null,
-    outcome: result && result.ok ? 'success' : 'failure',
-    requestId: req.requestId,
-    metadata: { command: cmd },
-  });
-  res.json(result);
-});
-
-// --- players ---
-app.get('/api/players', (req, res) => {
-  const m = targetManager(req);
-  if (!m) return res.json({ players: [], max: 0 });
-  const st = m.moduleState || {};
-  res.json({ players: [...(st.players || [])].sort(), max: st.maxPlayers || 0 });
-});
-
-app.post('/api/players/:action', (req, res) => {
-  const name = (req.body && req.body.name || '').trim();
-  if (!/^[A-Za-z0-9_]{1,16}$/.test(name)) return res.status(400).json({ error: tErr(req.user, 'errors.invalidName') });
-  const map = {
-    kick: `kick ${name}`,
-    ban: `ban ${name}`,
-    pardon: `pardon ${name}`,
-    op: `op ${name}`,
-    deop: `deop ${name}`,
-    'whitelist-add': `whitelist add ${name}`,
-    'whitelist-remove': `whitelist remove ${name}`,
-  };
-  const cmd = map[req.params.action];
-  if (!cmd) return res.status(400).json({ error: tErr(req.user, 'errors.unknownAction') });
-  const m = targetManager(req);
-  res.json(localizeManagerResult(req, m ? m.sendCommand(cmd) : { ok: false, error: eKey('errors.noActiveServer') }));
-});
-
+// Players + playerlists + whitelist (routes in lib/routes/players.cjs).
+// The router carries full paths (it spans three gated prefixes), so it mounts
+// at / here (in place); the /api/players, /api/playerlists and /api/whitelist
+// prefix capability gates above keep applying first.
 // ---------------------------------------------------------------------------
-// Player management (Crafty-style): whitelist / operators / banned players.
-// Reads the server's JSON lists so they can be viewed even while offline; for
-// add/remove it sends the in-game command when the server is running, and edits
-// the files directly when it is offline.
-// ---------------------------------------------------------------------------
+app.use(playersRouter({ targetManager, tErr, eKey, localizeManagerResult, fetchJson }));
 
-function readJsonArray(file) {
-  try {
-    const arr = JSON.parse(fs.readFileSync(file, 'utf8'));
-    return Array.isArray(arr) ? arr : [];
-  } catch (_) {
-    return [];
-  }
-}
-function writeJsonArray(file, arr) {
-  fs.writeFileSync(file, JSON.stringify(arr, null, 2), 'utf8');
-}
-function whitelistEnabled(dir) {
-  try {
-    const props = fs.readFileSync(path.join(dir, 'server.properties'), 'utf8');
-    return /^white-list\s*=\s*true/m.test(props);
-  } catch (_) { return false; }
-}
 // Read the bind host + port a Minecraft server will listen on, from
 // server.properties. An empty server-ip means "all interfaces". Falls back to
 // :25565 (Minecraft's default) when the file or keys are missing.
@@ -4859,139 +2880,6 @@ function probePortInUse(port, host) {
     tester.listen(port, bindHost);
   });
 }
-// Look up a player's Mojang UUID (needed to add to files while offline, online-mode servers).
-async function mojangUuid(name) {
-  try {
-    const d = await fetchJson(`https://api.mojang.com/users/profiles/minecraft/${encodeURIComponent(name)}`);
-    if (d && d.id && d.id.length === 32) {
-      return d.id.replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, '$1-$2-$3-$4-$5');
-    }
-  } catch (_) {}
-  return null;
-}
-
-// Players the server has seen recently (usercache.json), so they can be acted on
-// by clicking instead of typing - even while offline. Drops expired entries and
-// anyone already surfaced elsewhere (online / whitelist / ops / banned).
-function readUserCache(dir, exclude) {
-  const arr = readJsonArray(path.join(dir, 'usercache.json'));
-  const now = Date.now();
-  const seen = new Set();
-  const out = [];
-  for (const x of arr) {
-    const name = x && x.name;
-    if (!name || seen.has(name.toLowerCase())) continue;
-    if (x.expiresOn) {
-      const exp = Date.parse(x.expiresOn);
-      if (!Number.isNaN(exp) && exp < now) continue;
-    }
-    if (exclude.has(name.toLowerCase())) continue;
-    seen.add(name.toLowerCase());
-    out.push({ name, uuid: x.uuid || '' });
-  }
-  return out.sort((a, b) => a.name.localeCompare(b.name));
-}
-
-app.get('/api/playerlists', (req, res) => {
-  const m = targetManager(req);
-  if (!m || !m.dir()) return res.json({ online: [], whitelist: [], ops: [], banned: [], recent: [], whitelistEnabled: false, running: false });
-  const d = m.dir();
-  const wl = readJsonArray(path.join(d, 'whitelist.json')).map((x) => x.name).filter(Boolean);
-  const ops = readJsonArray(path.join(d, 'ops.json')).map((x) => x.name).filter(Boolean);
-  const banned = readJsonArray(path.join(d, 'banned-players.json')).map((x) => ({ name: x.name, reason: x.reason || '' })).filter((x) => x.name);
-  const online = [...((m.moduleState && m.moduleState.players) || [])].sort((a, b) => a.localeCompare(b));
-  const exclude = new Set([...online, ...wl, ...ops, ...banned.map((b) => b.name)].map((n) => n.toLowerCase()));
-  res.json({
-    online,
-    whitelist: wl.sort((a, b) => a.localeCompare(b)),
-    ops: ops.sort((a, b) => a.localeCompare(b)),
-    banned,
-    recent: readUserCache(d, exclude),
-    whitelistEnabled: whitelistEnabled(d),
-    running: m.isRunning(),
-  });
-});
-
-// Validate a never-before-seen name against Mojang and return its head-ready
-// canonical name + UUID, so the "add player" search can confirm before adding.
-app.get('/api/players/lookup', async (req, res) => {
-  const name = (req.query.name || '').trim();
-  if (!/^[A-Za-z0-9_]{1,16}$/.test(name)) return res.status(400).json({ error: tErr(req.user, 'errors.invalidPlayerName') });
-  try {
-    const d = await fetchJson(`https://api.mojang.com/users/profiles/minecraft/${encodeURIComponent(name)}`);
-    if (d && d.id && d.name) {
-      const uuid = d.id.replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, '$1-$2-$3-$4-$5');
-      return res.json({ ok: true, name: d.name, uuid });
-    }
-    return res.status(404).json({ error: tErr(req.user, 'errors.couldNotResolvePlayer') });
-  } catch (_) {
-    return res.status(404).json({ error: tErr(req.user, 'errors.couldNotResolvePlayer') });
-  }
-});
-
-// Toggle the whitelist on/off (sends command when running, edits server.properties when offline).
-app.post('/api/whitelist/toggle', (req, res) => {
-  const m = targetManager(req);
-  if (!m || !m.dir()) return res.status(400).json({ error: tErr(req.user, 'errors.noActiveServer') });
-  const on = !!(req.body && req.body.enabled);
-  if (m.isRunning()) return res.json(localizeManagerResult(req, m.sendCommand(`whitelist ${on ? 'on' : 'off'}`)));
-  try {
-    const file = path.join(m.dir(), 'server.properties');
-    let props = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
-    if (/^white-list\s*=.*/m.test(props)) props = props.replace(/^white-list\s*=.*/m, `white-list=${on}`);
-    else props += `${props.endsWith('\n') || !props ? '' : '\n'}white-list=${on}\n`;
-    fs.writeFileSync(file, props, 'utf8');
-    res.json({ ok: true, note: 'Saved. Takes effect on next start.' });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-// Add/remove a player to/from a list, working both online and offline.
-// kind: whitelist | op | ban ; op: add | remove
-app.post('/api/playerlists/:kind/:op', async (req, res) => {
-  const name = (req.body && req.body.name || '').trim();
-  if (!/^[A-Za-z0-9_]{1,16}$/.test(name)) return res.status(400).json({ error: tErr(req.user, 'errors.invalidPlayerName') });
-  const { kind, op } = req.params;
-  if (!['whitelist', 'op', 'ban'].includes(kind) || !['add', 'remove'].includes(op)) {
-    return res.status(400).json({ error: tErr(req.user, 'errors.unknownAction') });
-  }
-  // Optional free-text ban reason (only used when kind === 'ban' && op === 'add').
-  const reason = (req.body && typeof req.body.reason === 'string' ? req.body.reason : '').trim().slice(0, 200);
-  const m = targetManager(req);
-  if (!m || !m.dir()) return res.status(400).json({ error: tErr(req.user, 'errors.noActiveServer') });
-
-  // Online: let Minecraft do it (resolves UUIDs, applies immediately).
-  if (m.isRunning()) {
-    const cmds = {
-      'whitelist:add': `whitelist add ${name}`, 'whitelist:remove': `whitelist remove ${name}`,
-      'op:add': `op ${name}`, 'op:remove': `deop ${name}`,
-      'ban:add': reason ? `ban ${name} ${reason}` : `ban ${name}`, 'ban:remove': `pardon ${name}`,
-    };
-    return res.json(localizeManagerResult(req, m.sendCommand(cmds[`${kind}:${op}`])));
-  }
-
-  // Offline: edit the JSON files directly.
-  const d = m.dir();
-  const files = { whitelist: 'whitelist.json', op: 'ops.json', ban: 'banned-players.json' };
-  const file = path.join(d, files[kind]);
-  try {
-    if (op === 'remove') {
-      const arr = readJsonArray(file);
-      const next = arr.filter((x) => (x.name || '').toLowerCase() !== name.toLowerCase());
-      writeJsonArray(file, next);
-      return res.json({ ok: true, note: 'Updated (server offline).' });
-    }
-    // add → needs a UUID
-    const uuid = await mojangUuid(name);
-    if (!uuid) return res.status(400).json({ error: tErr(req.user, 'errors.couldNotResolvePlayer') });
-    const arr = readJsonArray(file);
-    if (arr.some((x) => (x.name || '').toLowerCase() === name.toLowerCase())) return res.json({ ok: true, note: 'Already listed.' });
-    if (kind === 'whitelist') arr.push({ uuid, name });
-    else if (kind === 'op') arr.push({ uuid, name, level: 4, bypassesPlayerLimit: false });
-    else if (kind === 'ban') arr.push({ uuid, name, created: new Date().toISOString(), source: 'Hostkind', expires: 'forever', reason: reason || 'Banned by an operator' });
-    writeJsonArray(file, arr);
-    return res.json({ ok: true, note: 'Updated (server offline).' });
-  } catch (e) { return res.status(500).json({ error: e.message }); }
-});
 
 // ---------------------------------------------------------------------------
 // Metrics history (Crafty-style): per-server time series persisted to disk.
@@ -5000,7 +2888,6 @@ app.post('/api/playerlists/:kind/:op', async (req, res) => {
 
 const METRICS_PATH = path.join(__dirname, 'metrics.json');
 const METRICS_INTERVAL_MS = 60 * 1000;          // sample every minute
-const METRICS_RETAIN_MS = 7 * 24 * 3600 * 1000; // keep 7 days
 const WORLD_SIZE_EVERY = 5;                      // recompute world size every ~5 samples
 
 let metrics = {};            // { [serverId]: [ [t, cpu, memMB, players, worldMB], ... ] }
@@ -5120,7 +3007,7 @@ async function sampleMetrics() {
 
 setInterval(sampleMetrics, METRICS_INTERVAL_MS);
 setTimeout(sampleMetrics, 4000); // first sample shortly after boot
-setInterval(saveMetrics, 5 * 60 * 1000);
+setInterval(saveMetrics, METRICS_SAVE_INTERVAL_MS);
 for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { saveMetrics(); process.exit(0); });
 
 // Bounded database growth: fold aged-out raw samples into hourly rollups and
@@ -5160,274 +3047,39 @@ function queueCrashCapture(payload, attempt = 0) {
   });
 }
 
-// Same contract as before (t/cpu/mem/players/world per point), now served from
-// SQLite with a bounded time window and page size. The response carries the
-// extra columns (tps, disk) too; older clients simply ignore them.
-app.get('/api/metrics', (req, res) => {
-  const id = (req.query.serverId) || config.activeServerId;
-  const rangeKey = METRICS_RANGES[req.query.range] ? req.query.range : '6h';
-  if (!id) return res.json({ serverId: id, range: rangeKey, points: [] });
-  try {
-    let points = health.querySamples(id, { since: Date.now() - METRICS_RANGES[rangeKey] });
-    if (!moduleGate.supports(req, 'players')) {
-      points = points.map(({ players, world, tps, ...point }) => point);
-    }
-    return res.json({ serverId: id, range: rangeKey, points });
-  } catch (err) {
-    log('metrics query failed:', err.message);
-    return res.status(503).json({ error: 'Metrics history is unavailable.' });
-  }
-});
+// System snapshot + metric history (routes live in lib/routes/system.cjs).
+// Mounted here, the earlier of the two original route positions; no route
+// registered between those positions matches either path, so serving /system
+// from here is behavior-preserving.
+app.use('/api', systemRouter({
+  targetManager,
+  systemStats,
+  getActiveServerId: () => config.activeServerId,
+  health,
+  moduleGate,
+  log,
+  ranges: METRICS_RANGES,
+}));
 
-app.get('/api/crashes', (req, res) => {
-  const acknowledged = req.query.acknowledged === 'true' ? true : req.query.acknowledged === 'false' ? false : undefined;
-  const data = crashIntelligence.list({ cursor: Number(req.query.cursor) || undefined, serverId: req.query.serverId || config.activeServerId, acknowledged, from: Number(req.query.from) || undefined, to: Number(req.query.to) || undefined });
-  res.json(data);
-});
-app.get('/api/crashes/:id', (req, res) => {
-  const item = crashIntelligence.detail(req.params.id);
-  if (!item) return res.status(404).json({ error: 'Crash group not found.' });
-  res.json(item);
-});
-for (const [suffix, value] of [['acknowledge', true], ['unacknowledge', false]]) {
-  app.post(`/api/crashes/groups/:id/${suffix}`, (req, res) => {
-    const result = crashIntelligence.acknowledge(req.params.id, req.user.id, value);
-    if (!result) return res.status(404).json({ error: 'Crash group not found.' });
-    res.json({ ok: true, ...result });
-  });
-}
+// Crash intelligence (routes in lib/routes/crashes.cjs; state in lib/crashes.cjs).
+// Mounted here (in place) so the /crashes prefix capability gate above keeps
+// applying first.
+app.use('/api/crashes', crashesRouter({
+  getActiveServerId: () => config.activeServerId,
+}));
 
-// --- addons (plugins + mods) ---
-// Both kinds are just .jar files in a folder; `kind` picks which folder.
-function addonKind(req) {
-  const raw = (req.query && req.query.kind) || (req.body && req.body.kind) || 'plugins';
-  return String(raw).toLowerCase() === 'mods' ? 'mods' : 'plugins';
-}
+// ---------------------------------------------------------------------------
+// Addons (routes in lib/routes/addons.cjs; state in lib/addon-state.cjs).
+// Mounted here (in place) so the /api/addons prefix capability gate above
+// keeps applying first.
+// ---------------------------------------------------------------------------
+app.use('/api/addons', addonsRouter({ targetManager, tErr, httpError, sanitizeErrorMessage, addonState, addNotification }));
 
-const upload = multer({
-  storage: multer.diskStorage({
-    destination: (req, file, cb) => {
-      const m = targetManager(req);
-      if (!m) return cb(new Error('No active server.'));
-      const dir = m.addonsDir(addonKind(req));
-      try { fs.mkdirSync(dir, { recursive: true }); } catch (_) { /* noop */ }
-      cb(null, dir);
-    },
-    filename: (req, file, cb) => cb(null, path.basename(file.originalname)),
-  }),
-  fileFilter: (req, file, cb) => {
-    if (!file.originalname.toLowerCase().endsWith('.jar')) {
-      return cb(new Error('Only .jar files are allowed'));
-    }
-    cb(null, true);
-  },
-  limits: { fileSize: 200 * 1024 * 1024 },
-});
-
-app.get('/api/addons', (req, res) => {
-  const kind = addonKind(req);
-  const m = targetManager(req);
-  if (!m) return res.json({ kind, addons: [] });
-  try {
-    const files = addonState.list({
-      activeDir: m.addonsDir(kind),
-      disabledDir: addonState.disabledDir(m.dir(), kind),
-    });
-    res.json({ kind, addons: files });
-  } catch (err) {
-    httpError(res, req, err, 500);
-  }
-});
-
-app.post('/api/addons/upload', upload.single('addon'), (req, res) => {
-  const m = targetManager(req);
-  const label = addonKind(req) === 'mods' ? 'Mod' : 'Plugin';
-  if (m && req.file && req.file.filename) {
-    addNotification('plugin_uploaded', `${label} Uploaded`, `${label} "${req.file.filename}" uploaded to "${m.name()}". Restart the server to apply.`, m.id);
-  }
-  res.json({ ok: true, name: req.file && req.file.filename, note: 'Restart the server to apply.' });
-}, (err, req, res, next) => {
-  res.status(400).json({ error: tErr(req.user, err.message && err.message.includes('Only') ? 'errors.onlyJar' : 'errors.unknownAction') });
-});
-
-app.post('/api/addons/enabled', (req, res) => {
-  const m = targetManager(req);
-  if (!m) return res.status(400).json({ error: tErr(req.user, 'errors.noActiveServer') });
-  if (m.status !== 'offline') return res.status(409).json({ error: 'Stop the server before changing addon state.', code: 'server_online' });
-  const body = req.body || {};
-  try {
-    const result = addonState.setEnabled({
-      activeDir: m.addonsDir(addonKind(req)),
-      disabledDir: addonState.disabledDir(m.dir(), addonKind(req)),
-      names: body.names,
-      enabled: body.enabled,
-    });
-    res.json(result);
-  } catch (err) {
-    res.status(err.status || 500).json({ error: sanitizeErrorMessage(err.message), code: err.code || 'addon_state_error' });
-  }
-});
-
-app.delete('/api/addons/:name', (req, res) => {
-  const m = targetManager(req);
-  if (!m) return res.status(400).json({ error: tErr(req.user, 'errors.noActiveServer') });
-  const name = path.basename(req.params.name);
-  if (!name.toLowerCase().endsWith('.jar')) return res.status(400).json({ error: tErr(req.user, 'errors.notAJar') });
-  const active = path.join(m.addonsDir(addonKind(req)), name);
-  const disabled = path.join(addonState.disabledDir(m.dir(), addonKind(req)), name);
-  if (fs.existsSync(active) && fs.existsSync(disabled)) return res.status(409).json({ error: tErr(req.user, 'errors.unknownAction') });
-  const full = fs.existsSync(active) ? active : disabled;
-  if (!fs.existsSync(full)) return res.status(404).json({ error: tErr(req.user, 'errors.fileDoesNotExist') });
-  try {
-    fs.unlinkSync(full);
-    res.json({ ok: true, note: 'Restart the server to apply.' });
-  } catch (err) {
-    httpError(res, req, err, 500);
-  }
-});
-
-// --- config editor ---
-function editableFiles(dir) {
-  const entries = fs.readdirSync(dir, { withFileTypes: true });
-  const allowed = [];
-  for (const e of entries) {
-    if (!e.isFile()) continue;
-    const lower = e.name.toLowerCase();
-    if (lower.endsWith('.yml') || lower.endsWith('.yaml')
-        || lower.endsWith('.xml') || lower.endsWith('.json')
-        || lower.endsWith('.properties')) {
-      allowed.push(e.name);
-    }
-  }
-  return allowed.sort();
-}
-
-function resolveEditable(dir, name) {
-  const base = path.basename(name);
-  const allowed = editableFiles(dir);
-  if (!allowed.includes(base)) return null;
-  return path.join(dir, base);
-}
-
-app.get('/api/configs', (req, res) => {
-  const m = targetManager(req);
-  if (!m || !m.dir()) return res.json({ files: [] });
-  try {
-    res.json({ files: editableFiles(m.dir()) });
-  } catch (err) {
-    httpError(res, req, err, 500);
-  }
-});
-
-app.get('/api/configs/:name', (req, res) => {
-  const m = targetManager(req);
-  if (!m) return res.status(400).json({ error: tErr(req.user, 'errors.noActiveServer') });
-  const full = resolveEditable(m.dir(), req.params.name);
-  if (!full) return res.status(404).json({ error: tErr(req.user, 'errors.fileNotAllowed') });
-  try {
-    res.json({ name: path.basename(full), content: fs.readFileSync(full, 'utf8') });
-  } catch (err) {
-    httpError(res, req, err, 500);
-  }
-});
-
-app.put('/api/configs/:name', (req, res) => {
-  const m = targetManager(req);
-  if (!m) return res.status(400).json({ error: tErr(req.user, 'errors.noActiveServer') });
-  const full = resolveEditable(m.dir(), req.params.name);
-  if (!full) return res.status(404).json({ error: tErr(req.user, 'errors.fileNotAllowed') });
-  const content = req.body && req.body.content;
-  if (typeof content !== 'string') return res.status(400).json({ error: tErr(req.user, 'errors.missingContent') });
-  try {
-    if (fs.existsSync(full)) {
-      const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-      fs.copyFileSync(full, `${full}.${stamp}.bak`);
-    }
-    fs.writeFileSync(full, content, 'utf8');
-    res.json({ ok: true, note: 'Saved. Restart the server to apply.' });
-  } catch (err) {
-    httpError(res, req, err, 500);
-  }
-});
-
-// --- config .bak history (list + restore) ---------------------------------
-// The PUT /api/configs/:name route above writes a timestamped .bak on every
-// save. These two routes let the UI surface that history as a "History"
-// dropdown and let the user roll back to any of those snapshots. Both are
-// JWT-protected (via the /api middleware) and reuse resolveEditable so only
-// allowlisted files can be snapshotted/restored. The restore endpoint writes
-// a fresh .bak of the state it's about to overwrite, so the user can undo
-// the restore itself.
-
-const BAK_SUFFIX_RE = /\.[0-9TZ-]+\.bak$/i;
-
-function bakStamp() {
-  return new Date().toISOString().replace(/[:.]/g, '-');
-}
-
-app.get('/api/configs/:name/backups', (req, res) => {
-  const m = targetManager(req);
-  if (!m) return res.status(400).json({ error: tErr(req.user, 'errors.noActiveServer') });
-  const full = resolveEditable(m.dir(), req.params.name);
-  if (!full) return res.status(404).json({ error: tErr(req.user, 'errors.fileNotAllowed') });
-  try {
-    const base = path.basename(full);
-    const parentDir = path.dirname(full);
-    const entries = fs.readdirSync(parentDir, { withFileTypes: true });
-    const prefix = `${base}.`;
-    const backups = entries
-      .filter((e) => e.isFile() && e.name.startsWith(prefix) && e.name.endsWith('.bak'))
-      .map((e) => {
-        const stamp = e.name.slice(prefix.length, -'.bak'.length);
-        if (!BAK_SUFFIX_RE.test('.' + stamp)) return null;
-        const fullPath = path.join(parentDir, e.name);
-        let st;
-        try { st = fs.statSync(fullPath); } catch (_) { return null; }
-        return { name: e.name, size: st.size, mtime: new Date(st.mtimeMs).toISOString() };
-      })
-      .filter(Boolean)
-      .sort((a, b) => (a.mtime < b.mtime ? 1 : -1));
-    res.json({ ok: true, backups });
-  } catch (err) {
-    httpError(res, req, err, 500);
-  }
-});
-
-app.post('/api/configs/:name/restore', (req, res) => {
-  const m = targetManager(req);
-  if (!m) return res.status(400).json({ error: tErr(req.user, 'errors.noActiveServer') });
-  const full = resolveEditable(m.dir(), req.params.name);
-  if (!full) return res.status(404).json({ error: tErr(req.user, 'errors.fileNotAllowed') });
-  const backupName = path.basename(String((req.body && req.body.backup) || ''));
-  const base = path.basename(full);
-  // Only allow backups of THIS file, with the matching "<base>.<stamp>.bak"
-  // shape that PUT writes. Reject anything else (path traversal, foreign
-  // files, oddly named snapshots). `path.basename` already strips any
-  // directory part, so a request like ".." or "foo/../bar" can never reach
-  // the disk.
-  if (!backupName || !backupName.startsWith(`${base}.`) || !backupName.endsWith('.bak')
-      || !BAK_SUFFIX_RE.test(backupName.slice(base.length))) {
-    return res.status(400).json({ error: 'invalidBackup' });
-  }
-  const bakPath = path.join(path.dirname(full), backupName);
-  if (!fs.existsSync(bakPath)) return res.status(404).json({ error: 'backupNotFound' });
-  try {
-    let content;
-    if (fs.existsSync(full)) {
-      // Snapshot the state we are about to overwrite so the user can undo
-      // the restore itself (same .bak naming as the PUT route).
-      const stamp = bakStamp();
-      fs.copyFileSync(full, `${full}.${stamp}.bak`);
-      content = fs.readFileSync(full, 'utf8');
-    } else {
-      content = '';
-    }
-    fs.copyFileSync(bakPath, full);
-    res.json({ ok: true, content, note: 'Restored. Restart the server to apply.' });
-  } catch (err) {
-    httpError(res, req, err, 500);
-  }
-});
+// ---------------------------------------------------------------------------
+// Config-file editor (list/read/save + .bak history/restore, server root only)
+// Routes live in lib/routes/configs.cjs; mounted here (in place) so route
+// registration order against the sibling slices is unchanged.
+app.use('/api/configs', configsRouter({ targetManager, tErr, httpError }));
 
 // --- backups ---
 function ensureBackupsDir() {
@@ -5584,7 +3236,6 @@ async function createBackup(m, { applyRetention = true, includeMods = false, off
   log(`Backup: done -> ${outName} (${(st.size / 1048576).toFixed(1)} MB)`);
   m.pushLine(`[Hostkind] Backup created: ${outName} (${(st.size / 1048576).toFixed(1)} MB)`, 'info');
   addNotification('backup_created', 'Backup Created', `Backup "${outName}" created for server "${m.name()}" (${(st.size / 1048576).toFixed(1)} MB).`, m.id);
-  notifyDiscord(m.id, 'backup', `:floppy_disk: Backup completed for "${m.name()}".`);
   if (archiveError) throw archiveError;
   return { name: outName, size: st.size, manifest: metadata };
 }
@@ -5629,175 +3280,28 @@ function pruneBackups(slug) {
   }
 }
 
-const backupServerId = (req) => (targetManager(req) || {}).id;
-function backupFile(name) {
-  const safe = path.basename(name);
-  if (safe !== name || !safe.toLowerCase().endsWith('.zip')) throw Object.assign(new Error('Invalid backup name.'), { status: 400 });
-  const file = path.join(backupsDir(), safe);
-  if (!fs.existsSync(file)) throw Object.assign(new Error('Backup does not exist.'), { status: 404 });
-  return { name: safe, file };
-}
-function recoveryArgs(req) {
-  const m = targetManager(req); if (!m) throw Object.assign(new Error('No server selected.'), { status: 400 });
-  const b = backupFile(req.params.name);
-  const known = recovery.findManifest(b.name);
-  const parsed = parseBackupName(b.name);
-  if ((known && known.serverId !== m.id) || (!known && parsed.slug && parsed.slug !== slugify(m.name()))) {
-    throw Object.assign(new Error('Backup does not belong to this server.'), { status: 404 });
-  }
-  const selection = m.module().backupSelection
-    ? m.module().backupSelection(m.desc(), { includeMods: true })
-    : (m.desc().worlds || ['world', 'world_nether', 'world_the_end']);
-  const worlds = [...new Set(selection.map((item) => String(item).replace(/\\/g, '/').split('/')[0]).filter(Boolean))];
-  return { ...b, filename: b.name, serverId: m.id, worlds, createdAt: fs.statSync(b.file).mtimeMs, m };
-}
-
-app.get('/api/backups', requireCap(CAPABILITIES.BACKUPS_VIEW, { getServerId: backupServerId }), (req, res) => {
-  try {
-    const m = targetManager(req);
-    let modsSizeBytes = 0;
-    if (m.module().id === 'terraria' && m.desc().terrariaVariant === 'tmodloader') {
-      const base = m.module().backupSelection(m.desc(), { includeMods: false });
-      const full = m.module().backupSelection(m.desc(), { includeMods: true });
-      for (const item of full.filter((entry) => !base.includes(entry) && /\.tmod$/i.test(entry))) {
-        try { modsSizeBytes += fs.statSync(path.join(m.dir(), item)).size; } catch (_) { /* vanished */ }
-      }
-    }
-    res.json({
-      backups: listBackups().filter((b) => (b.manifest ? b.manifest.serverId === m.id : b.slug === slugify(m.name()))),
-      options: {
-        terraria: m.module().id === 'terraria',
-        variant: m.desc().terrariaVariant || null,
-        includeMods: !!m.desc().backups?.includeMods,
-        modsSizeBytes,
-      },
-    });
-  } catch (err) {
-    httpError(res, req, err, 500);
-  }
-});
-
-app.post('/api/backups', requireCap(CAPABILITIES.BACKUPS_CREATE, { getServerId: backupServerId }), async (req, res) => {
-  try {
-    const r = await createBackup(targetManager(req), {
-      includeMods: req.body && typeof req.body.includeMods === 'boolean'
-        ? req.body.includeMods
-        : !!targetManager(req).desc().backups?.includeMods,
-      offline: req.body && req.body.offline === true,
-    });
-    res.json({ ok: true, ...r });
-  } catch (err) {
-    httpError(res, req, err, 500);
-  }
-});
-
-app.put('/api/backups/options', requireCap(CAPABILITIES.BACKUPS_CREATE, { getServerId: backupServerId }), (req, res) => {
-  try {
-    const m = targetManager(req);
-    if (!m || m.module().id !== 'terraria') return res.status(400).json({ error: 'Backup options are only available for Terraria servers.' });
-    const server = findServer(m.id);
-    server.backups = { ...(server.backups || {}), includeMods: req.body && req.body.includeMods === true };
-    saveConfig(config);
-    res.json({ ok: true, backups: server.backups });
-  } catch (err) {
-    httpError(res, req, err, 500);
-  }
-});
-
-app.delete('/api/backups/:name', requireCap(CAPABILITIES.BACKUPS_DELETE, { getServerId: backupServerId }), (req, res) => {
-  try {
-    const owned = recoveryArgs(req); const name = owned.name; const full = owned.file;
-    // Backups use the same recoverable-deletion vocabulary as everything else:
-    // the archive moves to trash and stays restorable until it is purged.
-    const entry = trash.moveToTrash({
-      target: full,
-      kind: 'backup',
-      scope: 'item',
-      serverId: backupServerId(req) || null,
-      label: name,
-      reason: 'Backup deleted',
-      actorId: req.user.id,
-    });
-    const manifest = recovery.findManifest(name);
-    if (manifest) require('./lib/db.cjs').open().prepare('DELETE FROM backup_manifests WHERE id=?').run(manifest.id);
-    addNotification('backup_deleted', 'Backup Deleted', `Backup "${name}" has been moved to trash.`);
-    res.json({ ok: true, trash: { id: entry.id, expiresAt: entry.expiresAt, restorable: entry.restorable } });
-  } catch (err) {
-    httpError(res, req, err, 500);
-  }
-});
-
-app.get('/api/backups/:name/download', requireCap(CAPABILITIES.BACKUPS_VIEW, { getServerId: backupServerId }), (req, res) => {
-  try { const owned = recoveryArgs(req); res.download(owned.file, owned.name); }
-  catch (err) { httpError(res, req, err, err.status || 400); }
-});
-
-app.get('/api/backups/:name/contents', requireCap(CAPABILITIES.BACKUPS_VIEW, { getServerId: backupServerId }), async (req, res) => {
-  try { const a = recoveryArgs(req); const manifest = await recovery.ensureManifest(a); res.json({ ok: true, manifest }); }
-  catch (err) { log('backup error:', err.message); res.status(err.status || 422).json({ error: sanitizeErrorMessage(err.message), code: err.code }); }
-});
-
-app.post('/api/backups/:name/verify', requireCap(CAPABILITIES.BACKUPS_VIEW, { getServerId: backupServerId }), async (req, res) => {
-  try { const result = await recovery.verify(recoveryArgs(req)); res.json({ ok: true, verification: result }); }
-  catch (err) { log('backup verify error:', err.message); res.status(err.status || 422).json({ error: sanitizeErrorMessage(err.message), code: err.code || 'verification_failed' }); }
-});
-
-app.post('/api/backups/:name/impact', requireCap(CAPABILITIES.BACKUPS_RESTORE, { getServerId: backupServerId }), async (req, res) => {
-  try {
-    const a = recoveryArgs(req); const manifest = await recovery.ensureManifest(a);
-    if (a.m.module().id === 'terraria' && a.m.status !== STATUS.OFFLINE) {
-      return res.status(409).json({ error: 'Terraria backups can only be restored while the server is offline.' });
-    }
-    if (manifest.metadata?.game === 'terraria'
-        && manifest.metadata.variant !== (a.m.desc().terrariaVariant || 'vanilla')) {
-      return res.status(409).json({ error: 'This backup belongs to a different Terraria variant.', code: 'variant_mismatch' });
-    }
-    if (manifest.metadata?.game === 'terraria' && Number.isInteger(manifest.metadata.world?.headerVersion)) {
-      const currentFile = a.m.desc().terrariaWorld?.file;
-      if (currentFile) {
-        try {
-          const current = require('./lib/terraria-worlds.cjs').readHeaderOf(path.join(a.m.dir(), currentFile));
-          if (current.ok && manifest.metadata.world.headerVersion > current.version) {
-            return res.status(409).json({
-              error: 'This world was saved by a newer Terraria version than this server has opened.',
-              code: 'world_version_newer',
-            });
-          }
-        } catch (_) { /* No readable local world means there is no safe version comparison. */ }
-      }
-    }
-    const verification = recovery.summaries(manifest).verification;
-    if (verification.status !== 'verified') return res.status(409).json({ error: 'Verify this backup before restoring it.' });
-    const server = { id: a.m.id, dir: a.m.dir(), worlds: a.worlds };
-    res.json({ ok: true, impact: recovery.makeImpact({ manifest, server, actorId: req.user.id }) });
-  } catch (err) { log('backup error:', err.message); res.status(err.status || 422).json({ error: sanitizeErrorMessage(err.message), code: err.code }); }
-});
-
-
-app.post('/api/backups/:name/restore', requireCap(CAPABILITIES.BACKUPS_RESTORE, { getServerId: backupServerId }), async (req, res) => {
-  const idem = req.get('Idempotency-Key'); if (!idem) return res.status(400).json({ error: 'Idempotency-Key header is required.' });
-  let a, preview; try { a = recoveryArgs(req); preview = recovery.consumePreview({ token: req.body && req.body.token, actorId: req.user.id, server: { id: a.m.id, dir: a.m.dir(), worlds: a.worlds } }); }
-  catch (err) { return httpError(res, req, err, err.status || 409); }
-  const op = foundationOperations.create({ kind: 'backup-restore', actorId: req.user.id, serverId: a.m.id, idempotencyKey: idem, summary: { backup: a.name } });
-  res.status(202).json({ ok: true, operationId: op.id }); if (op.state !== foundationOperations.STATES.QUEUED) return;
-  setImmediate(async () => {
-    const staging = path.join(a.m.dir(), '.lodestone', 'staging', op.id); const rollback = path.join(a.m.dir(), '.lodestone', 'rollback', op.id); const moved = [];
-    try {
-      foundationOperations.start(op.id, { phase: 'verify' }); await recovery.verify({ ...a, operationId: op.id });
-      foundationOperations.heartbeat(op.id, { phase: 'pre-restore-backup', progress: .2 }); const snapshot = await createBackup(a.m, { applyRetention: false }); await recovery.verify({ file: path.join(backupsDir(), snapshot.name), filename: snapshot.name, serverId: a.m.id, worlds: a.worlds, operationId: op.id });
-      const disk = await new Promise((resolve) => fs.statfs(a.m.dir(), (e, s) => resolve(e ? null : s.bavail * s.bsize)));
-      if (disk != null && disk < preview.payload.requiredBytes * 1.1) throw Object.assign(new Error('Insufficient disk space for restore.'), { code: 'insufficient_disk' });
-      foundationOperations.heartbeat(op.id, { phase: 'extract-staging', progress: .4 }); await recovery.extract(a.file, staging, a.worlds);
-      foundationOperations.heartbeat(op.id, { phase: 'wait-offline', progress: .6 }); if (a.m.status !== STATUS.OFFLINE) throw Object.assign(new Error('Server must be offline before restore commit.'), { code: 'server_online' });
-      fs.mkdirSync(rollback, { recursive: true }); foundationOperations.heartbeat(op.id, { phase: 'commit', progress: .75 });
-      for (const root of preview.manifest.worldRoots) { if (a.m.status !== STATUS.OFFLINE) throw Object.assign(new Error('Server came online during restore.'), { code: 'server_online_race' }); const live = path.join(a.m.dir(), root); const old = path.join(rollback, root); const fresh = path.join(staging, root); if (fs.existsSync(live)) fs.renameSync(live, old); moved.push({ live, old }); fs.renameSync(fresh, live); }
-      fs.rmSync(staging, { recursive: true, force: true }); foundationOperations.finish(op.id, { backup: a.name, snapshot: snapshot.name, rollbackAvailable: true });
-    } catch (err) {
-      if (moved.length) foundationOperations.markRecoveryRequired(op.id, { code: err.code || 'commit_failed', text: err.message, recovery: { rollbackPath: rollback, roots: moved } });
-      else { fs.rmSync(staging, { recursive: true, force: true }); foundationOperations.fail(op.id, { code: err.code || 'restore_failed', text: err.message }); }
-    }
-  });
-});
+// ---------------------------------------------------------------------------
+// Backups (list/create/options/delete/download/contents/verify/impact/restore)
+// Routes live in lib/routes/backups.cjs; mounted here (in place) so the
+// /api/backups prefix middleware ordering above is unchanged.
+app.use('/api/backups', backupsRouter({
+  targetManager,
+  listBackups,
+  createBackup,
+  parseBackupName,
+  backupsDir,
+  slugify,
+  findServer,
+  persistConfig: () => saveConfig(config),
+  STATUS,
+  foundationOperations,
+  recovery,
+  trash,
+  addNotification,
+  sanitizeErrorMessage,
+  httpError,
+  log,
+}));
 
 // --- Modrinth ---
 const MODRINTH = 'https://api.modrinth.com/v2';
@@ -5811,48 +3315,15 @@ const MODRINTH_CATEGORIES = [
   'storage', 'technology', 'transportation', 'utility', 'worldgen',
 ];
 
-// Provider-neutral Minecraft content API. Modrinth remains the only catalog
-// provider in 0.1.3; CurseForge and FTB deliberately expose import/install
-// capabilities without pretending that Hostkind has catalog credentials.
-app.get('/api/minecraft/content/providers', (req, res) => {
-  res.json({ providers: minecraftContent.listProviders({ isAdmin: isAdmin(req.user) }) });
-});
-
-app.get('/api/minecraft/content/search', async (req, res) => {
-  const providerId = String(req.query.provider || 'modrinth').toLowerCase();
-  if (providerId !== 'modrinth') return res.status(400).json({ error: 'Catalog browsing is available only for Modrinth.', code: 'catalog_unavailable' });
-  const m = targetManager(req); const compat = detectCompat(m);
-  const kind = ['plugin', 'mod', 'modpack'].includes(String(req.query.kind || req.query.projectType)) ? String(req.query.kind || req.query.projectType) : compat.projectType;
-  if (!kind) return res.json({ hits: [], compat, provider: 'modrinth' });
-  const facets = [[`project_type:${kind}`]];
-  if (kind !== 'modpack') {
-    const loaders = kind === 'plugin' ? ['paper', 'spigot', 'bukkit'] : (compat.canMods ? compat.loaders : ['fabric', 'forge', 'neoforge', 'quilt']);
-    facets.push(loaders.map((loader) => `categories:${loader}`));
-    if (compat.mcVersion) facets.push([`versions:${compat.mcVersion}`]);
-  }
-  const sort = MODRINTH_SORTS.includes(req.query.sort) ? req.query.sort : 'downloads';
-  const url = `${MODRINTH}/search?query=${encodeURIComponent(req.query.q || '')}&facets=${encodeURIComponent(JSON.stringify(facets))}&index=${sort}&limit=30`;
-  try {
-    const response = await fetch(url, { headers: { 'User-Agent': UA } });
-    if (!response.ok) throw new Error(`Modrinth returned HTTP ${response.status}`);
-    const data = await response.json();
-    res.json({ provider: 'modrinth', projects: (data.hits || []).map((item) => minecraftContent.normalizeProject(item)), pagination: { offset: data.offset || 0, limit: data.limit || 30, total: data.total_hits || 0 }, compat });
-  } catch (error) { httpError(res, req, error, 502); }
-});
-
-app.get('/api/minecraft/content/projects/:provider/:projectId/versions', async (req, res) => {
-  if (String(req.params.provider).toLowerCase() !== 'modrinth') return res.status(400).json({ error: 'Catalog versions are available only for Modrinth.', code: 'catalog_unavailable' });
-  const compat = detectCompat(targetManager(req));
-  const query = new URLSearchParams();
-  if (compat.loaders.length) query.set('loaders', JSON.stringify(compat.loaders));
-  if (compat.mcVersion) query.set('game_versions', JSON.stringify([compat.mcVersion]));
-  try {
-    const response = await fetch(`${MODRINTH}/project/${encodeURIComponent(req.params.projectId)}/version?${query}`, { headers: { 'User-Agent': UA } });
-    if (!response.ok) throw new Error(`Modrinth returned HTTP ${response.status}`);
-    const versions = await response.json();
-    res.json({ provider: 'modrinth', versions: (Array.isArray(versions) ? versions : []).map((item) => minecraftContent.normalizeVersion(item)) });
-  } catch (error) { httpError(res, req, error, 502); }
-});
+// Provider-neutral Minecraft content API (catalog reads + single/batch
+// installs). Routes live in lib/routes/minecraft-content.cjs; the mount stays
+// here so registration order against the sibling slices is unchanged.
+// detectCompat stays here because the worlds router also receives it.
+app.use('/api', minecraftContentRouter({
+  targetManager, detectCompat, isAdmin, tErr, httpError,
+  sanitizeErrorMessage, log, addNotification,
+  MODRINTH, UA, MODRINTH_SORTS, MODRINTH_CATEGORIES,
+}));
 
 // Work out what content the selected server can actually run, from its jar name.
 // loaders[] is used both to filter Modrinth and to decide plugins/ vs mods/.
@@ -5879,143 +3350,8 @@ function detectCompat(m) {
   return { projectType, loaders, folder, label, mcVersion, canMods };
 }
 
-app.get('/api/modrinth/search', async (req, res) => {
-  const m = targetManager(req);
-  const compat = detectCompat(m);
-  // `projectType` (optional) lets the caller force 'mod', 'plugin', or
-  // 'modpack' so all tabs of the content view can reuse this endpoint
-  // regardless of the active server's loader. Without an override we keep
-  // the historical behaviour of matching the server's own project type.
-  const overrideType = String(req.query.projectType || '');
-  const projectType = overrideType === 'mod' || overrideType === 'plugin' || overrideType === 'modpack' ? overrideType : compat.projectType;
-  if (!projectType) {
-    return res.json({ hits: [], compat, note: tErr(req.user, 'errors.vanillaNoPlugins') });
-  }
-  // Pick the loader facet for the requested project type: when the user is
-  // looking at the Mods tab on a Paper server (e.g. browsing a Fabric mod
-  // pack reference) we fall back to the full mod-loader union so they still
-  // see fabric/forge/neoforge results. The Modpacks tab omits the loader
-  // facet entirely so modpacks for any loader surface.
-  let loadersForQuery = compat.loaders;
-  if (projectType === 'mod') {
-    loadersForQuery = compat.canMods ? compat.loaders : ['fabric', 'forge', 'neoforge', 'quilt'];
-  } else if (projectType === 'plugin') {
-    loadersForQuery = ['paper', 'spigot', 'bukkit'];
-  }
-  const q = req.query.q || '';
-  const sort = MODRINTH_SORTS.includes(req.query.sort) ? req.query.sort : 'downloads';
-  const facets = [
-    [`project_type:${projectType}`],
-  ];
-  if (projectType !== 'modpack') {
-    facets.push(loadersForQuery.map((l) => `categories:${l}`));
-    if (compat.mcVersion) facets.push([`versions:${compat.mcVersion}`]);
-  }
-  if (req.query.category && MODRINTH_CATEGORIES.includes(req.query.category)) {
-    facets.push([`categories:${req.query.category}`]);
-  }
-  const url = `${MODRINTH}/search?query=${encodeURIComponent(q)}&facets=${encodeURIComponent(JSON.stringify(facets))}&index=${sort}&limit=30`;
-  try {
-    const r = await fetch(url, { headers: { 'User-Agent': UA } });
-    const data = await r.json();
-    res.json({ ...data, compat, projectType, categories: MODRINTH_CATEGORIES });
-  } catch (err) {
-    httpError(res, req, err, 502);
-  }
-});
-
-app.get('/api/modrinth/versions/:projectId', async (req, res) => {
-  const m = targetManager(req);
-  const compat = detectCompat(m);
-  const loaders = JSON.stringify(compat.loaders);
-  const gv = JSON.stringify(compat.mcVersion ? [compat.mcVersion] : []);
-  const url = `${MODRINTH}/project/${encodeURIComponent(req.params.projectId)}/version?loaders=${encodeURIComponent(loaders)}&game_versions=${encodeURIComponent(gv)}`;
-  try {
-    const r = await fetch(url, { headers: { 'User-Agent': UA } });
-    const matched = await r.json();
-    res.json({ matched: Array.isArray(matched) ? matched : [], compat });
-  } catch (err) {
-    httpError(res, req, err, 502);
-  }
-});
-
-app.post('/api/modrinth/install-batch', async (req, res) => {
-  const m = targetManager(req);
-  if (!m || !m.dir()) return res.status(400).json({ error: tErr(req.user, 'errors.noActiveServer') });
-  const body = req.body || {};
-  const compat = detectCompat(m);
-  const requestedType = String(body.projectType || '');
-  if (requestedType === 'mod' && !compat.canMods) {
-    return res.status(409).json({ error: tErr(req.user, 'minecraft.modrinth.tabModsDisabledBody', { label: compat.label }) });
-  }
-  try {
-    const result = await installModrinthBatch({
-      projectIds: body.projectIds,
-      compat,
-      rootDir: m.dir(),
-      recordImpl: (entry) => updateCenter.recordModrinth({ ...entry, serverId: m.id }),
-    });
-    for (const item of result.results.filter((candidate) => candidate.status === 'installed')) {
-      log(`Modrinth: installed ${item.name} into ${compat.folder}/ for "${m.name()}"`);
-      m.pushLine(`[Hostkind] Installed from Modrinth into ${compat.folder}/: ${item.name}`, 'info');
-    }
-    if (result.installed.length) {
-      addNotification('plugin_installed', 'Content installed', `${result.installed.length} selected Modrinth item(s) installed for "${m.name()}". Restart the server to apply.`, m.id);
-    }
-    res.json({ ...result, note: 'Restart the server to apply.' });
-  } catch (err) {
-    log(`Modrinth batch install failed: ${err.message}`);
-    const clientError = ['invalid_project_ids', 'empty_selection', 'selection_too_large', 'invalid_install_target'].includes(err.code);
-    res.status(clientError ? 400 : 502).json({ error: sanitizeErrorMessage(err.message), code: err.code || 'modrinth_batch_failed' });
-  }
-});
-
-app.post('/api/modrinth/install', async (req, res) => {
-  const { versionId } = req.body || {};
-  if (!versionId) return res.status(400).json({ error: tErr(req.user, 'errors.missingVersionId') });
-  const m = targetManager(req);
-  if (!m || !m.dir()) return res.status(400).json({ error: tErr(req.user, 'errors.noActiveServer') });
-  const compat = detectCompat(m);
-  try {
-    log(`Modrinth: resolving version ${versionId} for "${m.name()}" (${compat.label})...`);
-    const r = await fetch(`${MODRINTH}/version/${encodeURIComponent(versionId)}`, { headers: { 'User-Agent': UA } });
-    const version = await r.json();
-    // Compatibility guard: refuse anything that doesn't match this server's
-    // loader and Minecraft version, so an incompatible jar can't be installed.
-    const loaderOk = (version.loaders || []).some((l) => compat.loaders.includes(l));
-    const versionOk = !compat.mcVersion || (version.game_versions || []).includes(compat.mcVersion);
-    if (!loaderOk || !versionOk) {
-      return res.status(409).json({ error: tErr(req.user, 'errors.incompatible', { label: compat.label, version: compat.mcVersion || '' }) });
-    }
-    const file = (version.files || []).find((f) => f.primary) || (version.files || [])[0];
-    if (!file) return res.status(404).json({ error: tErr(req.user, 'errors.noVersionFiles') });
-    log(`Modrinth: downloading ${file.filename}...`);
-    const dl = await fetch(file.url, { headers: { 'User-Agent': UA } });
-    if (!dl.ok) return res.status(502).json({ error: `Download failed: HTTP ${dl.status}` });
-    const buf = Buffer.from(await dl.arrayBuffer());
-    const pdir = path.join(m.dir(), compat.folder);
-    fs.mkdirSync(pdir, { recursive: true });
-    const dest = path.join(pdir, path.basename(file.filename));
-    fs.writeFileSync(dest, buf);
-    updateCenter.recordModrinth({
-      serverId: m.id,
-      relativePath: path.relative(m.dir(), dest).split(path.sep).join('/'),
-      kind: compat.folder === 'mods' ? 'mod' : 'plugin',
-      projectId: version.project_id,
-      versionId: version.id,
-      mcVersion: compat.mcVersion,
-      loader: (version.loaders || []).find((l) => compat.loaders.includes(l)),
-      sha256: crypto.createHash('sha256').update(buf).digest('hex'),
-    });
-    log(`Modrinth: installed ${file.filename} into ${compat.folder}/ for "${m.name()}"`);
-    m.pushLine(`[Hostkind] Installed from Modrinth into ${compat.folder}/: ${file.filename}`, 'info');
-    addNotification('plugin_installed', 'Plugin Installed', `"${file.filename}" installed into ${compat.folder}/ for "${m.name()}". Restart the server to apply.`, m.id);
-    res.json({ ok: true, name: file.filename, note: 'Restart the server to apply.' });
-  } catch (err) {
-    log(`Modrinth install failed: ${err.message}`);
-    res.status(502).json({ error: sanitizeErrorMessage(err.message) });
-  }
-});
+// /api/modrinth/search, /versions/:projectId, /install-batch, and /install
+// are served by the minecraft-content router mounted above.
 
 app.use('/api/updates', updateCenter.router({
   findServer,
@@ -6023,1029 +3359,30 @@ app.use('/api/updates', updateCenter.router({
   detectCompat,
 }));
 
-// --- Modrinth modpack --------------------------------------------------------
+// --- Modrinth modpack / content lifecycle / modpacks ---------------------------
+// Content-upload previews, modpack lifecycle (import/update/clone/rollback),
+// and mrpack install flows live in lib/routes/modpacks.cjs; the mount stays
+// here so registration order against the sibling slices is unchanged.
+app.use('/api', modpacksRouter({
+  targetManager, getManager, detectCompat, isAdmin, tErr, httpError,
+  sanitizeErrorMessage, log, addNotification, STATUS,
+  config, saveConfig, serverWithStatus, slugify, genId,
+  foundationOperations, foundationSnapshots,
+  MODRINTH, UA, SERVER_NAME_MAX_LENGTH,
+  resolveServerJar, downloadToFile, requiredJavaMajor, resolveJavaForServer,
+  ensureRuntime, runForgeInstaller, findForgeLaunchTarget,
+}));
 
-async function resolveLifecyclePack(versionId, worlds) {
-  const response = await fetch(`${MODRINTH}/version/${encodeURIComponent(versionId)}`, { headers: { 'User-Agent': UA } });
-  if (!response.ok) throw new Error(`Modrinth version lookup failed: HTTP ${response.status}`);
-  const version = await response.json();
-  const archive = (version.files || []).find((f) => f.primary) || (version.files || [])[0];
-  if (!archive) throw new Error('No version files found');
-  const archiveResponse = await fetch(archive.url, { headers: { 'User-Agent': UA } });
-  if (!archiveResponse.ok) throw new Error(`Download failed: HTTP ${archiveResponse.status}`);
-  const mrpack = Buffer.from(await archiveResponse.arrayBuffer());
-  const index = await readMrpackIndex(mrpack);
-  const spec = manifestToSpec(index);
-  if (spec.unsupported) throw new Error(spec.reason || 'Unsupported modpack');
-  const files = [];
-  for (const item of serverSideFiles(index)) {
-    const url = item.downloads && item.downloads[0];
-    if (!url || !item.path) continue;
-    const buffer = await downloadAndVerify(url, item.hashes, UA);
-    files.push({
-      relativePath: item.path,
-      sizeBytes: buffer.length,
-      sha256: modpackLifecycle.sha256(buffer),
-      sourceUrlHash: modpackLifecycle.sha256(url),
-      url,
-    });
-  }
-  const validated = modpackLifecycle.validateFiles(files, worlds);
-  return { version, index, spec, files: validated.accepted, excluded: validated.excluded };
-}
-
-async function lifecyclePreview(req, res, kind) {
-  try {
-    const m = targetManager(req);
-    if (!m || !m.dir()) return res.status(400).json({ error: 'No active server.' });
-    const versionId = String((req.body || {}).versionId || '');
-    if (!versionId) return res.status(400).json({ error: 'A version is required.' });
-    const server = m.desc();
-    const pack = await resolveLifecyclePack(versionId, server.worlds || []);
-    const compat = detectCompat(m);
-    if (!compat.loaders.includes(pack.spec.loaderType) || (compat.mcVersion && compat.mcVersion !== pack.spec.mcVersion)) {
-      return res.status(409).json({ error: 'This modpack is not compatible with the server.' });
-    }
-    const previous = modpackLifecycle.latest(m.id);
-    if (kind === 'update' && !previous) return res.status(409).json({ error: 'This server has no managed modpack.' });
-    const oldFiles = previous ? previous.files.map((f) => ({ relativePath: f.relative_path, sha256: f.sha256, sizeBytes: f.size_bytes })) : [];
-    const plan = modpackLifecycle.buildPlan({ root: m.dir(), oldFiles, newFiles: pack.files, worlds: server.worlds || [] });
-    const projectId = String(pack.version.project_id || (req.body || {}).projectId || '');
-    const previewId = modpackLifecycle.savePreview({ serverId: m.id, actorId: req.user.id, kind, projectId, versionId, mcVersion: pack.spec.mcVersion, loader: pack.spec.loaderType, previousManifestId: previous?.id || null, plan });
-    res.json({ ok: true, previewId, projectId, versionId, mcVersion: pack.spec.mcVersion, loader: pack.spec.loaderType, groups: plan.groups, inventoryHash: plan.inventoryHash, compatibility: { ok: true }, downtime: m.status !== STATUS.OFFLINE, snapshot: { required: true } });
-  } catch (err) {
-    log(`Modpack ${kind} preview failed: ${err.message}`);
-    res.status(502).json({ error: sanitizeErrorMessage(err.message) });
-  }
-}
-
-async function lifecycleApply(req, res, kind) {
-  const body = req.body || {};
-  const loaded = modpackLifecycle.loadPreview(String(body.previewId || ''), req.user.id);
-  if (!loaded || loaded.data.kind !== kind) return res.status(409).json({ error: 'Preview expired. Create a new preview.' });
-  const m = getManager(loaded.data.serverId);
-  if (!m || !m.dir()) return res.status(404).json({ error: 'Server not found.' });
-  if (m.status !== STATUS.OFFLINE) return res.status(409).json({ error: 'The server must be offline.' });
-  const operation = foundationOperations.create({ kind: `modpack-${kind}`, actorId: req.user.id, serverId: m.id, idempotencyKey: req.get('Idempotency-Key') || null, summary: { versionId: loaded.data.versionId } });
-  if (operation.state !== foundationOperations.STATES.QUEUED) return res.status(202).json({ ok: true, operationId: operation.id });
-  try {
-    foundationOperations.start(operation.id, { phase: 'revalidate' });
-    const server = m.desc();
-    const pack = await resolveLifecyclePack(loaded.data.versionId, server.worlds || []);
-    const previous = modpackLifecycle.latest(m.id);
-    const oldFiles = previous ? previous.files.map((f) => ({ relativePath: f.relative_path, sha256: f.sha256, sizeBytes: f.size_bytes })) : [];
-    const plan = modpackLifecycle.buildPlan({ root: m.dir(), oldFiles, newFiles: pack.files, worlds: server.worlds || [] });
-    if (plan.inventoryHash !== loaded.row.inventory_hash) throw Object.assign(new Error('Server files changed after preview. Create a new preview.'), { status: 409 });
-    const decisions = body.decisions && typeof body.decisions === 'object' && !Array.isArray(body.decisions) ? body.decisions : {};
-    for (const conflict of plan.groups.conflicts) {
-      if (!['keep_local', 'take_pack'].includes(decisions[conflict.relativePath])) throw Object.assign(new Error(`A decision is required for ${conflict.relativePath}.`), { status: 409 });
-    }
-    const snapshot = foundationSnapshots.take({ serverId: m.id, sourceDir: m.dir(), kind: 'modpack', reason: `${kind} ${loaded.data.versionId}` });
-    if (!foundationSnapshots.verify(snapshot.id).ok) throw new Error('Snapshot verification failed.');
-    const staging = path.join(m.dir(), '.lodestone', 'staging', operation.id);
-    fs.mkdirSync(staging, { recursive: true });
-    const incoming = new Map(pack.files.map((f) => [f.relativePath, f]));
-    for (const entry of plan.entries) {
-      const takePack = entry.state !== 'local_edit' && (entry.state !== 'conflict' || decisions[entry.relativePath] === 'take_pack');
-      if (!takePack) continue;
-      const item = incoming.get(entry.relativePath);
-      if (!item) continue;
-      const buffer = await downloadAndVerify(item.url, { sha256: item.sha256 }, UA);
-      if (modpackLifecycle.sha256(buffer) !== item.sha256) throw new Error(`SHA-256 mismatch for ${item.relativePath}`);
-      const staged = mrpackSafeResolve(staging, entry.relativePath);
-      fs.mkdirSync(path.dirname(staged), { recursive: true });
-      fs.writeFileSync(staged, buffer);
-    }
-    if (m.status !== STATUS.OFFLINE) throw Object.assign(new Error('Server started during update.'), { status: 409 });
-    const db = require('./lib/db.cjs').open();
-    const insertDecision = db.prepare('INSERT OR REPLACE INTO modpack_conflict_decisions VALUES (?,?,?,?)');
-    for (const [relativePath, decision] of Object.entries(decisions)) insertDecision.run(operation.id, relativePath, decision, req.user.id);
-    for (const entry of plan.entries) {
-      const takePack = entry.state !== 'local_edit' && (entry.state !== 'conflict' || decisions[entry.relativePath] === 'take_pack');
-      if (!takePack) continue;
-      const dest = mrpackSafeResolve(m.dir(), entry.relativePath);
-      const staged = mrpackSafeResolve(staging, entry.relativePath);
-      if (incoming.has(entry.relativePath)) {
-        fs.mkdirSync(path.dirname(dest), { recursive: true });
-        fs.renameSync(staged, dest);
-      } else if (entry.state === 'safe_removal' && fs.existsSync(dest)) fs.unlinkSync(dest);
-    }
-    const owned = pack.files.filter((f) => {
-      const e = plan.entries.find((x) => x.relativePath === f.relativePath);
-      return e && e.state !== 'local_edit' && (e.state !== 'conflict' || decisions[e.relativePath] === 'take_pack');
-    });
-    const manifest = modpackLifecycle.persistManifest({ serverId: m.id, projectId: loaded.data.projectId, versionId: loaded.data.versionId, mcVersion: loaded.data.mcVersion, loader: loaded.data.loader, operationId: operation.id, snapshotId: snapshot.id, previousManifestId: previous?.id || null }, owned);
-    fs.rmSync(staging, { recursive: true, force: true });
-    foundationOperations.finish(operation.id, { manifestId: manifest.id });
-    res.status(202).json({ ok: true, operationId: operation.id, manifestId: manifest.id });
-  } catch (err) {
-    foundationOperations.fail(operation.id, { code: 'modpack_apply_failed', text: err.message });
-    log('modpack apply failed:', err.message);
-    res.status(err.status || 500).json({ error: sanitizeErrorMessage(err.message), operationId: operation.id });
-  }
-}
-
-const contentUploadRoot = path.join(__dirname, 'data', 'content-uploads');
-function cleanupUploadDir(filePath) {
-  try {
-    if (typeof filePath !== 'string' || !filePath || filePath.includes('\0')) return;
-    const root = path.resolve(contentUploadRoot);
-    const dir = path.resolve(path.dirname(filePath));
-    if (dir === root) return;
-    if (!dir.startsWith(root + path.sep)) return;
-    fs.rmSync(dir, { recursive: true, force: true });
-  } catch { /* best-effort cleanup only; never throw in guards/catch paths */ }
-}
-const contentUpload = multer({
-  storage: multer.diskStorage({
-    destination(req, file, cb) {
-      const dir = path.join(contentUploadRoot, crypto.randomUUID());
-      try { fs.mkdirSync(dir, { recursive: true }); cb(null, dir); } catch (error) { cb(error); }
-    },
-    filename(req, file, cb) { cb(null, path.basename(String(file.originalname || 'upload.bin')).replace(/[^a-zA-Z0-9._ -]/g, '_')); },
-  }),
-  limits: { fileSize: modpackLifecycle.MAX_TOTAL_BYTES, files: 1 },
-});
-
-app.post('/api/minecraft/content/previews', (req, res) => {
-  const body = req.body || {}; const provider = String(body.provider || 'modrinth').toLowerCase();
-  if (!['modrinth', 'ftb'].includes(provider)) return res.status(400).json({ error: 'Use upload-previews for imported content.', code: 'upload_required' });
-  if (provider === 'ftb' && !isAdmin(req.user)) return res.status(403).json({ error: tErr(req.user, 'errors.forbidden') });
-  const m = targetManager(req);
-  if (!m || !m.dir()) return res.status(400).json({ error: 'No active server.' });
-  const op = foundationOperations.create({ kind: `content-${provider}-prepare`, actorId: req.user.id, serverId: m.id, summary: { provider, sourceKind: provider === 'ftb' ? 'official_installer' : 'catalog' } });
-  res.status(202).json({ operationId: op.id });
-  setImmediate(async () => {
-    try {
-      foundationOperations.start(op.id, { phase: 'resolve' });
-      if (provider === 'ftb') {
-        // Official unattended-installer contract: numeric pack/version plus an
-        // explicit Minecraft EULA acknowledgement. Official downloads require
-        // release metadata with a published digest; the executable run itself
-        // is delegated to the same reviewed runner used for uploaded
-        // installers (operation-owned staging, see uploads/:id/apply).
-        if (!/^\d+$/.test(String(body.packId || ''))) throw Object.assign(new Error('A numeric FTB pack ID is required.'), { code: 'invalid_pack_id' });
-        const latest = body.latest === true || body.latest === 'true';
-        if (!latest && !/^\d+$/.test(String(body.versionId || ''))) throw Object.assign(new Error('A numeric FTB version ID or latest is required.'), { code: 'invalid_version_id' });
-        if (body.acceptEula !== true) throw Object.assign(new Error('Explicit Minecraft EULA acknowledgement is required.'), { code: 'eula_required' });
-        foundationOperations.finish(op.id, { provider, verification: 'verified', sourceKind: 'official_installer', packId: String(body.packId), versionId: latest ? 'latest' : String(body.versionId), acceptEula: true, attestationRequired: true, staging: 'operation-owned', next: 'upload-installer', awaitingInstallerResolution: true });
-        return;
-      }
-      const pack = await resolveLifecyclePack(String(body.versionId || ''), m.desc().worlds || []);
-      const previous = modpackLifecycle.latest(m.id); const oldFiles = previous ? previous.files.map((f) => ({ relativePath: f.relative_path, sha256: f.sha256, sizeBytes: f.size_bytes })) : [];
-      const plan = modpackLifecycle.buildPlan({ root: m.dir(), oldFiles, newFiles: pack.files, worlds: m.desc().worlds || [] });
-      const kind = body.action === 'update' ? 'update' : 'import';
-      const previewId = modpackLifecycle.savePreview({ serverId: m.id, actorId: req.user.id, kind, provider: 'modrinth', verificationStatus: 'verified', projectId: String(pack.version.project_id || body.projectId || ''), versionId: String(body.versionId), mcVersion: pack.spec.mcVersion, loader: pack.spec.loaderType, previousManifestId: previous?.id || null, plan });
-      foundationOperations.finish(op.id, { previewId, provider: 'modrinth', verification: 'verified', groups: plan.groups, expiresAt: Date.now() + 30 * 60 * 1000, snapshotRequired: true });
-    } catch (error) { foundationOperations.fail(op.id, { code: error.code || 'content_prepare_failed', text: sanitizeErrorMessage(error.message) }); }
-  });
-});
-
-app.post('/api/minecraft/content/upload-previews', contentUpload.single('file'), (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'A ZIP, JAR, or FTB installer is required.', code: 'file_required' });
-  const provider = String(req.body?.provider || (/\.jar$/i.test(req.file.originalname) ? 'curseforge' : 'curseforge')).toLowerCase();
-  if (!['curseforge', 'ftb'].includes(provider)) { cleanupUploadDir(req.file?.path); return res.status(400).json({ error: 'Unsupported upload provider.' }); }
-  if (provider === 'ftb' && (!isAdmin(req.user) || req.body?.attested !== 'true')) { cleanupUploadDir(req.file?.path); return res.status(403).json({ error: 'An administrator must attest that the installer came from FTB.', code: 'attestation_required' }); }
-  if (provider === 'ftb' && req.body?.acceptEula !== 'true') { cleanupUploadDir(req.file?.path); return res.status(403).json({ error: 'Explicit Minecraft EULA acknowledgement is required.', code: 'eula_required' }); }
-  const m = targetManager(req); const op = foundationOperations.create({ kind: `content-${provider}-upload-prepare`, actorId: req.user.id, serverId: m?.id || null, summary: { provider, originalName: path.basename(req.file.originalname) } });
-  res.status(202).json({ operationId: op.id });
-  setImmediate(async () => {
-    try {
-      foundationOperations.start(op.id, { phase: 'inspect' });
-      let preview;
-      if (provider === 'ftb') {
-        const latest = req.body.latest === 'true' || req.body.latest === true;
-        const packId = req.body.packId != null && String(req.body.packId) !== '' ? String(req.body.packId) : null;
-        if (packId !== null && !/^\d+$/.test(packId)) throw Object.assign(new Error('A numeric FTB pack ID is required.'), { code: 'invalid_pack_id' });
-        const versionId = latest ? 'latest' : (req.body.versionId != null && String(req.body.versionId) !== '' ? String(req.body.versionId) : null);
-        if (versionId !== null && versionId !== 'latest' && !/^\d+$/.test(versionId)) throw Object.assign(new Error('A numeric FTB version ID or latest is required.'), { code: 'invalid_version_id' });
-        preview = { provider, sourceKind: 'uploaded_installer', verification: 'user_attested', installerName: path.basename(req.file.originalname), sha256: ftbInstaller.sha256File(req.file.path), packId, versionId, acceptEula: true, attested: true };
-      }
-      else if (/\.jar$/i.test(req.file.originalname)) preview = curseforgeImport.inspectJar(req.file.path, { kind: req.body.kind, projectId: req.body.projectId, fileId: req.body.fileId });
-      else if (/\.zip$/i.test(req.file.originalname)) preview = await curseforgeImport.inspectZip(req.file.path);
-      else throw Object.assign(new Error('CurseForge imports must be .jar or .zip files.'), { code: 'invalid_file_type' });
-      if (preview.clientOnly) throw Object.assign(new Error(`${preview.error} Unresolved: ${preview.unresolved.join(', ')}`), { code: 'unresolved_curseforge_files' });
-      foundationOperations.finish(op.id, { ...preview, uploadPath: req.file.path, expiresAt: Date.now() + 30 * 60 * 1000, snapshotRequired: !!m });
-    } catch (error) { cleanupUploadDir(req.file?.path); foundationOperations.fail(op.id, { code: error.code || 'content_upload_invalid', text: sanitizeErrorMessage(error.message) }); }
-  });
-});
-
-app.post('/api/minecraft/content/previews/:previewId/apply', (req, res) => {
-  const loaded = modpackLifecycle.loadPreview(req.params.previewId, req.user.id);
-  if (!loaded) return res.status(409).json({ error: 'Preview expired. Create a new preview.' });
-  req.body = { ...(req.body || {}), previewId: req.params.previewId };
-  return lifecycleApply(req, res, loaded.data.kind);
-});
-
-function recordImportedJar({ serverId, relativePath, kind, projectId, versionId, mcVersion, loader, sha256, displayName, providerMetadata }) {
-  const db = require('./lib/db.cjs').open();
-  db.prepare(`INSERT INTO content_provenance
-    (id, server_id, relative_path, kind, provider, project_id, version_id, mc_version, loader, sha256, managed_at, display_name, version_name, provider_metadata_json, source_kind, verification_status)
-    VALUES (?, ?, ?, ?, 'curseforge', ?, ?, ?, ?, ?, ?, ?, ?, ?, 'jar_upload', 'user_supplied')
-    ON CONFLICT(server_id, relative_path) DO UPDATE SET kind=excluded.kind, provider='curseforge', project_id=excluded.project_id, version_id=excluded.version_id, mc_version=excluded.mc_version, loader=excluded.loader, sha256=excluded.sha256, managed_at=excluded.managed_at, display_name=excluded.display_name, provider_metadata_json=excluded.provider_metadata_json, source_kind='jar_upload', verification_status='user_supplied'`)
-    .run(crypto.randomUUID(), serverId, relativePath, kind, String(projectId || ''), String(versionId || ''), mcVersion || null, loader || null, sha256, Date.now(), displayName || null, null, JSON.stringify(providerMetadata || {}));
-}
-
-function extractCurseZipToStaging(uploadPath, stagingDir, overridesDir, commonRoot) {
-  const yauzl = require('yauzl');
-  const archiveGuard = require('./lib/archiveGuard.cjs');
-  const ZIP_OPTIONS = { maxEntries: modpackLifecycle.MAX_FILES, maxEntrySize: modpackLifecycle.MAX_FILE_BYTES, maxTotalSize: modpackLifecycle.MAX_TOTAL_BYTES };
-  return new Promise((resolve, reject) => {
-    yauzl.open(uploadPath, { lazyEntries: true, decodeStrings: true }, (openError, zip) => {
-      if (openError) return reject(openError);
-      const state = {};
-      fs.mkdirSync(stagingDir, { recursive: true });
-      zip.on('error', reject);
-      zip.on('entry', (entry) => {
-        let normalized;
-        try { normalized = archiveGuard.checkEntry(entry, state, ZIP_OPTIONS); } catch (error) { zip.close(); reject(error); return; }
-        if (/\/$/.test(entry.fileName)) return zip.readEntry();
-        const stripped = curseforgeImport.stripCommonRoot(normalized, commonRoot || '');
-        const deployRel = contentApply.curseDeployPath(stripped, overridesDir || 'overrides');
-        if (!deployRel) return zip.readEntry();
-        const rel = contentApply.normalizeRelative(deployRel);
-        if (!rel) { zip.close(); reject(Object.assign(new Error(`Unsafe path in archive: ${deployRel}`), { code: 'unsafe_path' })); return; }
-        const dest = contentApply.safeResolve(stagingDir, rel);
-        if (!dest) { zip.close(); reject(Object.assign(new Error(`Entry escapes staging: ${deployRel}`), { code: 'unsafe_path' })); return; }
-        zip.openReadStream(entry, (streamError, stream) => {
-          if (streamError) { zip.close(); reject(streamError); return; }
-          const chunks = [];
-          stream.on('data', (chunk) => chunks.push(chunk));
-          stream.on('end', () => {
-            try {
-              fs.mkdirSync(path.dirname(dest), { recursive: true });
-              fs.writeFileSync(dest, Buffer.concat(chunks));
-              zip.readEntry();
-            } catch (error) { zip.close(); reject(error); }
-          });
-          stream.on('error', (error) => { zip.close(); reject(error); });
-        });
-      });
-      zip.on('end', () => {
-        try { archiveGuard.finalize(state, ZIP_OPTIONS); } catch (error) { reject(error); return; }
-        resolve();
-      });
-      zip.readEntry();
-    });
-  });
-}
-
-async function runCurseJarApply({ applyOpId, serverId, summary, uploadPath }) {
-  const manager = getManager(serverId);
-  const serverDir = manager.dir();
-  const kind = summary.kind === 'mod' ? 'mod' : 'plugin';
-  const filename = path.basename(String(summary.name || 'import.jar'));
-  const compat = detectCompat(manager);
-  if (kind === 'mod' && !compat.canMods) throw Object.assign(new Error(`Mods require a Fabric, Forge, or NeoForge server (got ${compat.label}).`), { code: 'incompatible_loader' });
-  const folder = kind === 'mod' ? 'mods' : 'plugins';
-  const destRel = contentApply.normalizeRelative(`${folder}/${filename}`);
-  if (!destRel) throw Object.assign(new Error('Unsafe import path.'), { code: 'unsafe_path' });
-  const dest = contentApply.safeResolve(serverDir, destRel);
-  if (!dest) throw Object.assign(new Error('Import escapes the server directory.'), { code: 'unsafe_path' });
-  if (!fs.existsSync(uploadPath)) throw Object.assign(new Error('Upload expired. Upload again.'), { code: 'upload_expired' });
-  const snapshot = foundationSnapshots.take({ serverId, sourceDir: serverDir, scope: [folder], kind: 'content', reason: `curseforge jar ${filename}` });
-  if (!foundationSnapshots.verify(snapshot.id).ok) throw new Error('Snapshot verification failed.');
-  fs.mkdirSync(path.dirname(dest), { recursive: true });
-  fs.copyFileSync(uploadPath, dest);
-  const actual = contentApply.sha256Buffer(fs.readFileSync(dest));
-  if (summary.sha256 && summary.sha256 !== actual) throw new Error('SHA-256 mismatch after copy.');
-  recordImportedJar({
-    serverId, relativePath: destRel, kind,
-    projectId: summary.source?.projectId || '', versionId: summary.source?.fileId || '',
-    mcVersion: compat.mcVersion || null, loader: compat.loaders[0] || null,
-    sha256: actual, displayName: filename,
-    providerMetadata: { originalName: filename, uploadSha256: summary.sha256 || null },
-  });
-  manager.pushLine(`[Hostkind] Imported CurseForge ${kind} into ${destRel} (user-supplied). Restart to apply.`, 'info');
-  addNotification('plugin_installed', 'Content imported', `"${filename}" imported into ${folder}/ (user-supplied). Restart the server to apply.`, serverId);
-  return { relativePath: destRel, sha256: actual, snapshotId: snapshot.id, restartRequired: true };
-}
-
-async function promoteStagedPlan({ serverId, serverDir, stagingDir, plan, decisions, incomingByPath }) {
-  for (const entry of plan.entries) {
-    const takePack = entry.state !== 'local_edit' && (entry.state !== 'conflict' || decisions[entry.relativePath] === 'take_pack');
-    if (!takePack) continue;
-    if (incomingByPath.has(entry.relativePath)) {
-      const stagedAbs = contentApply.safeResolve(stagingDir, entry.relativePath);
-      const dest = mrpackSafeResolve(serverDir, entry.relativePath);
-      if (!stagedAbs || !dest || !fs.existsSync(stagedAbs)) throw new Error(`Staged file missing: ${entry.relativePath}`);
-      fs.mkdirSync(path.dirname(dest), { recursive: true });
-      fs.copyFileSync(stagedAbs, dest);
-    } else if (entry.state === 'safe_removal') {
-      const dest = mrpackSafeResolve(serverDir, entry.relativePath);
-      if (dest && fs.existsSync(dest)) fs.unlinkSync(dest);
-    }
-  }
-}
-
-async function runCurseZipApply({ applyOpId, serverId, summary, uploadPath, decisions }) {
-  const manager = getManager(serverId);
-  const serverDir = manager.dir();
-  const worlds = manager.desc().worlds || [];
-  const meta = contentApply.curseManifestMeta(summary.manifest);
-  const stagingRoot = path.join(serverDir, '.lodestone', 'staging', applyOpId);
-  const stagingDir = path.join(stagingRoot, 'pack');
-  fs.mkdirSync(stagingDir, { recursive: true });
-  await extractCurseZipToStaging(uploadPath, stagingDir, summary.manifest?.overrides || meta.overridesDir, summary.commonRoot || '');
-  const staged = contentApply.walkStaging(stagingDir);
-  if (!staged.length) throw Object.assign(new Error('Archive contains no deployable files.'), { code: 'empty_pack' });
-  const validated = modpackLifecycle.validateFiles(staged.map((f) => ({ relativePath: f.relativePath, sizeBytes: f.sizeBytes, sha256: f.sha256 })), worlds);
-  const previous = modpackLifecycle.latest(serverId);
-  const oldFiles = previous ? previous.files.map((f) => ({ relativePath: f.relative_path, sha256: f.sha256, sizeBytes: f.size_bytes })) : [];
-  const plan = modpackLifecycle.buildPlan({ root: serverDir, oldFiles, newFiles: validated.accepted, worlds });
-  contentApply.checkDecisions(plan, decisions);
-  const snapshot = foundationSnapshots.take({ serverId, sourceDir: serverDir, kind: 'modpack', reason: `curseforge import ${meta.displayName || 'pack'}` });
-  if (!foundationSnapshots.verify(snapshot.id).ok) throw new Error('Snapshot verification failed.');
-  const incomingByPath = new Map(validated.accepted.map((f) => [f.relativePath, f]));
-  await promoteStagedPlan({ serverId, serverDir, stagingDir, plan, decisions, incomingByPath });
-  const owned = validated.accepted.filter((f) => {
-    const e = plan.entries.find((x) => x.relativePath === f.relativePath);
-    return e && e.state !== 'local_edit' && (e.state !== 'conflict' || decisions[e.relativePath] === 'take_pack');
-  });
-  const manifest = modpackLifecycle.persistManifest({
-    serverId, provider: 'curseforge', projectId: '', versionId: '',
-    mcVersion: meta.mcVersion || '', loader: meta.loader || '',
-    operationId: applyOpId, snapshotId: snapshot.id, previousManifestId: previous?.id || null,
-    displayName: meta.displayName || 'CurseForge import', versionName: meta.versionName || '',
-    providerMetadata: { originalName: summary.originalName || null, zipSha256: summary.sha256 || null, unresolved: summary.unresolved || [], commonRoot: summary.commonRoot || null },
-    sourceKind: 'server_pack', verificationStatus: 'user_supplied',
-  }, owned);
-  fs.rmSync(stagingRoot, { recursive: true, force: true });
-  manager.pushLine(`[Hostkind] Imported CurseForge server pack (user-supplied, ${owned.length} files).`, 'info');
-  addNotification('modpack_installed', 'Modpack Imported', `CurseForge pack imported into "${manager.name()}" (${owned.length} files, user-supplied).`, serverId);
-  return { manifestId: manifest.id, snapshotId: snapshot.id };
-}
-
-async function runFtbApply({ applyOpId, serverId, summary, uploadPath, decisions, acceptEula }) {
-  const manager = getManager(serverId);
-  if (manager.status !== STATUS.OFFLINE) throw Object.assign(new Error('The server must be offline.'), { status: 409 });
-  const serverDir = manager.dir();
-  const worlds = manager.desc().worlds || [];
-  const packId = String(summary.packId ?? '');
-  const latest = summary.versionId === 'latest';
-  const versionId = latest ? undefined : String(summary.versionId ?? '');
-  if (!/^\d+$/.test(packId)) throw Object.assign(new Error('A numeric FTB pack ID is required.'), { code: 'invalid_pack_id' });
-  if (!latest && !/^\d+$/.test(versionId || '')) throw Object.assign(new Error('A numeric FTB version ID or latest is required.'), { code: 'invalid_version_id' });
-  if (!acceptEula) throw Object.assign(new Error('Explicit Minecraft EULA acknowledgement is required.'), { code: 'eula_required' });
-  if (!uploadPath || !fs.existsSync(uploadPath)) throw Object.assign(new Error('Upload expired. Upload again.'), { code: 'upload_expired' });
-  const stagingRoot = path.join(serverDir, '.lodestone', 'staging', applyOpId);
-  const stagingDir = path.join(stagingRoot, 'ftb');
-  fs.mkdirSync(stagingDir, { recursive: true });
-  if (fs.readdirSync(stagingDir).length) throw Object.assign(new Error('FTB staging directory must be fresh.'), { code: 'staging_not_empty' });
-  if (process.platform !== 'win32') { try { fs.chmodSync(uploadPath, 0o755); } catch (_) {} }
-  foundationOperations.heartbeat(applyOpId, { phase: 'install', progress: 0.2 });
-  const manifestInfo = await ftbInstaller.run({
-    executable: uploadPath, stagingDir, packId, versionId, latest, acceptEula: true,
-    onLine: (line) => { try { foundationOperations.appendEvent(applyOpId, { phase: 'install', message: String(line).slice(0, 300), level: 'info' }); } catch (_) {} },
-  });
-  const staged = contentApply.walkStaging(stagingDir).filter((f) => f.relativePath !== '.manifest.json');
-  if (!staged.length) throw Object.assign(new Error('FTB installer produced no files.'), { code: 'empty_pack' });
-  const validated = modpackLifecycle.validateFiles(staged.map((f) => ({ relativePath: f.relativePath, sizeBytes: f.sizeBytes, sha256: f.sha256 })), worlds);
-  const previous = modpackLifecycle.latest(serverId);
-  const oldFiles = previous ? previous.files.map((f) => ({ relativePath: f.relative_path, sha256: f.sha256, sizeBytes: f.size_bytes })) : [];
-  const plan = modpackLifecycle.buildPlan({ root: serverDir, oldFiles, newFiles: validated.accepted, worlds });
-  contentApply.checkDecisions(plan, decisions);
-  const snapshot = foundationSnapshots.take({ serverId, sourceDir: serverDir, kind: 'modpack', reason: `ftb ${packId}` });
-  if (!foundationSnapshots.verify(snapshot.id).ok) throw new Error('Snapshot verification failed.');
-  const incomingByPath = new Map(validated.accepted.map((f) => [f.relativePath, f]));
-  await promoteStagedPlan({ serverId, serverDir, stagingDir, plan, decisions, incomingByPath });
-  const owned = validated.accepted.filter((f) => {
-    const e = plan.entries.find((x) => x.relativePath === f.relativePath);
-    return e && e.state !== 'local_edit' && (e.state !== 'conflict' || decisions[e.relativePath] === 'take_pack');
-  });
-  const manifest = modpackLifecycle.persistManifest({
-    serverId, provider: 'ftb', projectId: packId, versionId: manifestInfo.versionId || (latest ? 'latest' : String(versionId || '')),
-    mcVersion: manifestInfo.minecraftVersion || '', loader: manifestInfo.loader || '',
-    operationId: applyOpId, snapshotId: snapshot.id, previousManifestId: previous?.id || null,
-    displayName: manifestInfo.name || `FTB ${packId}`, versionName: manifestInfo.versionName || '',
-    providerMetadata: { packId, versionId: latest ? 'latest' : String(versionId || ''), installerName: summary.installerName || null, installerSha256: summary.sha256 || null, javaVersion: manifestInfo.javaVersion || null },
-    sourceKind: 'official_installer', verificationStatus: 'user_attested',
-  }, owned);
-  fs.rmSync(stagingRoot, { recursive: true, force: true });
-  manager.pushLine(`[Hostkind] Installed FTB pack ${packId} via official installer (attested).`, 'info');
-  addNotification('modpack_installed', 'FTB Pack Installed', `FTB pack ${packId} installed into "${manager.name()}" (${owned.length} files).`, serverId);
-  return { manifestId: manifest.id, snapshotId: snapshot.id };
-}
-
-app.post('/api/minecraft/content/uploads/:operationId/apply', (req, res) => {
-  const prep = foundationOperations.get(String(req.params.operationId || ''));
-  if (!prep) return res.status(404).json({ error: 'Upload not found.' });
-  if (prep.state !== foundationOperations.STATES.SUCCEEDED) return res.status(409).json({ error: prep.state === foundationOperations.STATES.FAILED ? 'Upload inspection failed.' : 'Upload is not ready.', state: prep.state });
-  const summary = (prep.summary && typeof prep.summary === 'object') ? prep.summary : {};
-  if (summary.expiresAt && summary.expiresAt < Date.now()) {
-    if (summary.uploadPath) fs.rmSync(path.dirname(summary.uploadPath), { recursive: true, force: true });
-    return res.status(410).json({ error: 'Upload expired. Upload again.', code: 'upload_expired' });
-  }
-  const provider = String(summary.provider || '').toLowerCase();
-  if (!['curseforge', 'ftb'].includes(provider)) return res.status(400).json({ error: 'Unsupported upload provider.' });
-  if (provider === 'ftb' && !isAdmin(req.user)) return res.status(403).json({ error: tErr(req.user, 'errors.forbidden') });
-  if (prep.actorId && prep.actorId !== req.user.id && !isAdmin(req.user)) return res.status(403).json({ error: tErr(req.user, 'errors.forbidden') });
-  const target = targetManager(req) || (prep.serverId ? getManager(prep.serverId) : null);
-  if (!target || !target.dir()) return res.status(400).json({ error: 'No active server.' });
-  const isJar = provider === 'curseforge' && /\.jar$/i.test(String(summary.name || summary.uploadPath || ''));
-  if (!isJar && target.status !== STATUS.OFFLINE) return res.status(409).json({ error: 'The server must be offline.' });
-  if (provider === 'ftb' && (req.body || {}).acceptEula !== true) return res.status(403).json({ error: 'Explicit Minecraft EULA acknowledgement is required.', code: 'eula_required' });
-  const decisions = ((req.body || {}).decisions && typeof req.body.decisions === 'object' && !Array.isArray(req.body.decisions)) ? req.body.decisions : {};
-  const applyOp = foundationOperations.create({ kind: `content-${provider}-apply`, actorId: req.user.id, serverId: target.id, idempotencyKey: req.get('Idempotency-Key') || null, summary: { prepOperationId: prep.id, provider } });
-  if (applyOp.state !== foundationOperations.STATES.QUEUED) return res.status(202).json({ ok: true, operationId: applyOp.id, replay: true });
-  if (!foundationOperations.acquireServerLock(applyOp.id, target.id)) {
-    foundationOperations.fail(applyOp.id, { code: 'server_busy', text: 'Another operation is running for this server.' });
-    return res.status(409).json({ error: 'Another operation is running for this server.' });
-  }
-  res.status(202).json({ ok: true, operationId: applyOp.id });
-  setImmediate(async () => {
-    const uploadPath = summary.uploadPath;
-    try {
-      foundationOperations.start(applyOp.id, { phase: 'apply' });
-      let result;
-      if (provider === 'curseforge' && isJar) result = await runCurseJarApply({ applyOpId: applyOp.id, serverId: target.id, summary, uploadPath });
-      else if (provider === 'curseforge') result = await runCurseZipApply({ applyOpId: applyOp.id, serverId: target.id, summary, uploadPath, decisions });
-      else result = await runFtbApply({ applyOpId: applyOp.id, serverId: target.id, summary, uploadPath, decisions, acceptEula: req.body.acceptEula === true });
-      if (uploadPath) fs.rmSync(path.dirname(uploadPath), { recursive: true, force: true });
-      foundationOperations.finish(applyOp.id, { provider, ...result });
-    } catch (error) {
-      if (error && error.code === 'conflicts_required') {
-        foundationOperations.fail(applyOp.id, { code: 'conflicts_required', text: sanitizeErrorMessage(error.message) });
-      } else {
-        try { fs.rmSync(path.join(target.dir(), '.lodestone', 'staging', applyOp.id), { recursive: true, force: true }); } catch (_) {}
-        foundationOperations.fail(applyOp.id, { code: (error && error.code) || 'content_apply_failed', text: sanitizeErrorMessage((error && error.message) || 'Apply failed') });
-      }
-      log('content apply failed:', (error && error.message) || error);
-    }
-  });
-});
-
-app.get('/api/minecraft/content/installed', (req, res) => {
-  const m = targetManager(req); if (!m) return res.status(400).json({ error: 'No active server.' });
-  const db = require('./lib/db.cjs').open();
-  const artifacts = db.prepare('SELECT * FROM content_provenance WHERE server_id = ? ORDER BY managed_at DESC').all(m.id).map((row) => ({ ...row, providerMetadata: JSON.parse(row.provider_metadata_json || '{}') }));
-  const history = modpackLifecycle.history(m.id).map((row) => ({ ...row, providerMetadata: JSON.parse(row.provider_metadata_json || '{}') }));
-  res.json({ installed: modpackLifecycle.latest(m.id), artifacts, history });
-});
-
-app.post('/api/modpacks/import/preview', (req, res) => lifecyclePreview(req, res, 'import'));
-app.post('/api/modpacks/import', (req, res) => lifecycleApply(req, res, 'import'));
-app.get('/api/modpacks/installed', async (req, res) => {
-  const m = targetManager(req);
-  if (!m) return res.status(400).json({ error: 'No active server.' });
-  const installed = modpackLifecycle.latest(m.id);
-  const history = modpackLifecycle.history(m.id);
-  const records = installed ? [installed, ...history] : history;
-  const metadata = new Map();
-  await Promise.all(records.map(async (record) => {
-    const key = `${record.project_id}:${record.version_id}`;
-    if (metadata.has(key)) return;
-    try {
-      const [projectResponse, versionResponse] = await Promise.all([
-        fetch(`${MODRINTH}/project/${encodeURIComponent(record.project_id)}`, { headers: { 'User-Agent': UA } }),
-        fetch(`${MODRINTH}/version/${encodeURIComponent(record.version_id)}`, { headers: { 'User-Agent': UA } }),
-      ]);
-      if (!projectResponse.ok || !versionResponse.ok) return;
-      const [project, version] = await Promise.all([projectResponse.json(), versionResponse.json()]);
-      metadata.set(key, {
-        projectName: project.title || project.slug,
-        projectSlug: project.slug,
-        iconUrl: project.icon_url || null,
-        versionName: version.name || version.version_number,
-        versionNumber: version.version_number,
-      });
-    } catch (_) { /* Stored identifiers remain available when Modrinth is unavailable. */ }
-  }));
-  const enrich = (record) => record ? {
-    ...record,
-    file_count: record.file_count ?? record.files?.length ?? 0,
-    ...(metadata.get(`${record.project_id}:${record.version_id}`) || {}),
-  } : null;
-  res.json({ installed: enrich(installed), history: history.map(enrich) });
-});
-app.post('/api/modpacks/update/preview', (req, res) => lifecyclePreview(req, res, 'update'));
-app.post('/api/modpacks/update', (req, res) => lifecycleApply(req, res, 'update'));
-
-app.post('/api/modpacks/clone', (req, res) => {
-  const body = req.body || {};
-  const source = targetManager(req);
-  const name = String(body.name || '').trim();
-  const parentDir = String(body.parentDir || '').trim();
-  if (!source || !source.dir()) return res.status(400).json({ error: 'No active server.' });
-  if (!name || !parentDir || !fs.existsSync(parentDir)) return res.status(400).json({ error: 'A name and existing parent folder are required.' });
-  const finalDir = path.join(parentDir, slugify(name));
-  if (fs.existsSync(finalDir)) return res.status(409).json({ error: 'The clone folder already exists.' });
-  const staging = `${finalDir}.lodestone-${crypto.randomUUID()}.staging`;
-  const sourceConfig = source.desc();
-  try {
-    const worlds = sourceConfig.worlds || [];
-    function copyClone(src, dest, rel = '') {
-      fs.mkdirSync(dest, { recursive: true });
-      for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
-        const childRel = rel ? `${rel}/${entry.name}` : entry.name;
-        if (modpackLifecycle.exclusionReason(childRel, worlds)) continue;
-        const from = path.join(src, entry.name);
-        const to = path.join(dest, entry.name);
-        if (entry.isDirectory()) copyClone(from, to, childRel);
-        else if (entry.isFile()) fs.copyFileSync(from, to);
-      }
-    }
-    copyClone(source.dir(), staging);
-    fs.renameSync(staging, finalDir);
-    const entry = { ...sourceConfig, id: genId(), name, dir: finalDir, worlds: [...worlds] };
-    config.servers.push(entry);
-    saveConfig(config);
-    getManager(entry.id);
-    const prior = modpackLifecycle.latest(source.id);
-    if (prior) {
-      const files = prior.files.filter((f) => fs.existsSync(mrpackSafeResolve(finalDir, f.relative_path))).map((f) => ({ relativePath: f.relative_path, sha256: f.sha256, sizeBytes: f.size_bytes, sourceUrlHash: f.source_url_hash }));
-      modpackLifecycle.persistManifest({ serverId: entry.id, projectId: prior.project_id, versionId: prior.version_id, mcVersion: prior.mc_version, loader: prior.loader, operationId: crypto.randomUUID() }, files);
-    }
-    res.status(201).json({ ok: true, server: serverWithStatus(entry) });
-  } catch (err) {
-    fs.rmSync(staging, { recursive: true, force: true });
-    httpError(res, req, err, 500);
-  }
-});
-
-app.post('/api/modpacks/history/:id/rollback', (req, res) => {
-  const manifest = modpackLifecycle.getManifest(req.params.id);
-  if (!manifest || !manifest.snapshot_id) return res.status(404).json({ error: 'Rollback snapshot not found.' });
-  const m = getManager(manifest.server_id);
-  if (!m || m.status !== STATUS.OFFLINE) return res.status(409).json({ error: 'The server must be offline.' });
-  const result = foundationSnapshots.restore({ id: manifest.snapshot_id, targetDir: m.dir() });
-  if (!result.ok) return res.status(500).json({ error: 'Snapshot restore verification failed.' });
-  const op = foundationOperations.create({ kind: 'modpack-rollback', actorId: req.user.id, serverId: m.id, idempotencyKey: req.get('Idempotency-Key') || null });
-  foundationOperations.start(op.id, { phase: 'restore' });
-  foundationOperations.finish(op.id, { manifestId: manifest.id });
-  res.status(202).json({ ok: true, operationId: op.id, manifestId: manifest.id });
-});
-
-app.get('/api/modrinth/modpack/versions/:projectId', async (req, res) => {
-  const m = targetManager(req);
-  const compat = detectCompat(m);
-  const projectId = req.params.projectId;
-  const url = `${MODRINTH}/project/${encodeURIComponent(projectId)}/version`;
-  try {
-    const r = await fetch(url, { headers: { 'User-Agent': UA } });
-    const matched = await r.json();
-    res.json({ matched: Array.isArray(matched) ? matched : [], compat });
-  } catch (err) {
-    httpError(res, req, err, 502);
-  }
-});
-
-app.get('/api/modrinth/modpack/preview/:versionId', async (req, res) => {
-  const versionId = req.params.versionId;
-  if (!versionId) return res.status(400).json({ error: tErr(req.user, 'errors.missingVersionId') });
-  const m = targetManager(req);
-  const compat = detectCompat(m);
-  try {
-    log(`Modpack preview: resolving version ${versionId}...`);
-    const r = await fetch(`${MODRINTH}/version/${encodeURIComponent(versionId)}`, { headers: { 'User-Agent': UA } });
-    const version = await r.json();
-    const file = (version.files || []).find((f) => f.primary) || (version.files || [])[0];
-    if (!file) return res.status(404).json({ error: tErr(req.user, 'errors.noVersionFiles') });
-    const dl = await fetch(file.url, { headers: { 'User-Agent': UA } });
-    if (!dl.ok) return res.status(502).json({ error: `Download failed: HTTP ${dl.status}` });
-    const mrpack = Buffer.from(await dl.arrayBuffer());
-    const index = await readMrpackIndex(mrpack);
-    const spec = manifestToSpec(index);
-    const counts = fileCountByEnv(index);
-    const eligibleExisting = !spec.unsupported && compat.loaders.some((l) => l === spec.loaderType) &&
-      (!compat.mcVersion || compat.mcVersion === spec.mcVersion);
-    res.json({
-      name: spec.name || version.name || '',
-      versionId,
-      mcVersion: spec.mcVersion || '',
-      loaderType: spec.loaderType || '',
-      loaderVersion: spec.loaderVersion || '',
-      unsupported: spec.unsupported,
-      unsupportedReason: spec.reason || '',
-      fileCount: counts.total,
-      serverFileCount: counts.server,
-      indexName: index.name || '',
-      eligibleExisting,
-      compat,
-    });
-  } catch (err) {
-    log(`Modpack preview failed: ${err.message}`);
-    res.status(502).json({ error: sanitizeErrorMessage(err.message) });
-  }
-});
-
-app.post('/api/modrinth/modpack/install', async (req, res) => {
-  const body = req.body || {};
-  const versionId = String(body.versionId || '');
-  const mode = String(body.mode || 'existing').toLowerCase();
-  if (!versionId) return res.status(400).json({ error: tErr(req.user, 'errors.missingVersionId') });
-  try {
-    log(`Modpack install: resolving version ${versionId}...`);
-    const r = await fetch(`${MODRINTH}/version/${encodeURIComponent(versionId)}`, { headers: { 'User-Agent': UA } });
-    const version = await r.json();
-    const file = (version.files || []).find((f) => f.primary) || (version.files || [])[0];
-    if (!file) return res.status(404).json({ error: tErr(req.user, 'errors.noVersionFiles') });
-    const dl = await fetch(file.url, { headers: { 'User-Agent': UA } });
-    if (!dl.ok) return res.status(502).json({ error: `Download failed: HTTP ${dl.status}` });
-    const mrpack = Buffer.from(await dl.arrayBuffer());
-    const index = await readMrpackIndex(mrpack);
-    const spec = manifestToSpec(index);
-    if (spec.unsupported) {
-      return res.status(400).json({ error: tErr(req.user, 'errors.modpackUnsupportedLoader', { loader: spec.loaderType || 'unknown', reason: spec.reason || '' }) });
-    }
-
-    const sFiles = serverSideFiles(index);
-    let targetDir;
-    let serverName;
-    let targetServerId;
-    let targetWorlds = [];
-
-    if (mode === 'create') {
-      const createName = String(body.name || spec.name || index.name || 'Modpack Server').trim();
-      const parentDir = String(body.parentDir || '').trim();
-      if (!createName) return res.status(400).json({ error: tErr(req.user, 'errors.nameRequired') });
-      if (createName.length > SERVER_NAME_MAX_LENGTH) return res.status(400).json({ error: tErr(req.user, 'errors.nameTooLong', { max: SERVER_NAME_MAX_LENGTH }) });
-      if (!parentDir || !fs.existsSync(parentDir)) return res.status(400).json({ error: tErr(req.user, 'errors.pickParentFolder') });
-
-      const dir = path.join(parentDir, slugify(createName));
-      if (fs.existsSync(dir) && fs.readdirSync(dir).length) {
-        return res.status(400).json({ error: tErr(req.user, 'errors.folderNotEmpty', { path: dir }) });
-      }
-
-      const type = spec.loaderType;
-      const mcVersion = spec.mcVersion;
-
-      log(`Modpack create: ${type} server "${createName}" (MC ${mcVersion}) -> ${dir}`);
-
-      fs.mkdirSync(dir, { recursive: true });
-
-      const { url, filename } = await resolveServerJar(type, mcVersion);
-      log(`Modpack create: resolved -> ${url}`);
-      const jarPath = path.join(dir, filename);
-
-      log(`Modpack create: downloading ${filename}...`);
-      await downloadToFile(url, jarPath, () => {}, undefined);
-
-      let jarFilename = filename;
-      let launchArgs = null;
-      if (type === 'forge' || type === 'neoforge') {
-        const label = type === 'neoforge' ? 'NeoForge' : 'Forge';
-        const major = requiredJavaMajor(mcVersion);
-        let javaBin = resolveJavaForServer({ mcVersion }, major);
-        if (!javaBin) {
-          log(`Modpack create: ${label} installer needs Java ${major}; preparing managed runtime...`);
-          javaBin = await ensureRuntime(major, () => {});
-        }
-        await runForgeInstaller(dir, filename, label, javaBin);
-        const produced = findForgeLaunchTarget(dir, type);
-        if (!produced) throw new Error(`${label} installer finished but no server jar or launch args file was found in the folder`);
-        jarFilename = produced.jar;
-        launchArgs = produced.launchArgs;
-      }
-
-      fs.writeFileSync(path.join(dir, 'eula.txt'), `# Accepted via Hostkind modpack install on ${new Date().toISOString()}\neula=true\n`, 'utf8');
-
-      targetDir = dir;
-      serverName = createName;
-
-      const entry = {
-        id: genId(),
-        name: createName,
-        dir,
-        jar: jarFilename,
-        loader: type,
-        launchArgs,
-        javaArgs: ['-Xmx4G', '-Xms4G'],
-        mcVersion,
-        stopTimeoutSeconds: 30,
-        worlds: ['world', 'world_nether', 'world_the_end'],
-        watchdog: { enabled: false, maxRestarts: 3, windowMinutes: 10 },
-      };
-      config.servers.push(entry);
-      if (!config.activeServerId) config.activeServerId = entry.id;
-      saveConfig(config);
-      getManager(entry.id);
-      targetServerId = entry.id;
-      targetWorlds = entry.worlds;
-      addNotification('server_created', 'Modpack Server Created', `Server "${createName}" (${type}, MC ${mcVersion}) created from modpack.`, entry.id);
-      log(`Created ${type} server "${createName}" (${mcVersion}) from modpack at ${dir}`);
-    } else {
-      const m = targetManager(req);
-      if (!m || !m.dir()) return res.status(400).json({ error: tErr(req.user, 'errors.noActiveServer') });
-      const compat = detectCompat(m);
-      const loaderOk = compat.loaders.some((l) => l === spec.loaderType);
-      const versionOk = !compat.mcVersion || compat.mcVersion === spec.mcVersion;
-      if (!loaderOk || !versionOk) {
-        return res.status(409).json({ error: tErr(req.user, 'errors.modpackIncompatible', { label: spec.loaderType || '?', version: spec.mcVersion || '' }) });
-      }
-      targetDir = m.dir();
-      serverName = m.name();
-      targetServerId = m.id;
-      targetWorlds = m.desc().worlds || [];
-    }
-
-    fs.mkdirSync(targetDir, { recursive: true });
-
-    let installed = 0;
-    const managedFiles = [];
-    for (const f of sFiles) {
-      const url = f.downloads && f.downloads[0];
-      if (!url) continue;
-      log(`Modpack: downloading ${f.path}...`);
-      const buf = await downloadAndVerify(url, f.hashes, UA);
-      if (!f.path || typeof f.path !== 'string') continue;
-      const dest = mrpackSafeResolve(targetDir, f.path);
-      if (!dest) {
-        log(`Modpack: skipping "${f.path}" — escapes server directory`);
-        continue;
-      }
-      fs.mkdirSync(path.dirname(dest), { recursive: true });
-      fs.writeFileSync(dest, buf);
-      managedFiles.push({
-        relativePath: f.path,
-        sizeBytes: buf.length,
-        sha256: modpackLifecycle.sha256(buf),
-        sourceUrlHash: modpackLifecycle.sha256(url),
-      });
-      installed++;
-    }
-
-    const overridesExtracted = await extractOverrides(mrpack, targetDir);
-    const trackedFiles = modpackLifecycle.validateFiles(managedFiles, targetWorlds).accepted;
-    const previous = modpackLifecycle.latest(targetServerId);
-    modpackLifecycle.persistManifest({
-      serverId: targetServerId,
-      projectId: String(version.project_id || ''),
-      versionId,
-      mcVersion: spec.mcVersion,
-      loader: spec.loaderType,
-      operationId: crypto.randomUUID(),
-      previousManifestId: previous?.id || null,
-    }, trackedFiles);
-
-    log(`Modpack: installed ${installed} files + ${overridesExtracted} overrides into "${serverName}"`);
-    if (mode === 'existing') {
-      const m = targetManager(req);
-      if (m) {
-        m.pushLine(`[Hostkind] Installed modpack from Modrinth: ${spec.name || version.name || ''} (${installed} files, ${overridesExtracted} overrides)`, 'info');
-        addNotification('modpack_installed', 'Modpack Installed', `Modpack "${spec.name || version.name || ''}" installed into "${serverName}" (${installed} files, ${overridesExtracted} overrides).`, m.id);
-      }
-    } else {
-      addNotification('modpack_installed', 'Modpack Server Created', `Modpack "${spec.name || version.name || ''}" deployed as new server "${serverName}".`);
-    }
-
-    res.json({
-      ok: true,
-      name: spec.name || version.name || '',
-      serverId: targetServerId,
-      server: config.servers.find((server) => server.id === targetServerId) || null,
-      fileCount: installed,
-      overrides: overridesExtracted,
-      mode,
-      note: 'Restart the server to apply.',
-    });
-  } catch (err) {
-    log(`Modpack install failed: ${err.message}`);
-    res.status(502).json({ error: sanitizeErrorMessage(err.message) });
-  }
-});
+// /api/modrinth/modpack/* is served by the modpacks router mounted above.
 
 // --- system (point-in-time snapshot; the stream goes over WS) ---
-app.get('/api/system', async (req, res) => {
-  res.json(await systemStats(targetManager(req)));
-});
+// Served by the system router mounted alongside /api/metrics above.
 
 // ---------------------------------------------------------------------------
 // File manager (browse/edit/upload/download - sandboxed to the server folder)
-// ---------------------------------------------------------------------------
-
-// Resolve a user-supplied relative path against the server root, refusing any
-// path that would escape the root (path traversal guard).
-function safeResolve(root, rel) {
-  const base = path.resolve(root);
-  // CodeQL's js/path-injection barrier keys on the FIRST argument of
-  // path.resolve (or the last argument of a path.join nested as its first
-  // argument). The tainted relative path must therefore enter through
-  // path.join - a resolve(base, taintedSuffix) shape is logically correct
-  // but invisible to the query, leaving every downstream fs sink flagged.
-  const target = path.resolve(path.join(base, '.' + path.sep + (rel || '').replace(/^[\\/]+/, '')));
-  const rootWithSep = base.endsWith(path.sep) ? base : base + path.sep;
-  if (target !== base && !target.startsWith(rootWithSep)) return null;
-  return target;
-}
-
-// The prefix check above is lexical, so a symlink (or Windows junction) inside
-// the server folder can reach the host through it. Re-prove containment on the
-// real paths: canonical() resolves every existing link on both sides, so a
-// link pointing outside the root fails the relation check here. The sandbox is
-// "the server folder", links included - reads, writes, renames, and deletes
-// through a link must never leave it.
-function safeResolveNoFollow(root, rel) {
-  const abs = safeResolve(root, rel);
-  if (!abs) return null;
-  const how = pathSafety.relation(abs, root);
-  return how === 'same' || how === 'inside' ? abs : null;
-}
-
-const TEXT_EXTS = new Set([
-  '.txt', '.properties', '.yml', '.yaml', '.json', '.json5', '.toml', '.conf', '.cfg',
-  '.ini', '.log', '.md', '.sh', '.bat', '.csv', '.xml', '.mcmeta', '.lang', '.sk',
-]);
-const MAX_EDIT_BYTES = 2 * 1024 * 1024;
-
-function isTextFile(name) {
-  const ext = path.extname(name).toLowerCase();
-  return TEXT_EXTS.has(ext) || name.toLowerCase() === 'eula.txt' || !ext;
-}
-
-app.get('/api/files', (req, res) => {
-  const m = targetManager(req);
-  if (!m || !m.dir()) return res.status(400).json({ error: tErr(req.user, 'errors.noActiveServer') });
-  const abs = safeResolveNoFollow(m.dir(), req.query.path || '');
-  if (!abs) return res.status(400).json({ error: tErr(req.user, 'errors.invalidPath') });
-  // Inline prefix + startsWith barrier at the fs sinks (js/path-injection).
-  // safeResolveNoFollow already proved containment; this restates it on the
-  // sink's own taint path in the positive-startsWith shape CodeQL 2.26.3
-  // registers (negated or compound guard conditions are invisible to the
-  // query). The prefix is checked without a trailing separator so the server
-  // root itself stays reachable, matching the resolver contract.
-  const filesRoot = path.resolve(m.dir());
-  const absResolved = path.resolve(abs);
-  if (absResolved.startsWith(filesRoot)) {
-    try {
-      const entries = fs.readdirSync(absResolved, { withFileTypes: true });
-      const out = entries.map((e) => {
-        let size = 0, mtime = 0;
-        const child = path.join(absResolved, e.name);
-        if (child.startsWith(filesRoot)) {
-          try { const st = fs.statSync(child); size = st.size; mtime = st.mtimeMs; } catch (_) {}
-        }
-        return { name: e.name, dir: e.isDirectory(), size, mtime, editable: e.isFile() && isTextFile(e.name) };
-      }).sort((a, b) => (b.dir - a.dir) || a.name.localeCompare(b.name));
-      res.json({ path: path.relative(m.dir(), abs).replace(/\\/g, '/'), entries: out });
-    } catch (err) {
-      httpError(res, req, err, 400);
-    }
-  } else {
-    return res.status(400).json({ error: tErr(req.user, 'errors.invalidPath') });
-  }
-});
-
-app.get('/api/files/read', (req, res) => {
-  const m = targetManager(req);
-  if (!m || !m.dir()) return res.status(400).json({ error: tErr(req.user, 'errors.noActiveServer') });
-  const abs = safeResolveNoFollow(m.dir(), req.query.path || '');
-  if (!abs) return res.status(400).json({ error: tErr(req.user, 'errors.invalidPath') });
-  const filesRoot = path.resolve(m.dir());
-  const absResolved = path.resolve(abs);
-  if (absResolved.startsWith(filesRoot)) {
-    try {
-      const st = fs.statSync(absResolved);
-      if (st.isDirectory()) return res.status(400).json({ error: tErr(req.user, 'errors.isAFolder') });
-      if (st.size > MAX_EDIT_BYTES) return res.status(413).json({ error: tErr(req.user, 'errors.fileTooLarge') });
-      if (!isTextFile(path.basename(absResolved))) return res.status(415).json({ error: tErr(req.user, 'errors.notATextFile') });
-      res.json({ content: fs.readFileSync(absResolved, 'utf8') });
-    } catch (err) {
-      httpError(res, req, err, 400);
-    }
-  } else {
-    return res.status(400).json({ error: tErr(req.user, 'errors.invalidPath') });
-  }
-});
-
-app.put('/api/files/write', (req, res) => {
-  const m = targetManager(req);
-  if (!m || !m.dir()) return res.status(400).json({ error: tErr(req.user, 'errors.noActiveServer') });
-  const abs = safeResolveNoFollow(m.dir(), req.body && req.body.path);
-  if (!abs) return res.status(400).json({ error: tErr(req.user, 'errors.invalidPath') });
-  const content = req.body && req.body.content;
-  if (typeof content !== 'string') return res.status(400).json({ error: tErr(req.user, 'errors.missingContent') });
-  const filesRoot = path.resolve(m.dir());
-  const absResolved = path.resolve(abs);
-  if (absResolved.startsWith(filesRoot)) {
-    try {
-      if (m.desc().type === 'palworld' && absResolved === path.resolve(palworldSettings.configPath(m.dir()))) {
-        const guarded = palworldSettings.validateProtectedRaw(content, m.desc());
-        if (!guarded.ok) return res.status(409).json({ error: guarded.error, code: 'protected_palworld_setting' });
-      }
-      fs.writeFileSync(absResolved, content, 'utf8');
-      res.json({ ok: true });
-    } catch (err) {
-      httpError(res, req, err, 500);
-    }
-  } else {
-    return res.status(400).json({ error: tErr(req.user, 'errors.invalidPath') });
-  }
-});
-
-app.post('/api/files/mkdir', (req, res) => {
-  const m = targetManager(req);
-  if (!m || !m.dir()) return res.status(400).json({ error: tErr(req.user, 'errors.noActiveServer') });
-  const name = path.basename(String((req.body && req.body.name) || '').trim());
-  if (!name) return res.status(400).json({ error: tErr(req.user, 'errors.nameRequiredShort') });
-  const abs = safeResolveNoFollow(m.dir(), path.join(req.body.path || '', name));
-  if (!abs) return res.status(400).json({ error: tErr(req.user, 'errors.invalidPath') });
-  const filesRoot = path.resolve(m.dir());
-  const absResolved = path.resolve(abs);
-  if (absResolved.startsWith(filesRoot)) {
-    try {
-      fs.mkdirSync(absResolved, { recursive: true });
-      res.json({ ok: true });
-    } catch (err) {
-      httpError(res, req, err, 500);
-    }
-  } else {
-    return res.status(400).json({ error: tErr(req.user, 'errors.invalidPath') });
-  }
-});
-
-app.post('/api/files/rename', (req, res) => {
-  const m = targetManager(req);
-  if (!m || !m.dir()) return res.status(400).json({ error: tErr(req.user, 'errors.noActiveServer') });
-  const from = safeResolveNoFollow(m.dir(), req.body && req.body.path);
-  const newName = path.basename(String((req.body && req.body.name) || '').trim());
-  if (!from || !newName) return res.status(400).json({ error: tErr(req.user, 'errors.invalidPath') });
-  const to = path.join(path.dirname(from), newName);
-  // The destination is the sibling of an allowed source, so it is canonically
-  // inside the root whenever `from` is - but check it anyway so a rename can
-  // never land on a symlink pointing out of the sandbox.
-  const toRel = pathSafety.relation(to, m.dir());
-  if (toRel !== 'same' && toRel !== 'inside') return res.status(400).json({ error: tErr(req.user, 'errors.invalidPath') });
-  // The source and destination are both user-influenced; restate containment
-  // in the positive-startsWith shape at the rename sink (js/path-injection).
-  // CodeQL 2.26.3 registers positive startsWith guards with the use in the
-  // true branch (negated/compound conditions are invisible to the query).
-  const filesRoot = path.resolve(m.dir());
-  const fromResolved = path.resolve(from);
-  const toResolved = path.resolve(to);
-  if (fromResolved.startsWith(filesRoot) && toResolved.startsWith(filesRoot)) {
-    try {
-      fs.renameSync(fromResolved, toResolved);
-      res.json({ ok: true });
-    } catch (err) {
-      httpError(res, req, err, 500);
-    }
-  } else {
-    return res.status(400).json({ error: tErr(req.user, 'errors.invalidPath') });
-  }
-});
-
-app.delete('/api/files', (req, res) => {
-  const m = targetManager(req);
-  if (!m || !m.dir()) return res.status(400).json({ error: tErr(req.user, 'errors.noActiveServer') });
-  const abs = safeResolveNoFollow(m.dir(), req.query.path || '');
-  if (!abs || abs === path.resolve(m.dir())) return res.status(400).json({ error: tErr(req.user, 'errors.invalidPath') });
-  const filesRoot = path.resolve(m.dir());
-  const absResolved = path.resolve(abs);
-  if (absResolved.startsWith(filesRoot)) {
-    try {
-      fs.rmSync(absResolved, { recursive: true, force: true });
-      res.json({ ok: true });
-    } catch (err) {
-      httpError(res, req, err, 500);
-    }
-  } else {
-    return res.status(400).json({ error: tErr(req.user, 'errors.invalidPath') });
-  }
-});
-
-app.get('/api/files/download', (req, res) => {
-  const m = targetManager(req);
-  if (!m || !m.dir()) return res.status(400).json({ error: tErr(req.user, 'errors.noActiveServer') });
-  const abs = safeResolveNoFollow(m.dir(), req.query.path || '');
-  if (!abs) return res.status(400).json({ error: tErr(req.user, 'errors.invalidPath') });
-  const filesRoot = path.resolve(m.dir());
-  const absResolved = path.resolve(abs);
-  if (absResolved.startsWith(filesRoot)) {
-    try {
-      if (fs.statSync(absResolved).isDirectory()) return res.status(400).json({ error: tErr(req.user, 'errors.cannotDownloadFolder') });
-      res.download(absResolved, path.basename(absResolved));
-    } catch (err) {
-      res.status(404).json({ error: tErr(req.user, 'errors.fileDoesNotExist') });
-    }
-  } else {
-    return res.status(400).json({ error: tErr(req.user, 'errors.invalidPath') });
-  }
-});
-
-const fileUpload = multer({
-  storage: multer.diskStorage({
-    destination: (req, file, cb) => {
-      const m = targetManager(req);
-      if (!m || !m.dir()) return cb(new Error('No active server.'));
-      const dest = safeResolveNoFollow(m.dir(), req.query.path || '');
-      if (!dest) return cb(new Error('Invalid path'));
-      const uploadsRoot = path.resolve(m.dir());
-      const destResolved = path.resolve(dest);
-      if (destResolved !== uploadsRoot && !destResolved.startsWith(uploadsRoot + path.sep)) return cb(new Error('Invalid path'));
-      try { fs.mkdirSync(destResolved, { recursive: true }); } catch (_) {}
-      cb(null, destResolved);
-    },
-    filename: (req, file, cb) => cb(null, path.basename(file.originalname)),
-  }),
-  limits: { fileSize: 500 * 1024 * 1024 },
-});
-
-app.post('/api/files/upload', fileUpload.array('files'), (req, res) => {
-  res.json({ ok: true, count: Array.isArray(req.files) ? req.files.length : 0 });
-}, (err, req, res, next) => {
-  httpError(res, req, err, 400);
-});
+// Routes live in lib/routes/files.cjs; mounted here (in place) so the
+// /api/files prefix middleware ordering above is unchanged.
+app.use('/api/files', filesRouter({ targetManager, tErr, httpError }));
 
 // ---------------------------------------------------------------------------
 // Server creator (download Vanilla / Spigot / Paper / Fabric / Forge / NeoForge jars)
@@ -7308,19 +3645,17 @@ function runForgeInstaller(dir, installerFilename, label = 'Forge', javaBin = 'j
   return runForgeInstallerProcess(dir, installerFilename, label, javaBin, log);
 }
 
-app.get('/api/create/versions', async (req, res) => {
-  const type = String(req.query.type || '').toLowerCase();
-  if (!SERVER_TYPES.includes(type)) return res.status(400).json({ error: tErr(req.user, 'errors.unknownServerType') });
-  try {
-    log(`Fetching ${type} version list...`);
-    const versions = await listServerVersions(type);
-    log(`${type} versions: ${versions.length} (latest ${versions[0] || 'n/a'})`);
-    res.json({ versions });
-  } catch (err) {
-    log(`Failed to fetch ${type} version list: ${err.message}`);
-    res.status(502).json({ error: sanitizeErrorMessage(err.message) });
-  }
-});
+// ---------------------------------------------------------------------------
+// Server creator (download Vanilla / Spigot / Paper / Fabric / Forge / NeoForge jars)
+// Routes live in lib/routes/create.cjs; mounted here (in place) so the
+// /api/create prefix middleware ordering above is unchanged.
+app.use('/api', createRouter({
+  getConfig: () => config, saveConfig, getManager, serverWithStatus, slugify, genId,
+  addNotification, log, tErr, httpError, sanitizeErrorMessage, requireAdmin,
+  SERVER_TYPES, SERVER_NAME_MAX_LENGTH, INSTALLER_CACHE_DIR,
+  listServerVersions, resolveServerJar, downloadToFile, requiredJavaMajor, resolveJavaForServer,
+  ensureRuntime, runForgeInstaller, findForgeLaunchTarget, fetchText, probePortInUse,
+}));
 
 // Downloads `url` to `destPath`, streaming chunks to disk and reporting
 // progress through `onProgress(received, total)`. Resolves with the number of
@@ -7563,325 +3898,7 @@ function ensureRuntime(major, onProgress) {
   return p;
 }
 
-app.post('/api/create', requireAdmin, async (req, res) => {
-  const body = req.body || {};
-  const type = String(body.type || '').toLowerCase();
-  const gameType = String(body.gameType || (['custom', 'terraria', 'valheim', 'palworld'].includes(type) ? type : 'minecraft')).toLowerCase();
-  const name = String(body.name || '').trim();
-  if (gameType !== 'minecraft') {
-    if (body.automatic && ['terraria', 'valheim', 'palworld'].includes(gameType)) {
-      const parentDir = String(body.parentDir || '').trim();
-      const port = Number(body.port);
-      const maxPlayers = Number(body.maxPlayers);
-      const worldName = String(body.worldName || '').trim();
-      const serverName = String(body.serverName || name).trim();
-      const password = String(body.password || '');
-      if (!name) return res.status(400).json({ error: tErr(req.user, 'errors.nameRequired') });
-      if (name.length > SERVER_NAME_MAX_LENGTH) return res.status(400).json({ error: tErr(req.user, 'errors.nameTooLong', { max: SERVER_NAME_MAX_LENGTH }) });
-      if (!parentDir || !fs.existsSync(parentDir) || !fs.statSync(parentDir).isDirectory()) return res.status(400).json({ error: tErr(req.user, 'errors.pickParentFolder') });
-      const maxPort = gameType === 'valheim' ? 65533 : (gameType === 'palworld' ? 65534 : 65535);
-      if (!Number.isInteger(port) || port < 1 || port > maxPort) return res.status(400).json({ error: 'Choose a valid server port.' });
-      const maxPlayerLimit = gameType === 'terraria' ? 255 : (gameType === 'valheim' ? 10 : 32);
-      if (!Number.isInteger(maxPlayers) || maxPlayers < 1 || maxPlayers > maxPlayerLimit) return res.status(400).json({ error: 'Choose a valid player limit.' });
-      if (!worldName) return res.status(400).json({ error: 'World name is required.' });
-      if (gameType === 'valheim' && password.length < 5) return res.status(400).json({ error: 'Valheim requires a password with at least 5 characters.' });
-
-      /*
-       * Terraria's extra creation inputs (docs/terraria/01-installation-versions.md
-       * step 4). Everything that can be refused is refused here, before the
-       * NDJSON stream opens and before anything is downloaded: an omitted
-       * variant is the legacy meaning (vanilla), an unknown one is an error,
-       * and the world name and seed go through the installer's own rules so
-       * the wizard and a scripted POST get the same answer.
-       */
-      let terraria = null;
-      if (gameType === 'terraria') {
-        const variant = String(body.terrariaVariant || 'vanilla').toLowerCase();
-        if (!terrariaVariants.isVariant(variant)) return res.status(400).json({ error: `Unknown Terraria variant: ${variant}` });
-        try {
-          terraria = {
-            variant,
-            versionId: String(body.versionId || '').trim(),
-            worldName: terrariaInstall.normalizeWorldName(worldName),
-            seed: terrariaInstall.normalizeSeed(body.seed),
-            motd: String(body.motd || '').trim(),
-          };
-        } catch (error) {
-          return res.status(error.status || 400).json({ error: error.message, code: error.code });
-        }
-        if (terraria.motd.length > 200) return res.status(400).json({ error: 'The message of the day is limited to 200 characters.' });
-        let portTaken = false;
-        try { portTaken = await probePortInUse(port, '0.0.0.0'); } catch (_) { /* a failed probe must not block creation */ }
-        if (portTaken) return res.status(400).json({ error: `Port ${port} is already in use. Choose another port.` });
-      }
-
-      const dir = path.join(parentDir, slugify(name));
-      if (fs.existsSync(dir) && fs.readdirSync(dir).length) return res.status(400).json({ error: tErr(req.user, 'errors.folderNotEmpty', { path: dir }) });
-      res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8');
-      res.setHeader('Cache-Control', 'no-cache, no-transform');
-      res.setHeader('X-Accel-Buffering', 'no');
-      res.flushHeaders();
-      const send = (event) => { if (!res.writableEnded) res.write(JSON.stringify(event) + '\n'); };
-      const cacheDir = INSTALLER_CACHE_DIR;
-      fs.mkdirSync(cacheDir, { recursive: true });
-      try {
-        const adminPassword = gameType === 'palworld' ? crypto.randomBytes(32).toString('base64url') : undefined;
-        const restPort = gameType === 'palworld' ? port + 1 : undefined;
-        const install = {
-          destination: dir, port, maxPlayers, worldName, serverName, password,
-          adminPassword, restPort,
-          public: body.public !== false,
-          worldSize: [1, 2, 3].includes(Number(body.worldSize)) ? Number(body.worldSize) : 2,
-          difficulty: [0, 1, 2, 3].includes(Number(body.difficulty)) ? Number(body.difficulty) : 0,
-        };
-        if (terraria) {
-          install.worldName = terraria.worldName;
-          install.seed = terraria.seed;
-          install.motd = terraria.motd;
-          install.versionId = terraria.versionId;
-        }
-        const installOptions = {
-          cacheDir,
-          download: (url, target, progress) => downloadToFile(url, target, (received, total) => progress(received, total)),
-          onPhase: (phase) => send({ type: 'phase', phase }),
-          onProgress: (received, total) => send({ type: 'progress', received, total }),
-          onOutput: (line) => send({ type: 'output', line }),
-        };
-        // Terraria resolves its own versions, so it is given no `fetchText`:
-        // the installer's fetch keeps the HTTP status, which is how a GitHub
-        // rate limit is told apart from an unreachable source.
-        const runtime = terraria
-          ? await terrariaInstall.install(terraria.variant, install, installOptions)
-          : await installDedicatedServer(gameType, install, { ...installOptions, fetchText });
-        const entry = {
-          id: genId(), type: gameType, name, dir, cwd: runtime.cwd || path.dirname(runtime.executable),
-          executable: runtime.executable, args: runtime.args,
-          port, maxPlayers, worldName, serverName,
-        };
-        if (gameType === 'valheim') {
-          entry.valheimSchema = 1;
-          entry.password = password;
-          entry.valheimSaveDir = 'data';
-          entry.valheimBackend = 'steam';
-          entry.valheimPublic = body.public !== false;
-          entry.valheimInstanceId = null;
-          entry.valheimBuildId = runtime.buildId || null;
-          entry.valheimSettings = {};
-          entry.valheimExtraArgs = ['-nographics', '-batchmode'];
-          // New descriptors are generated from structured fields. The
-          // installer's argv is not persisted because it contains the
-          // password and duplicates Hostkind-owned flags.
-          entry.args = [];
-        }
-        if (gameType === 'palworld') {
-          entry.adminPassword = adminPassword;
-          entry.restPort = restPort;
-        }
-        if (terraria) {
-          entry.terrariaVariant = terraria.variant;
-          entry.terrariaVersion = runtime.version;
-          // Server-relative (docs/terraria/00-baseline-contracts.md "Freeze the
-          // descriptor"): the installer answers with an absolute path because
-          // it is the one writing it into serverconfig.txt, and the descriptor
-          // never carries an absolute path.
-          entry.terrariaSaveDir = path.relative(dir, runtime.saveDir).split(path.sep).join('/');
-          // Deliberately no `file` yet. A freshly created server has an
-          // `autocreate` config and no world on disk: the first start makes it.
-          // Writing the path here would make `preLaunch` refuse that very first
-          // start for a world that is *supposed* to be missing, and the world
-          // module reads the selection from serverconfig.txt until a selection
-          // (phase 3) writes both halves.
-          entry.terrariaWorld = { name: runtime.worldName };
-        }
-        entry.stopTimeoutSeconds = 30;
-        entry.watchdog = { enabled: false, maxRestarts: 3, windowMinutes: 10 };
-        const previousActiveServerId = config.activeServerId;
-        config.servers.push(entry);
-        if (!config.activeServerId) config.activeServerId = entry.id;
-        try {
-          saveConfig(config);
-          runtime.finalize?.();
-        } catch (error) {
-          config.servers = config.servers.filter((server) => server.id !== entry.id);
-          config.activeServerId = previousActiveServerId;
-          runtime.rollbackPromotion?.();
-          throw error;
-        }
-        getManager(entry.id);
-        addNotification('server_created', 'Server Created', `${gameType} server "${name}" installed.`, entry.id);
-        log(`Installed ${gameType} server "${name}"`);
-        send({ type: 'done', server: serverWithStatus(entry) });
-        return res.end();
-      } catch (err) {
-        log(`${gameType} install failed:`, err.message);
-        send({ type: 'error', error: err.message });
-        return res.end();
-      }
-    }
-    let value;
-    try {
-      value = validateManualRegistration({ ...body, gameType }, { maxNameLength: SERVER_NAME_MAX_LENGTH });
-    } catch (err) {
-      return httpError(res, req, err, 400);
-    }
-
-    const entry = {
-      id: genId(),
-      ...value,
-      watchdog: { enabled: false, maxRestarts: 3, windowMinutes: 10 },
-    };
-    config.servers.push(entry);
-    if (!config.activeServerId) config.activeServerId = entry.id;
-    saveConfig(config);
-    getManager(entry.id);
-    addNotification('server_created', 'Process Created', `${gameType} process "${name}" registered.`, entry.id);
-    log(`Registered ${gameType} process "${name}"`);
-
-    res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8');
-    res.setHeader('Cache-Control', 'no-cache, no-transform');
-    res.write(JSON.stringify({ type: 'done', server: serverWithStatus(entry) }) + '\n');
-    return res.end();
-  }
-
-  const parentDir = String(body.parentDir || '').trim();
-  const mcVersion = String(body.mcVersion || '').trim();
-  if (!SERVER_TYPES.includes(type)) return res.status(400).json({ error: tErr(req.user, 'errors.pickServerType') });
-  if (!name) return res.status(400).json({ error: tErr(req.user, 'errors.nameRequired') });
-  if (name.length > SERVER_NAME_MAX_LENGTH) return res.status(400).json({ error: tErr(req.user, 'errors.nameTooLong', { max: SERVER_NAME_MAX_LENGTH }) });
-  if (!parentDir || !fs.existsSync(parentDir)) return res.status(400).json({ error: tErr(req.user, 'errors.pickParentFolder') });
-  if (!mcVersion) return res.status(400).json({ error: tErr(req.user, 'errors.pickMcVersion') });
-  if (!body.eula) return res.status(400).json({ error: tErr(req.user, 'errors.eulaRequired') });
-
-  const dir = path.join(parentDir, slugify(name));
-  if (fs.existsSync(dir) && fs.readdirSync(dir).length) {
-    return res.status(400).json({ error: tErr(req.user, 'errors.folderNotEmpty', { path: dir }) });
-  }
-
-  // NDJSON stream: each line is a JSON event. Phases:
-  //   {type:"start", phase:"resolving"}
-  //   {type:"phase", phase:"downloading"}
-  //   {type:"download-start", total, filename}
-  //   {type:"progress", received, total}    (repeated while downloading)
-  //   {type:"phase", phase:"installing-forge"}    (forge only)
-  //   {type:"phase", phase:"installing-neoforge"} (neoforge only)
-  //   {type:"phase", phase:"finalizing"}
-  //   {type:"done", server}                  (terminal)
-  //   {type:"error", error}                  (terminal)
-  res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8');
-  res.setHeader('Cache-Control', 'no-cache, no-transform');
-  res.setHeader('X-Accel-Buffering', 'no');
-  res.flushHeaders();
-  const send = (obj) => {
-    if (res.writableEnded) return;
-    try { res.write(JSON.stringify(obj) + '\n'); } catch (_) { /* noop */ }
-  };
-
-  const ac = new AbortController();
-  let clientGone = false;
-  // Detect a real client disconnect via the *response* stream. (Listening on
-  // req.on('close') is wrong: on Node 18+ the request emits 'close' as soon as
-  // its body has been read - immediately for a small POST - which would abort
-  // the download before it even starts.)
-  res.on('close', () => {
-    if (res.writableEnded) return;
-    clientGone = true;
-    ac.abort();
-  });
-
-  const cleanup = (jarName) => {
-    try { if (jarName) fs.unlinkSync(path.join(dir, jarName)); } catch (_) { /* ignore */ }
-    try { if (fs.existsSync(dir) && fs.readdirSync(dir).length === 0) fs.rmdirSync(dir); } catch (_) { /* ignore */ }
-  };
-
-  try {
-    log(`Create: ${type} server "${name}" (MC ${mcVersion}) -> ${dir}`);
-    send({ type: 'phase', phase: 'resolving' });
-    log(`Create: resolving ${type} ${mcVersion} download...`);
-    const { url, filename } = await resolveServerJar(type, mcVersion);
-    if (clientGone) return;
-    log(`Create: resolved -> ${url}`);
-
-    fs.mkdirSync(dir, { recursive: true });
-    const jarPath = path.join(dir, filename);
-
-    send({ type: 'phase', phase: 'downloading' });
-    send({ type: 'download-start', total: 0, filename });
-    log(`Create: downloading ${filename}...`);
-    let nextPct = 0;
-    const received = await downloadToFile(url, jarPath, (rec, total) => {
-      send({ type: 'progress', received: rec, total });
-      if (total) {
-        const pct = Math.floor((rec / total) * 100);
-        if (pct >= nextPct) { log(`Create: download ${pct}% (${(rec / 1048576).toFixed(1)}/${(total / 1048576).toFixed(1)} MB)`); nextPct += 25; }
-      }
-    }, ac.signal);
-    if (clientGone) { cleanup(filename); return; }
-    log(`Create: downloaded "${filename}" (${(received / 1048576).toFixed(1)} MB)`);
-
-    let jarFilename = filename;
-    let launchArgs = null;
-    if (type === 'forge' || type === 'neoforge') {
-      const label = type === 'neoforge' ? 'NeoForge' : 'Forge';
-      send({ type: 'phase', phase: type === 'neoforge' ? 'installing-neoforge' : 'installing-forge' });
-      const major = requiredJavaMajor(mcVersion);
-      let javaBin = resolveJavaForServer({ mcVersion }, major);
-      if (!javaBin) {
-        log(`Create: ${label} installer needs Java ${major}; preparing managed runtime...`);
-        javaBin = await ensureRuntime(major, (rec, total) => {
-          if (total) send({ type: 'progress', received: rec, total });
-        });
-      }
-      await runForgeInstaller(dir, filename, label, javaBin);
-      if (clientGone) { cleanup(filename); return; }
-      const produced = findForgeLaunchTarget(dir, type);
-      if (!produced) throw new Error(`${label} installer finished but no server jar or launch args file was found in the folder`);
-      jarFilename = produced.jar;
-      launchArgs = produced.launchArgs;
-    }
-
-    send({ type: 'phase', phase: 'finalizing' });
-    log('Create: writing eula.txt and registering server...');
-    fs.writeFileSync(path.join(dir, 'eula.txt'), `# Accepted via Hostkind on ${new Date().toISOString()}\neula=true\n`, 'utf8');
-
-    let javaArgs = body.javaArgs;
-    if (typeof javaArgs === 'string') javaArgs = javaArgs.trim().split(/\s+/).filter(Boolean);
-    if (!Array.isArray(javaArgs) || !javaArgs.length) javaArgs = ['-Xmx4G', '-Xms4G'];
-
-    const entry = {
-      id: genId(),
-      type: 'minecraft',
-      name,
-      dir,
-      jar: jarFilename,
-      loader: type,
-      launchArgs,
-      javaArgs,
-      mcVersion,
-      stopTimeoutSeconds: 30,
-      worlds: ['world', 'world_nether', 'world_the_end'],
-      watchdog: { enabled: false, maxRestarts: 3, windowMinutes: 10 },
-    };
-    config.servers.push(entry);
-    if (!config.activeServerId) config.activeServerId = entry.id;
-    saveConfig(config);
-    getManager(entry.id);
-    addNotification('server_created', 'Server Created', `Server "${name}" (${type}, MC ${mcVersion}) created at ${dir}.`, entry.id);
-    log(`Created ${type} server "${name}" (${mcVersion}) at ${dir}`);
-
-    send({ type: 'done', server: serverWithStatus(entry) });
-    res.end();
-  } catch (err) {
-    if (err && (err.name === 'AbortError' || err.message === 'aborted' || clientGone)) {
-      // Client disconnected - keep what we have on disk for inspection but
-      // don't register the server.
-      try { log(`Create aborted by client before completion: ${dir}`); } catch (_) { /* noop */ }
-      return;
-    }
-    log(`Create failed (${type} ${mcVersion}): ${err.message}`);
-    send({ type: 'error', error: err.message });
-    res.end();
-  }
-});
+// POST /api/create is served by the create router mounted above.
 
 // ---------------------------------------------------------------------------
 // Scheduled tasks
@@ -7893,31 +3910,6 @@ app.post('/api/create', requireAdmin, async (req, res) => {
 // versioned shape with identical behaviour, and both fields stay on the object
 // so the node-cron scheduling path is unchanged.
 // ---------------------------------------------------------------------------
-
-function publicTask(t) {
-  const s = findServer(t.serverId);
-  const task = automation.migrateTask(t);
-  return {
-    ...task,
-    serverName: s ? s.name : '(deleted server)',
-    serverType: s ? s.type || 'minecraft' : null,
-    capability: automation.capabilityForAction(task.action),
-    state: taskState(t.id),
-    preview: automation.previewTrigger(task.trigger, { lastFireAt: taskState(t.id).lastFireAt }),
-  };
-}
-
-function validateTask(body) {
-  const serverId = String(body.serverId || '').trim();
-  const server = findServer(serverId);
-  if (!server) return { error: eKey('errors.unknownServer') };
-  const normalized = automation.normalizeTask(body, {
-    serverType: server.type || 'minecraft',
-    validateCron: (expression) => cron.validate(expression),
-  });
-  if (normalized.error) return { error: eKey(normalized.error) };
-  return { value: { serverId, ...normalized.value } };
-}
 
 // --- persisted trigger state ------------------------------------------------
 
@@ -8277,77 +4269,16 @@ function saveManifest(m) {
   return entries.length ? { entries } : null;
 }
 
-function requireTaskActionCapability(req, res, task) {
-  const capability = automation.capabilityForAction(automation.migrateTask(task).action);
-  if (!foundationCapabilities.has(req.user, task.serverId, capability)) {
-    res.status(403).json({ error: tErr(req.user, 'errors.forbidden'), capability });
-    return false;
-  }
-  return true;
-}
-
-app.get('/api/tasks', (req, res) => {
-  res.json({ tasks: (config.tasks || []).map(publicTask) });
-});
-
-app.post('/api/tasks/preview', (req, res) => {
-  const v = validateTask(req.body || {});
-  if (v.error) return res.status(400).json({ error: localizeErr(req.user, v.error) });
-  res.json({
-    ok: true,
-    preview: automation.previewTrigger(v.value.trigger, { lastFireAt: taskState(req.body.id).lastFireAt }),
-    capability: automation.capabilityForAction(v.value.action),
-  });
-});
-
-app.post('/api/tasks', (req, res) => {
-  const v = validateTask(req.body || {});
-  if (v.error) return res.status(400).json({ error: localizeErr(req.user, v.error) });
-  if (!requireTaskActionCapability(req, res, v.value)) return;
-  if (!Array.isArray(config.tasks)) config.tasks = [];
-  const task = { id: genId(), ...v.value };
-  config.tasks.push(task);
-  saveConfig(config);
-  setupSchedulers();
-  res.json({ ok: true, task: publicTask(task) });
-});
-
-app.put('/api/tasks/:id', (req, res) => {
-  const t = (config.tasks || []).find((x) => x.id === req.params.id);
-  if (!t) return res.status(404).json({ error: tErr(req.user, 'errors.taskNotFound') });
-  const v = validateTask({ ...automation.migrateTask(t), ...req.body });
-  if (v.error) return res.status(400).json({ error: localizeErr(req.user, v.error) });
-  if (!requireTaskActionCapability(req, res, v.value) || !requireTaskActionCapability(req, res, t)) return;
-  for (const key of ['trigger', 'action', 'cron', 'command', 'type']) delete t[key];
-  Object.assign(t, v.value);
-  saveConfig(config);
-  setupSchedulers();
-  res.json({ ok: true, task: publicTask(t) });
-});
-
-app.delete('/api/tasks/:id', (req, res) => {
-  if (!Array.isArray(config.tasks)) config.tasks = [];
-  const before = config.tasks.length;
-  config.tasks = config.tasks.filter((x) => x.id !== req.params.id);
-  if (config.tasks.length === before) return res.status(404).json({ error: tErr(req.user, 'errors.taskNotFound') });
-  if (config.taskState) delete config.taskState[req.params.id];
-  saveConfig(config);
-  setupSchedulers();
-  res.json({ ok: true });
-});
-
-// Running a task by hand never bypasses the permission its action requires.
-app.post('/api/tasks/:id/run', async (req, res) => {
-  const t = (config.tasks || []).find((x) => x.id === req.params.id);
-  if (!t) return res.status(404).json({ error: tErr(req.user, 'errors.taskNotFound') });
-  if (!requireTaskActionCapability(req, res, t)) return;
-  try {
-    await runTask(t);
-    res.json({ ok: true });
-  } catch (err) {
-    httpError(res, req, err, 500);
-  }
-});
+// ---------------------------------------------------------------------------
+// Scheduled tasks (routes in lib/routes/tasks.cjs).
+// Mounted here (in place) so surrounding middleware ordering is unchanged.
+// ---------------------------------------------------------------------------
+app.use('/api/tasks', tasksRouter({
+  config, automation, findServer, eKey, tErr, localizeErr, httpError, genId,
+  saveConfig, setupSchedulers, runTask, taskState,
+  validateCron: (expression) => cron.validate(expression),
+  foundationCapabilities,
+}));
 
 // ---------------------------------------------------------------------------
 // Static files (last, so they don't shadow /api)
@@ -8470,61 +4401,21 @@ async function systemStats(m) {
 }
 
 // ---------------------------------------------------------------------------
-// Notifications
+// Notifications (state in lib/notifications.cjs, routes in lib/routes/notifications.cjs)
 // ---------------------------------------------------------------------------
 
-const notifications = [];
-const MAX_NOTIFICATIONS = 200;
+const notificationStore = createNotificationStore({
+  broadcast: (notification) => globalBroadcast({ type: 'notification', notification }),
+  genId,
+});
+// Live array by reference — the WS handshake snapshot below reads this.
+const notifications = notificationStore.items;
 
 function addNotification(type, title, message, serverId, i18nMeta = {}) {
-  const n = {
-    id: genId(),
-    type,
-    title,
-    message,
-    ...i18nMeta,
-    serverId: serverId || null,
-    read: false,
-    timestamp: Date.now(),
-  };
-  notifications.unshift(n);
-  if (notifications.length > MAX_NOTIFICATIONS) notifications.pop();
-  globalBroadcast({ type: 'notification', notification: n });
-  return n;
+  return notificationStore.add(type, title, message, serverId, i18nMeta);
 }
 
-// GET /api/notifications
-app.get('/api/notifications', (req, res) => {
-  res.json({ notifications });
-});
-
-// POST /api/notifications/:id/read
-app.post('/api/notifications/:id/read', (req, res) => {
-  const n = notifications.find((x) => x.id === req.params.id);
-  if (!n) return res.status(404).json({ error: 'Notification not found' });
-  n.read = true;
-  res.json({ ok: true });
-});
-
-// POST /api/notifications/read-all
-app.post('/api/notifications/read-all', (req, res) => {
-  for (const n of notifications) n.read = true;
-  res.json({ ok: true });
-});
-
-// POST /api/notifications/clear
-app.post('/api/notifications/clear', (req, res) => {
-  notifications.length = 0;
-  res.json({ ok: true });
-});
-
-// DELETE /api/notifications/:id
-app.delete('/api/notifications/:id', (req, res) => {
-  const idx = notifications.findIndex((x) => x.id === req.params.id);
-  if (idx === -1) return res.status(404).json({ error: 'Notification not found' });
-  notifications.splice(idx, 1);
-  res.json({ ok: true });
-});
+app.use('/api/notifications', notificationsRouter({ store: notificationStore }));
 
 // ---------------------------------------------------------------------------
 // WebSocket
@@ -8851,6 +4742,26 @@ function setupSchedulers() {
   cronJobs.push(cron.schedule('* * * * *', () => {
     if (bugReportsWorker) {
       bugReportsWorker.runOnce().catch((error) => log(`Bug-report sync failed: ${error.message}`));
+    }
+  }));
+
+  // Phase 2B: retention + WAL checkpoint tick (hourly). Mirrors
+  // health.runRetention for operation_events, crash_*, product_events, and
+  // audit previews/requests; ends with a passive WAL checkpoint plus the
+  // auto_checkpoint tuning in lib/db.cjs (previously only checkpointed on
+  // migration snapshots).
+  cronJobs.push(cron.schedule('17 * * * *', () => {
+    try {
+      const result = require('./lib/retention.cjs').runRetention({ now: Date.now() });
+      const parts = [
+        result.health && result.health.pruned != null ? `metrics:${result.health.pruned}` : null,
+        result.operationEvents && result.operationEvents.capped != null ? `opEvents:${result.operationEvents.capped}` : null,
+        result.crashes && result.crashes.groups != null ? `crashGroups:${result.crashes.groups}` : null,
+        result.product && result.product.pruned != null ? `product:${result.product.pruned}` : null,
+      ].filter(Boolean).join(' ');
+      if (parts) log(`Retention: pruned ${parts}`);
+    } catch (error) {
+      log(`Retention tick failed: ${error.message}`);
     }
   }));
 
