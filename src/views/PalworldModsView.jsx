@@ -17,6 +17,7 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Loading } from '@/components/shared/Loading';
 import { useApi } from '@/hooks/useApi';
+import { usePolling } from '@/hooks/usePolling';
 import { useT } from '@/context/I18nContext';
 import { useServer } from '@/context/ServerContext';
 import { useAuth } from '@/context/AuthContext';
@@ -105,18 +106,20 @@ export function PalworldModsView() {
     browse(false, { tag: nextTag });
   }
 
-  useEffect(() => {
-    if (!operation?.id || TERMINAL.includes(operation.state)) return undefined;
-    const timer = setInterval(async () => {
-      try {
-        const result = await api(`/api/operations/${operation.id}`);
-        setOperation(result.operation);
-        if (result.operation.state === 'succeeded') { toast.success(t('palworldMods.official.installed')); load(); }
-        if (result.operation.state === 'failed') toast.error(result.operation.error?.text || t('palworldMods.importFailed'));
-      } catch { /* retry on the next poll */ }
-    }, 1500);
-    return () => clearInterval(timer);
+  const pollOperation = useCallback(async () => {
+    if (!operation?.id || TERMINAL.includes(operation.state)) return;
+    try {
+      const result = await api(`/api/operations/${operation.id}`);
+      setOperation(result.operation);
+      if (result.operation.state === 'succeeded') { toast.success(t('palworldMods.official.installed')); load(); }
+      if (result.operation.state === 'failed') toast.error(result.operation.error?.text || t('palworldMods.importFailed'));
+    } catch { /* retry on the next poll */ }
   }, [operation?.id, operation?.state, api, load, t]);
+  usePolling(pollOperation, {
+    activeInterval: 1500,
+    hiddenInterval: 15000,
+    enabled: !!operation?.id && !TERMINAL.includes(operation.state),
+  });
 
   async function previewWorkshop(item, allowUnknownRevision = false) {
     if (!item.cached) {

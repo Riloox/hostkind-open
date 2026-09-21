@@ -4,9 +4,9 @@ import { Toaster } from 'sonner';
 import App from './App';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ServerProvider } from './context/ServerContext';
+import { StatsProvider } from './context/StatsContext';
 import { I18nProvider } from './context/I18nContext';
 import './index.css';
-import '../tokens.css';
 import './tokens.css';
 
 // Bridges AuthContext's /api/auth-mode result (which carries the server's
@@ -22,6 +22,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <AuthProvider>
       <I18nBridge>
         <ServerProvider>
+          <StatsProvider>
           <App />
           <Toaster
             theme="dark"
@@ -40,6 +41,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               },
             }}
           />
+          </StatsProvider>
         </ServerProvider>
       </I18nBridge>
     </AuthProvider>

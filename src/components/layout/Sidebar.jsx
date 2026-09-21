@@ -259,7 +259,7 @@ export function Sidebar({ currentView, onNavigate, onAllGames }) {
                   data-nav-item={view}
                   data-active={isActive ? 'true' : 'false'}
                   onClick={() => { if (!disabled) onNavigate(view); }}
-                  aria-disabled={disabled}
+                  disabled={disabled}
                   className={cn(
                     'flex min-h-9 w-full items-center border transition-[background-color,color,border-color] duration-100',
                     isCollapsed ? 'justify-center px-0 py-1.5' : 'gap-3 px-3 py-1.5',
@@ -280,9 +280,13 @@ export function Sidebar({ currentView, onNavigate, onAllGames }) {
                 </button>
               );
               if (!isCollapsed && !disabled) return itemBtn;
+              // A natively-disabled button fires no pointer events, so the
+              // tooltip trigger needs a wrapper to stay hoverable - otherwise
+              // the "requires a server" explanation would be unreachable.
+              const trigger = disabled ? <span className="block">{itemBtn}</span> : itemBtn;
               return (
                 <Tooltip key={view}>
-                  <TooltipTrigger asChild>{itemBtn}</TooltipTrigger>
+                  <TooltipTrigger asChild>{trigger}</TooltipTrigger>
                   <TooltipContent side="right" sideOffset={8}>
                     {disabled ? t('nav.requiresServerTip') : label}
                   </TooltipContent>

@@ -195,11 +195,13 @@ tests.push(() => {
 
   // Run the runner — it should pick up all pending migrations.
   const r2 = migrations.runMigrations();
-  assert.strictEqual(r2.applied.length, 5, 'should apply the pending migrations');
+  assert.strictEqual(r2.applied.length, 6, 'should apply the pending migrations');
   assert.strictEqual(r2.applied[0].name, 'api-keys');
   assert.strictEqual(r2.applied[1].name, 'drop-backup-drills');
   assert.strictEqual(r2.applied[2].name, 'bug-reports');
   assert.strictEqual(r2.applied[3].name, 'edge-product-foundation');
+  assert.strictEqual(r2.applied[4].name, 'multi-source-minecraft-content');
+  assert.strictEqual(r2.applied[5].name, 'phase-2b-indexes-cascade-retention');
 
   // A snapshot was created before the upgrade ran.
   assert.ok(r2.snapshot, 'upgrade should produce a pre-migration snapshot');
@@ -225,6 +227,8 @@ tests.push(() => {
   assert.ok(v15row, 'migration 15 should be recorded');
   const v16row = db2.prepare('SELECT version FROM schema_migrations WHERE version = 16').get();
   assert.ok(v16row, 'migration 16 should be recorded');
+  const v17row = db2.prepare('SELECT version FROM schema_migrations WHERE version = 17').get();
+  assert.ok(v17row, 'migration 17 should be recorded');
 
   close();
   console.log('ok  upgrade-drill: pending migration creates snapshot, data survives');
@@ -294,7 +298,7 @@ tests.push(() => {
     'health_analysis', 'health_settings',
     'world_inventory', 'world_operations', 'world_previews',
     'templates', 'template_versions', 'template_import_previews',
-    'api_keys',
+    'api_keys', 'login_attempts',
     'byoc_targets', 'pairing_challenges', 'byoc_agents', 'restore_drills', 'product_events',
   ];
   for (const t of expected) {

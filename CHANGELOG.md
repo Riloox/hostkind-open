@@ -7,6 +7,13 @@ All notable changes to Hostkind are documented here. This project follows
 
 No entries yet.
 
+## [0.1.3.3] - 2026-09-21
+
+### Changed
+
+- Backend route refactor, no behavior changes: 17 route groups moved out of the `server.js` monolith (9094 lines down to about 4900) into focused `lib/routes/*.cjs` modules plus a `lib/notifications.cjs` store, following the existing router-factory pattern. Every moved route kept its exact path, method, auth gate, and response shape; each move was verified with a route-inventory diff, syntax and lint checks, and the existing test suite.
+- Three source-scanning tests now target the extracted modules (`lib/routes/files.cjs`, `lib/routes/servers.cjs`, `lib/routes/terraria-config.cjs`) instead of `server.js` internals.
+
 ## [0.1.3.2] - 2026-09-11
 
 ### Added

@@ -41,7 +41,8 @@ function selectionSource() {
 function dedicatedRouteSource() {
   const inline = serverSource;
   const extracted = read(path.join(ROOT, 'lib', 'routes', 'terraria-players.cjs'));
-  return `${inline}\n${extracted}`;
+  const configRoutes = read(path.join(ROOT, 'lib', 'routes', 'terraria-config.cjs'));
+  return `${inline}\n${extracted}\n${configRoutes}`;
 }
 
 function requireTerrariaView() {
@@ -165,7 +166,7 @@ test('vanilla player actions are scoped to Terraria and use an explicit target p
   });
 
   const route = dedicatedRouteSource();
-  assert.match(route, /(?:app|router)\.post\(\s*['"](?:\/api)?\/terraria\/players\/?:action/,
+  assert.match(route, /(?:app|router)\.post\(\s*['"](?:(?:\/api)?\/terraria)?\/players\/:action/,
     'the action endpoint must be under /api/terraria/players/:action');
   assert.match(route, /req\.body\??\.target|req\.body\s*&&\s*req\.body\.target/,
     'the Terraria action payload must name its target explicitly');

@@ -28,6 +28,11 @@ const FIXTURE_DIR = path.join(__dirname, 'fixtures', 'terraria');
 // Read as LF: the assertions below slice this source on '\n' boundaries, and a
 // Windows checkout hands it back with CRLF.
 const SERVER_JS = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8').replace(/\r\n/g, '\n');
+// The /api/command route was extracted from server.js into lib/routes/servers.cjs
+// (router-relative path under the /api mount); scan that file for route-shape
+// assertions. Routes there are indented inside the factory, so spans run to the
+// next router registration instead of a flush-left close.
+const SERVERS_ROUTER = fs.readFileSync(path.join(__dirname, '..', 'lib', 'routes', 'servers.cjs'), 'utf8').replace(/\r\n/g, '\n');
 
 // A fixture is console text plus `#` provenance/elision notes. The notes are
 // not console output and are never fed to a parser.
@@ -383,10 +388,15 @@ test('reaching online starts the poll and asks once immediately', () => {
 /* ------------------------------------------------------------ 6. commands */
 
 test('the command route refuses anything that is not a single command', () => {
-  const route = SERVER_JS.slice(SERVER_JS.indexOf("app.post('/api/command'"));
-  const body = route.slice(0, route.indexOf('\n});') + 4);
+  const marker = "router.post('/command'";
+  const start = SERVERS_ROUTER.indexOf(marker);
+  assert.ok(start >= 0, 'the command route must exist in lib/routes/servers.cjs');
+  const after = SERVERS_ROUTER.slice(start + marker.length);
+  const nextRel = after.search(/\n\s*router\.(get|post|put|delete|patch|use)\(/);
+  const body = nextRel < 0 ? after : after.slice(0, nextRel);
   assert.ok(/\[\\r\\n\\u0000\]/.test(body), 'CR, LF and NUL are rejected so one request cannot run two commands');
-  assert.ok(/MAX_COMMAND_LENGTH/.test(body), 'the command length is capped');
+  assert.ok(/MAX_COMMAND_LENGTH|getMaxCommandLength/.test(body), 'the command length is capped');
+  assert.ok(/const MAX_COMMAND_LENGTH =/.test(SERVER_JS), 'the cap value still lives in server.js');
   assert.ok(/action: 'console\.command'/.test(body));
   assert.ok(/actorId: req\.user\.id/.test(body) && /actorUsername: req\.user\.username/.test(body));
   // The capability is the control; there is no allowlist of Terraria commands.

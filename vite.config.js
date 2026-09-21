@@ -68,6 +68,14 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
+          // Lazy views in src/views/* split automatically via React.lazy
+          // dynamic imports — leave them alone (return undefined) so Rollup
+          // emits one chunk per view plus a shared chunk. Forcing them into
+          // coarse manual chunks caused circular-chunk warnings because views
+          // cross-import each other (e.g. WorldsView -> TerrariaWorldsView,
+          // MapView -> PalworldMapView) and eager GamesView must stay in the
+          // entry chunk.
+          if (id.includes('src/views/')) return undefined;
           if (!id.includes('node_modules')) return undefined;
           if (id.includes('uplot')) return 'charts';
           if (id.includes('@radix-ui')) return 'radix';

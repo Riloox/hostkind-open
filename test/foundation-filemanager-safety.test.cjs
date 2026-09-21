@@ -10,10 +10,11 @@ setupDataDir();
 const pathSafety = require('../lib/pathSafety.cjs');
 
 /*
- * The file-manager guards live inside the large server module, which cannot be
- * required in isolation (it boots the whole panel). These tests exercise the
- * same resolver contract against real symlinks; keep them in step with
- * safeResolve / safeResolveNoFollow in server.js.
+ * The file-manager guards live in lib/routes/files.cjs (extracted from the
+ * large server module, which cannot be required in isolation as it boots the
+ * whole panel). These tests exercise the same resolver contract against real
+ * symlinks; keep them in step with safeResolve / safeResolveNoFollow in
+ * lib/routes/files.cjs.
  */
 function safeResolve(root, rel) {
   const base = path.resolve(root);
@@ -109,27 +110,36 @@ tests.push(() => {
   assert.strictEqual(safeResolveNoFollow(root, 'inner'), path.join(root, 'inner'));
 });
 
-// The live server.js must route every file-manager path through the
-// symlink-safe resolver, never the lexical prefix check alone.
+// The live file-manager routes must send every path through the
+// symlink-safe resolver, never the lexical prefix check alone. The routes
+// were extracted from server.js into lib/routes/files.cjs; paths there are
+// router-relative under the /api/files mount.
 tests.push(() => {
-  const SERVER_JS = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8').replace(/\r\n/g, '\n');
-  assert.ok(/function safeResolveNoFollow\(root, rel\)/.test(SERVER_JS));
+  const FILES_ROUTER = fs.readFileSync(path.join(__dirname, '..', 'lib', 'routes', 'files.cjs'), 'utf8').replace(/\r\n/g, '\n');
+  assert.ok(/function safeResolveNoFollow\(root, rel\)/.test(FILES_ROUTER));
   for (const marker of [
-    "app.get('/api/files'",
-    "app.get('/api/files/read'",
-    "app.put('/api/files/write'",
-    "app.post('/api/files/mkdir'",
-    "app.post('/api/files/rename'",
-    "app.delete('/api/files'",
-    "app.get('/api/files/download'",
+    "router.get('/'",
+    "router.get('/read'",
+    "router.put('/write'",
+    "router.post('/mkdir'",
+    "router.post('/rename'",
+    "router.delete('/'",
+    "router.get('/download'",
   ]) {
-    const slice = SERVER_JS.slice(SERVER_JS.indexOf(marker));
-    const body = slice.slice(0, slice.indexOf('\n});') + 4);
+    const start = FILES_ROUTER.indexOf(marker);
+    assert.ok(start >= 0, `${marker} must exist in lib/routes/files.cjs`);
+    // Each handler runs to the next router registration (handlers are
+    // indented inside the factory, so brace-counting closings is fragile;
+    // the span to the next route fully contains this handler's body).
+    const after = FILES_ROUTER.slice(start + marker.length);
+    const nextRel = after.search(/\n\s*router\.(get|post|put|delete|patch|use)\(/);
+    const body = nextRel < 0 ? after : after.slice(0, nextRel);
     assert.ok(/safeResolveNoFollow/.test(body), `${marker} must use safeResolveNoFollow`);
   }
-  const upload = SERVER_JS.slice(SERVER_JS.indexOf('const fileUpload = multer({'));
-  const uploadBody = upload.slice(0, upload.indexOf('\n});') + 4);
-  assert.ok(/safeResolveNoFollow/.test(uploadBody), 'upload destination must use safeResolveNoFollow');
+  const destStart = FILES_ROUTER.indexOf('destination:');
+  assert.ok(destStart >= 0, 'upload destination must exist in lib/routes/files.cjs');
+  const destEnd = FILES_ROUTER.indexOf('filename:', destStart);
+  assert.ok(/safeResolveNoFollow/.test(FILES_ROUTER.slice(destStart, destEnd)), 'upload destination must use safeResolveNoFollow');
 });
 
 let failed = 0;

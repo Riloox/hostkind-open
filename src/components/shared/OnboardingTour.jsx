@@ -404,9 +404,9 @@ export function OnboardingTour({ open, onClose, gameId }) {
         <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
           {/* Idea 4: clickable progress dots — buttons that jump to any step <= current */}
           <div className="flex shrink-0 gap-2" role="tablist" aria-label={t('tour.badge', { n: clampedStep + 1, total })}>
-            {steps.map((_, i) => (
+            {steps.map((s, i) => (
               <button
-                key={i}
+                key={`${s.target || 'card'}-${s.titleKey}-${i}`}
                 type="button"
                 role="tab"
                 aria-selected={i === clampedStep}

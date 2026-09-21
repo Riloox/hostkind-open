@@ -11,7 +11,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { spawnSync } = require('child_process');
+const { runChecked } = require('./lib/args.cjs');
 const {
   DEFAULT_NAME,
   serviceName,
@@ -20,9 +20,7 @@ const {
 } = require('./install-service.cjs');
 
 function run(cmd, args) {
-  const r = spawnSync(cmd, args, { stdio: 'inherit', shell: false });
-  if (r.error) throw r.error;
-  return r.status;
+  return runChecked(cmd, args);
 }
 
 function main() {

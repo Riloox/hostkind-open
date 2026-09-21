@@ -3,6 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
+const { runChecked } = require('./lib/args.cjs');
 
 // electron-builder validates the source package before applying extraMetadata.
 // Normalize only that input; keep the four-part release version in the packaged
@@ -21,12 +22,9 @@ function buildDesktop(args, { root = path.resolve(__dirname, '..'), run = spawnS
     if (patchBuild) {
       fs.writeFileSync(packageFile, `${JSON.stringify({ ...pkg, version: patchBuild[1] }, null, 2)}\n`);
     }
-    const result = run(process.execPath, [require.resolve('electron-builder/out/cli/cli.js'), ...args, ...extra], {
-      cwd: root, stdio: 'inherit', windowsHide: true,
+    return runChecked(process.execPath, [require.resolve('electron-builder/out/cli/cli.js'), ...args, ...extra], {
+      spawnFn: run, label: 'electron-builder', cwd: root, windowsHide: true,
     });
-    if (result.error) throw result.error;
-    if (result.signal) throw new Error(`electron-builder terminated by ${result.signal}`);
-    return result.status ?? 1;
   } finally {
     if (patchBuild) fs.writeFileSync(packageFile, original);
   }

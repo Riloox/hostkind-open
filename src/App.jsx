@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { toast } from 'sonner';
 import { useAuth, useGameThemes } from '@/context/AuthContext';
 import { applyGameTheme } from '@/lib/branding';
 import { useServer } from '@/context/ServerContext';
+import { useStats } from '@/context/StatsContext';
 import { useI18n, useT } from '@/context/I18nContext';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { useApi } from '@/hooks/useApi';
@@ -22,29 +23,33 @@ import { ApplicationUpdateNotice } from '@/components/shared/ApplicationUpdateNo
 import { BugReportButton } from '@/components/shared/BugReportButton';
 import { OnboardingTour } from '@/components/shared/OnboardingTour';
 import { ChangelogDialog } from '@/components/shared/ChangelogDialog';
-import { DashboardView } from '@/views/DashboardView';
-import { ServersView } from '@/views/ServersView';
-import { HealthView } from '@/views/HealthView';
-import { ConsoleView } from '@/views/ConsoleView';
-import { PlayersView } from '@/views/PlayersView';
-import { TerrariaTshockView } from '@/views/TerrariaTshockView';
-import { MapView } from '@/views/MapView';
-import { AddonsView } from '@/views/AddonsView';
-import { TerrariaModsView } from '@/views/TerrariaModsView';
-import { ContentView } from '@/views/ModrinthView';
-import { FileManagerView } from '@/views/FileManagerView';
-import { ConfigsView } from '@/views/ConfigsView';
-import { WorldsView } from '@/views/WorldsView';
-import { BackupsView } from '@/views/BackupsView';
-import { UpdatesView } from '@/views/UpdatesView';
-import { TasksView } from '@/views/TasksView';
-import { UsersView } from '@/views/UsersView';
-import { AuditView } from '@/views/AuditView';
 import { GamesView } from '@/views/GamesView';
+// Route-split views: each lazy() boundary becomes its own Rollup chunk so the
+// initial bundle stays small (see vite.config.js manualChunks). Named exports
+// are remapped to default for lazy(). GamesView + LoginView stay eager — they
+// are the first paint for logged-in / logged-out states.
+const DashboardView = lazy(() => import('@/views/DashboardView').then((m) => ({ default: m.DashboardView })));
+const ServersView = lazy(() => import('@/views/ServersView').then((m) => ({ default: m.ServersView })));
+const HealthView = lazy(() => import('@/views/HealthView').then((m) => ({ default: m.HealthView })));
+const ConsoleView = lazy(() => import('@/views/ConsoleView').then((m) => ({ default: m.ConsoleView })));
+const PlayersView = lazy(() => import('@/views/PlayersView').then((m) => ({ default: m.PlayersView })));
+const TerrariaTshockView = lazy(() => import('@/views/TerrariaTshockView').then((m) => ({ default: m.TerrariaTshockView })));
+const MapView = lazy(() => import('@/views/MapView').then((m) => ({ default: m.MapView })));
+const AddonsView = lazy(() => import('@/views/AddonsView').then((m) => ({ default: m.AddonsView })));
+const TerrariaModsView = lazy(() => import('@/views/TerrariaModsView').then((m) => ({ default: m.TerrariaModsView })));
+const ContentView = lazy(() => import('@/views/ModrinthView').then((m) => ({ default: m.ContentView })));
+const FileManagerView = lazy(() => import('@/views/FileManagerView').then((m) => ({ default: m.FileManagerView })));
+const ConfigsView = lazy(() => import('@/views/ConfigsView').then((m) => ({ default: m.ConfigsView })));
+const WorldsView = lazy(() => import('@/views/WorldsView').then((m) => ({ default: m.WorldsView })));
+const BackupsView = lazy(() => import('@/views/BackupsView').then((m) => ({ default: m.BackupsView })));
+const UpdatesView = lazy(() => import('@/views/UpdatesView').then((m) => ({ default: m.UpdatesView })));
+const TasksView = lazy(() => import('@/views/TasksView').then((m) => ({ default: m.TasksView })));
+const UsersView = lazy(() => import('@/views/UsersView').then((m) => ({ default: m.UsersView })));
+const AuditView = lazy(() => import('@/views/AuditView').then((m) => ({ default: m.AuditView })));
 import { pathToView, VIEW_NAMES } from '@/lib/routes';
 import { GAME_IDS, gameForServer } from '@/lib/games';
 import { GameArtwork } from '@/components/shared/GameArtwork';
-import { Wifi, WifiOff, RefreshCw } from 'lucide-react';
+import { WifiOff, RefreshCw } from 'lucide-react';
 import { cn, jwtSubject } from '@/lib/utils';
 
 // Views that touch the server's on-disk content (plugins, mods, configs, files).
@@ -309,6 +314,7 @@ const OPEN_OVERLAY = '[role="dialog"],[role="menu"],[role="listbox"]';
 function AppShell({ onLoggedIn }) {
   const { token, user, setUser, isLoggedIn, hasCapability } = useAuth();
   const { servers, setServers, activeServerId, setActiveServerId, getServerStatus, updateStatus, activeModule, supports, setModules, currentGame, setCurrentGame } = useServer();
+  const { publishStats } = useStats();
   const api = useApi();
   const t = useT();
   const gameThemes = useGameThemes();
@@ -458,30 +464,29 @@ function AppShell({ onLoggedIn }) {
   useEffect(() => {
     function onTourEvent(e) {
       const d = e.detail || {};
-      const detailType = d.type;
 
       // --- Analytics recording (idea 11) ---
+      // Fire-and-forget through the shared client so the bearer token handling
+      // can't drift from every other call. Not server-scoped: the game rides
+      // in the body, and the previous manual fetch sent no server header.
+      // Recording failure must never break the tour.
       try {
-        // The panel's API is bearer-authenticated, same as every other call.
-        const token = localStorage.getItem('fleetdeck_token') || '';
-        const headers = { 'Content-Type': 'application/json' };
-        if (token) headers.Authorization = `Bearer ${token}`;
-        fetch('/api/audit/tour-event', {
+        api('/api/audit/tour-event', {
           method: 'POST',
-          headers,
-          body: JSON.stringify({
-            type: detailType,
+          serverScoped: false,
+          body: {
+            type: d.type,
             step: d.step ?? null,
             total: d.total ?? null,
             game: d.game || currentGame || null,
             variant: d.variant || 'full',
-          }),
+          },
         }).catch(() => {});
       } catch (_) { /* recording failure must never break the tour */ }
     }
     window.addEventListener('fleetdeck:tour', onTourEvent);
     return () => window.removeEventListener('fleetdeck:tour', onTourEvent);
-  }, [user?.id, currentGame]);
+  }, [api, user?.id, currentGame]);
 
   // Central navigation entry point. Applies the no-server, admin, and
   // first-start guards, then shows the view and updates the URL.
@@ -649,9 +654,8 @@ function AppShell({ onLoggedIn }) {
       }
     }, [activeServerId, updateStatus, t]),
     onStats: useCallback((stats) => {
-      // Pass to dashboard if it's the active listener
-      if (window.__dashOnStats) window.__dashOnStats(stats);
-    }, []),
+      publishStats(stats);
+    }, [publishStats]),
     onNotification: useCallback((n) => {
       // Routine mutations already show a specific success toast at their call
       // site. Keep those events in the bell without showing them a second time.
@@ -794,20 +798,26 @@ function AppShell({ onLoggedIn }) {
           <GameArtwork gameId={currentGame || 'custom'} eager className="absolute inset-x-0 top-0 h-[26rem] opacity-[0.075] grayscale" />
           <div className="app-environment-shade absolute inset-0" />
         </div>
-        <Sidebar currentView={currentView} onNavigate={navigate} onAllGames={showAllGames} />
+        <ErrorBoundary testId="shell-error-boundary" fallbackText={t('errors.shellCrashed')} reloadText={t('errors.reloadView')} resetKeys={[viewNonce]}>
+          <Sidebar currentView={currentView} onNavigate={navigate} onAllGames={showAllGames} />
+        </ErrorBoundary>
         <div className={cn(
           'app-main relative z-10 flex min-h-screen flex-1 min-w-0 flex-col pl-[var(--ls-sidebar-w,220px)] transition-[padding] duration-200',
           connBanner && 'pt-9',
         )}>
-          <Header currentView={currentView} onOpenSettings={() => setSettingsOpen(true)} />
+          <ErrorBoundary testId="shell-error-boundary" fallbackText={t('errors.shellCrashed')} reloadText={t('errors.reloadView')} resetKeys={[viewNonce]}>
+            <Header currentView={currentView} onOpenSettings={() => setSettingsOpen(true)} />
+          </ErrorBoundary>
           <main className="flex-1 px-4 pb-28 pt-5 sm:px-6 lg:px-8">
             <div className="view-enter" key={`${currentView}:${viewNonce}`}>
               {!serversLoaded ? (
                 <Loading size="lg" className="py-24" />
               ) : (
                 <Page>
-                  <ErrorBoundary fallbackText={t('errors.viewCrashed')} reloadText={t('errors.reloadView')}>
-                    {new URLSearchParams(window.location.search).has('fleetdeckThrowView') ? <ViewErrorProbe /> : views[currentView] || null}
+                  <ErrorBoundary fallbackText={t('errors.viewCrashed')} reloadText={t('errors.reloadView')} resetKeys={[viewNonce]}>
+                    <Suspense fallback={<Loading size="lg" className="py-24" />} key={currentView}>
+                      {new URLSearchParams(window.location.search).has('fleetdeckThrowView') ? <ViewErrorProbe /> : views[currentView] || null}
+                    </Suspense>
                   </ErrorBoundary>
                 </Page>
               )}
@@ -847,12 +857,14 @@ function AppShell({ onLoggedIn }) {
         <ApplicationUpdateNotice onOpenSettings={() => setSettingsOpen(true)} />
       )}
       {!showGames && (
-        <ControlBar
-          onServerSwitch={handleSetActive}
-          onStart={() => serverAction('start')}
-          onStop={() => serverAction('stop')}
-          onRestart={() => serverAction('restart')}
-        />
+        <ErrorBoundary testId="shell-error-boundary" fallbackText={t('errors.shellCrashed')} reloadText={t('errors.reloadView')} resetKeys={[viewNonce]}>
+          <ControlBar
+            onServerSwitch={handleSetActive}
+            onStart={() => serverAction('start')}
+            onStop={() => serverAction('stop')}
+            onRestart={() => serverAction('restart')}
+          />
+        </ErrorBoundary>
       )}
       {!showGames && (
         <BugReportButton
@@ -873,7 +885,7 @@ function ViewErrorProbe() {
 
 export default function App() {
   const { isLoggedIn, login, authChecked } = useAuth();
-  const { setLang } = useI18n();
+  const { setLang, t } = useI18n();
 
   const handleLogin = (token, user) => {
     if (user && user.language) setLang(user.language);
@@ -889,5 +901,11 @@ export default function App() {
     return <LoginView onLogin={handleLogin} />;
   }
 
-  return <AppShell />;
+  // Last-resort boundary: per-panel and view-level boundaries recover locally,
+  // this one keeps a total shell failure from white-screening the tab.
+  return (
+    <ErrorBoundary testId="app-error-boundary" fallbackText={t('errors.shellCrashed')} reloadText={t('errors.reloadView')}>
+      <AppShell />
+    </ErrorBoundary>
+  );
 }

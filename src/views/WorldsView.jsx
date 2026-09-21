@@ -15,6 +15,7 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { Loading } from '@/components/shared/Loading';
 import { useApi } from '@/hooks/useApi';
+import { useWorldOperation } from '@/hooks/useWorldOperation';
 import { useAuth } from '@/context/AuthContext';
 import { useT } from '@/context/I18nContext';
 import { useServer } from '@/context/ServerContext';
@@ -33,38 +34,7 @@ const dimensionLabel = (dimension, t) => {
 
 // The panel polls a running operation rather than holding the request open: the
 // work outlives any one HTTP call, and a reload must pick it back up.
-function useOperation(api, t, onDone) {
-  const [op, setOp] = useState(null);
-  const timer = useRef(null);
-
-  const stop = useCallback(() => { clearTimeout(timer.current); timer.current = null; }, []);
-
-  const follow = useCallback((operationId) => {
-    const tick = async () => {
-      try {
-        const r = await api(`/api/operations/${operationId}`);
-        setOp(r.operation);
-        if (['succeeded', 'failed', 'cancelled', 'recovery_required'].includes(r.operation.state)) {
-          if (r.operation.state === 'succeeded') toast.success(t('minecraft.worlds.opDone'));
-          else if (r.operation.state === 'cancelled') toast.info(t('minecraft.worlds.opCancelled'));
-          else toast.error(r.operation.error?.text || t('minecraft.worlds.opFailed'));
-          setTimeout(() => setOp(null), 2500);
-          onDone();
-          return;
-        }
-        timer.current = setTimeout(tick, 1000);
-      } catch (e) {
-        toast.error(e.message);
-        setOp(null);
-      }
-    };
-    tick();
-  }, [api, t, onDone]);
-
-  useEffect(() => stop, [stop]);
-
-  return { op, follow };
-}
+// Shared via useWorldOperation (see src/hooks/useWorldOperation.js).
 
 // Every mutation shows what it would do before it does it. This is that panel:
 // impact, disk, what the configuration would gain or lose, and why it might be
@@ -487,7 +457,12 @@ export function WorldsView() {
 
   useEffect(() => { setLoading(true); load(); }, [load]);
 
-  const { op, follow } = useOperation(api, t, load);
+  const { op, follow } = useWorldOperation(api, t, load, {
+    successKey: 'minecraft.worlds.opDone',
+    cancelledKey: 'minecraft.worlds.opCancelled',
+    failedKey: 'minecraft.worlds.opFailed',
+    clearDelay: 2500,
+  });
   const operationStarted = useCallback((operationId) => {
     follow(operationId);
     load();

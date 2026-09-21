@@ -6,6 +6,7 @@ import { Field } from '@/components/ui/field';
 import { Loader2, User, Lock, ArrowRight, Eye, EyeOff, AlertCircle, ShieldAlert, Timer } from 'lucide-react';
 import { useT } from '@/context/I18nContext';
 import { useBranding, useAuth } from '@/context/AuthContext';
+import { useApi } from '@/hooks/useApi';
 import { BrandIcon } from '@/components/shared/BrandMark';
 
 // How long the desk takes to hand the session over to the app shell.
@@ -29,6 +30,9 @@ function readOrigin() {
 
 // Best-effort public IP fetch. Used to make geolocation work even when the
 // panel is running on localhost (where req.ip is always 127.0.0.1).
+// Intentionally NOT routed through useApi: this is a third-party endpoint, so
+// it must never receive the panel's Authorization header, and it needs its
+// own short abort timeout rather than the API client's 30s one.
 async function fetchPublicIp(timeoutMs = 3000) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), timeoutMs);
@@ -110,6 +114,7 @@ function SpecPlate({ t, origin }) {
 export function LoginView({ onLogin }) {
   const t = useT();
   const branding = useBranding();
+  const api = useApi();
   const { geoLanguageDetection } = useAuth() || {};
   const [identifier, setIdentifier] = useState('');
   const [pass, setPass] = useState('');
@@ -146,21 +151,15 @@ export function LoginView({ onLogin }) {
       const clientIp = geoLanguageDetection ? await fetchPublicIp() : null;
       const payload = { ...loginField, password: pass };
       if (clientIp) payload.clientIp = clientIp;
-      const r = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      data = await r.json();
-      if (!r.ok) {
-        const err = new Error(data.error || t('errors.loginFailed'));
-        // The server locks an account or an IP out for a while after repeated
-        // failures. That is a wait, not a mistake - say so in a calmer tone.
-        err.locked = r.status === 429;
-        throw err;
-      }
+      // silent: a 401 here means wrong credentials, not an expired session -
+      // surface the server's message instead of logging out. serverScoped:
+      // false keeps this pre-auth call free of any server header, exactly like
+      // the manual fetch it replaces (no Authorization header either way).
+      data = await api('/api/login', { method: 'POST', body: payload, silent: true, serverScoped: false });
     } catch (err) {
-      setError({ text: err.message, locked: !!err.locked });
+      // The server locks an account or an IP out for a while after repeated
+      // failures. That is a wait, not a mistake - say so in a calmer tone.
+      setError({ text: err.message || t('errors.loginFailed'), locked: err.status === 429 });
       setLoading(false);
       return;
     }

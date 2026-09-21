@@ -189,7 +189,7 @@ function MarkdownBlock({ block, index }) {
     return (
       <Tag className="my-3 space-y-2 pl-5 text-sm leading-6 text-muted-foreground marker:text-primary">
         {block.items.map((item, itemIndex) => (
-          <li key={`${index}-${itemIndex}`}>{renderInline(item, `${index}-item-${itemIndex}`)}</li>
+          <li key={`${index}-${String(item).slice(0, 48)}-${itemIndex}`}>{renderInline(item, `${index}-item-${itemIndex}`)}</li>
         ))}
       </Tag>
     );
@@ -233,7 +233,13 @@ export function ChangelogDialog({ open, onOpenChange, version }) {
 
         <DialogBody className="min-h-0 max-h-[70vh] flex-1 overflow-y-auto bg-background/35 px-5 py-6 sm:px-8">
           <article data-testid="changelog-content" className="changelog-content">
-            {blocks.map((block, index) => <MarkdownBlock key={index} block={block} index={index} />)}
+            {blocks.map((block, index) => {
+              // Blocks carry no ids; key on type + a content excerpt so
+              // re-ordered sections keep their DOM nodes. The index suffix
+              // disambiguates genuinely identical blocks.
+              const excerpt = String(block.text || (block.items || []).join('|') || '').slice(0, 40);
+              return <MarkdownBlock key={`${block.type}-${excerpt}-${index}`} block={block} index={index} />;
+            })}
           </article>
         </DialogBody>
 

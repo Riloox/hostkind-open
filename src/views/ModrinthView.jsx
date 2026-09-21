@@ -325,6 +325,7 @@ function UploadSource({ provider, kind, accept, label, fields = {}, disabled = f
 
 function FtbOfficialPrepare() {
   const api = useApi();
+  const t = useT();
   const [packId, setPackId] = useState('');
   const [versionId, setVersionId] = useState('');
   const [latest, setLatest] = useState(true);
@@ -342,7 +343,7 @@ function FtbOfficialPrepare() {
     finally { setBusy(false); }
   };
   return <div className="flex flex-wrap items-center gap-2 rounded-md border border-border/60 bg-secondary/10 p-2">
-    <span className="text-xs font-medium">FTB official</span>
+    <span className="text-xs font-medium">{t('minecraft.modrinth.ftbOfficial')}</span>
     <Input value={packId} onChange={(e) => setPackId(e.target.value)} placeholder="Pack ID" aria-label="Official FTB pack ID" inputMode="numeric" className="h-10 w-32 text-xs" />
     {!latest && <Input value={versionId} onChange={(e) => setVersionId(e.target.value)} placeholder="Version ID" aria-label="Official FTB version ID" inputMode="numeric" className="h-10 w-32 text-xs" />}
     <label className="flex items-center gap-1 text-xs"><Checkbox checked={latest} onCheckedChange={(v) => setLatest(v === true)} />latest</label>
@@ -354,6 +355,7 @@ function FtbOfficialPrepare() {
 }
 
 function ProviderActions({ kind, onApplied }) {
+  const t = useT();
   const [ftbAttested, setFtbAttested] = useState(false);
   const [ftbEula, setFtbEula] = useState(false);
   const [ftbPackId, setFtbPackId] = useState('');
@@ -363,8 +365,8 @@ function ProviderActions({ kind, onApplied }) {
   const validFtb = /^\d+$/.test(ftbPackId) && (ftbLatest || /^\d+$/.test(ftbVersionId));
   return <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-4">
     <div>
-      <p className="text-sm font-semibold">Browse Modrinth</p>
-      <p className="mt-1 text-xs text-muted-foreground">{isPack ? 'Find a modpack below, or import one you already have.' : `Find ${kind}s below, or import a JAR from your computer.`}</p>
+      <p className="text-sm font-semibold">{t('minecraft.modrinth.browseModrinth')}</p>
+      <p className="mt-1 text-xs text-muted-foreground">{isPack ? t('minecraft.modrinth.browseHintPack') : t(kind === 'mod' ? 'minecraft.modrinth.browseHintMod' : 'minecraft.modrinth.browseHintPlugin')}</p>
     </div>
     <Dialog>
       <DialogTrigger asChild><Button variant="outline" size="default"><Upload />Import {isPack ? 'modpack' : `${kind} JAR`}</Button></DialogTrigger>
@@ -375,7 +377,7 @@ function ProviderActions({ kind, onApplied }) {
         </DialogHeader>
         <DialogBody className="space-y-5">
           {isPack ? <Tabs defaultValue="curseforge">
-            <TabsList className="mb-5"><TabsTrigger value="curseforge">CurseForge ZIP</TabsTrigger><TabsTrigger value="ftb">FTB installer</TabsTrigger></TabsList>
+            <TabsList className="mb-5"><TabsTrigger value="curseforge">{t('minecraft.modrinth.importCurseforge')}</TabsTrigger><TabsTrigger value="ftb">{t('minecraft.modrinth.importFtb')}</TabsTrigger></TabsList>
             <TabsContent value="curseforge" forceMount className="space-y-4 data-[state=inactive]:hidden">
               <div><h3 className="text-sm font-semibold">Import from CurseForge</h3><p className="mt-2 text-sm text-muted-foreground">Select the modpack ZIP downloaded from CurseForge. Keep it zipped for inspection.</p></div>
               <UploadSource provider="curseforge" kind="modpack" accept=".zip,application/zip" label="Choose ZIP file" onApplied={onApplied} />

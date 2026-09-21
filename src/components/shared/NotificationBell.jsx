@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useT } from '@/context/I18nContext';
 import { useServer } from '@/context/ServerContext';
 import { useApi } from '@/hooks/useApi';
+import { usePolling } from '@/hooks/usePolling';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
@@ -64,15 +65,14 @@ export function NotificationBell() {
   useEffect(() => {
     unmountedRef.current = false;
     // The WebSocket delivers the list on connect and pushes new ones live, but
-    // fetch once on mount (covers the pre-connect gap) and reconcile slowly in
-    // case a live frame is ever dropped.
+    // fetch once on mount (covers the pre-connect gap); the poll below
+    // reconciles slowly in case a live frame is ever dropped.
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 20000);
     return () => {
       unmountedRef.current = true;
-      clearInterval(interval);
     };
   }, [fetchNotifications]);
+  usePolling(fetchNotifications, { activeInterval: 20000, hiddenInterval: 60000 });
 
   const unread = items.filter((n) => !n.read).length;
 

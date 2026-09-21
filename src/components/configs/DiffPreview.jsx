@@ -60,7 +60,7 @@ export function DiffPreview({ open, onOpenChange, before, after, filename, warni
             </div>
             <ul className="mt-1 space-y-0.5">
               {warnings.map((w, i) => (
-                <li key={i} className="flex items-start gap-1.5 text-status-warn/90">
+                <li key={`warning-${i}-${String(w).slice(0, 48)}`} className="flex items-start gap-1.5 text-status-warn/90">
                   <span className="opacity-70">•</span>
                   <span>{w}</span>
                 </li>
@@ -75,7 +75,7 @@ export function DiffPreview({ open, onOpenChange, before, after, filename, warni
               const prefix = l.kind === 'added' ? '+ ' : l.kind === 'removed' ? '- ' : '  ';
               return (
                 <div
-                  key={i}
+                  key={`${l.kind}-${i}-${String(l.text || '').slice(0, 32)}`}
                   className={cn(
                     'whitespace-pre-wrap break-all px-2 -mx-2 rounded-sm',
                     l.kind === 'added'   && 'bg-status-online/15 text-status-online',

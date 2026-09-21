@@ -68,5 +68,6 @@
   },
   "servers": [],
   "activeServerId": null,
-  "users": []
+  "users": [],
+  "allowedOrigins": []
 }
