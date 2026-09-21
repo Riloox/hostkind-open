@@ -7,6 +7,9 @@ import { ServerProvider } from './context/ServerContext';
 import { StatsProvider } from './context/StatsContext';
 import { I18nProvider } from './context/I18nContext';
 import './index.css';
+// Root primitives (ember/coal/ink ramps). src/tokens.css only holds per-game
+// overrides - without this import every unthemed surface loses its tokens.
+import '../tokens.css';
 import './tokens.css';
 
 // Bridges AuthContext's /api/auth-mode result (which carries the server's
