@@ -164,6 +164,8 @@ AGPL-3.0 means you are free to use, modify, and distribute Hostkind. If you modi
 and distribute that version, you must share those modifications under the same AGPL-3.0
 license. The full license text is in [`LICENSE`](LICENSE).
 
+Using Hostkind also means accepting its [Terms of Use](TERMS.md): you are responsible for what you run with it, and it comes with no warranty. The panel asks each user to accept them on first sign-in.
+
 ## Documentation
 
 | Document | Purpose |

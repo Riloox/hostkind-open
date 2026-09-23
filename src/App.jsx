@@ -22,6 +22,8 @@ import { SettingsDialog } from '@/components/shared/SettingsDialog';
 import { ApplicationUpdateNotice } from '@/components/shared/ApplicationUpdateNotice';
 import { BugReportButton } from '@/components/shared/BugReportButton';
 import { OnboardingTour } from '@/components/shared/OnboardingTour';
+import { TermsDialog } from '@/components/shared/TermsDialog';
+import { TERMS_VERSION } from '@/lib/terms';
 import { ChangelogDialog } from '@/components/shared/ChangelogDialog';
 import { GamesView } from '@/views/GamesView';
 // Route-split views: each lazy() boundary becomes its own Rollup chunk so the
@@ -388,6 +390,9 @@ function AppShell({ onLoggedIn }) {
   const [tourOpen, setTourOpen] = useState(false);
   const [changelogOpen, setChangelogOpen] = useState(false);
   const awaitingFirstStart = useRef(false);
+  // Every user accepts the current Terms of Use before using the panel; the
+  // tour and changelog wait behind it.
+  const termsPending = !!user?.id && user.termsAcceptedVersion !== TERMS_VERSION;
 
 
   // Open only after entering a game, once for each user/game pair.
@@ -834,9 +839,9 @@ function AppShell({ onLoggedIn }) {
         onStartNow={startFromFirstStart}
         onContinueAnyway={continueFromFirstStart}
       />
-      <OnboardingTour open={tourOpen && !showGames} onClose={closeTour} gameId={currentGame} />
+      <OnboardingTour open={tourOpen && !showGames && !termsPending} onClose={closeTour} gameId={currentGame} />
       <ChangelogDialog
-        open={changelogOpen && !showGames}
+        open={changelogOpen && !showGames && !termsPending}
         onOpenChange={setChangelogOpen}
         version={currentAppVersion()}
       />
@@ -848,6 +853,7 @@ function AppShell({ onLoggedIn }) {
         confirmLabel={t('header.restart')}
         onConfirm={() => runServerAction('restart')}
       />
+      <TermsDialog open={termsPending} mode="accept" />
       <SettingsDialog
         open={settingsOpen}
         onOpenChange={setSettingsOpen}
