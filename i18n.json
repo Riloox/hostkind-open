@@ -180,7 +180,8 @@
         "palworldActionOnly": "That action is only available for Palworld servers",
         "palworldTriggerOnly": "That trigger is only available for Palworld servers",
         "palworldUseAdapter": "Palworld tasks use the official actions, not console commands",
-        "emptyTriggerAction": "The \"server became empty\" trigger only runs the stop-when-empty action"
+        "emptyTriggerAction": "The \"server became empty\" trigger only runs the stop-when-empty action",
+        "termsVersionInvalid": "Invalid Terms of Use version"
       },
       "nav": {
         "groupOverview": "Overview",
@@ -314,7 +315,10 @@
         "applicationUpdateToastTitle": "Hostkind update available",
         "applicationUpdateToastMessage": "Version {latest} is available (current: {current}).",
         "applicationUpdateUpdateNow": "Update now",
-        "applicationUpdateLater": "Later"
+        "applicationUpdateLater": "Later",
+        "legal": "Legal",
+        "legalDesc": "The Terms of Use you accepted for Hostkind.",
+        "viewTerms": "View Terms of Use"
       },
       "header": {
         "start": "Start",
@@ -2925,6 +2929,16 @@
           },
           "embeddedName": "Named \"{name}\" inside the file"
         }
+      },
+      "terms": {
+        "title": "Terms of Use",
+        "intro": "Hostkind is free software you run on your own machine. Before you continue, read and accept these Terms. They explain that you are responsible for how you use it and that the authors are not liable for what happens with it.",
+        "lastUpdated": "Last updated {date}",
+        "agree": "I have read and agree to the Terms of Use",
+        "accept": "Accept and continue",
+        "decline": "Sign out",
+        "accepting": "Saving…",
+        "close": "Close"
       }
     },
     "es": {
@@ -3079,7 +3093,8 @@
         "palworldActionOnly": "Esa acción solo está disponible para servidores de Palworld",
         "palworldTriggerOnly": "Ese disparador solo está disponible para servidores de Palworld",
         "palworldUseAdapter": "Las tareas de Palworld usan las acciones oficiales, no comandos de consola",
-        "emptyTriggerAction": "El disparador \"servidor vacío\" solo ejecuta la acción de apagado por inactividad"
+        "emptyTriggerAction": "El disparador \"servidor vacío\" solo ejecuta la acción de apagado por inactividad",
+        "termsVersionInvalid": "Versión de los Términos de uso no válida"
       },
       "nav": {
         "groupOverview": "General",
@@ -3213,7 +3228,10 @@
         "applicationUpdateToastTitle": "Actualización de Hostkind disponible",
         "applicationUpdateToastMessage": "La versión {latest} está disponible (actual: {current}).",
         "applicationUpdateUpdateNow": "Actualizar ahora",
-        "applicationUpdateLater": "Más tarde"
+        "applicationUpdateLater": "Más tarde",
+        "legal": "Legal",
+        "legalDesc": "Los Términos de uso que aceptaste para Hostkind.",
+        "viewTerms": "Ver Términos de uso"
       },
       "header": {
         "start": "Iniciar",
@@ -5824,6 +5842,16 @@
           },
           "embeddedName": "Se llama «{name}» dentro del archivo"
         }
+      },
+      "terms": {
+        "title": "Términos de uso",
+        "intro": "Hostkind es software libre que ejecutás en tu propio equipo. Antes de continuar, leé y aceptá estos Términos. Explican que sos responsable de cómo lo usás y que los autores no responden por lo que pase con él.",
+        "lastUpdated": "Última actualización: {date}",
+        "agree": "Leí y acepto los Términos de uso",
+        "accept": "Aceptar y continuar",
+        "decline": "Cerrar sesión",
+        "accepting": "Guardando…",
+        "close": "Cerrar"
       }
     }
   }

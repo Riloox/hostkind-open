@@ -402,6 +402,8 @@ function publicUser(u) {
     name: u.name || '',
     role: u.role === 'operator' ? 'operator' : 'admin',
     language: i18n.normalizeLang(u.language),
+    // The guest is never stored, so its acceptance lives on the install.
+    termsAcceptedVersion: (isGuestUser(u) ? config.guestTermsAccepted?.version : u.termsAcceptedVersion) || null,
   };
 }
 

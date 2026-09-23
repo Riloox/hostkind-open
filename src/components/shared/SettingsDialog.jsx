@@ -6,12 +6,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { PasswordStrength } from '@/components/shared/PasswordStrength';
-import { Check, Globe, Keyboard, Languages, Palette, UserCog, KeyRound, Compass, ShieldAlert } from 'lucide-react';
+import { Check, Globe, Keyboard, Languages, Palette, UserCog, KeyRound, Compass, ShieldAlert, Scale } from 'lucide-react';
 import { useI18n, useT } from '@/context/I18nContext';
 import { useAuth } from '@/context/AuthContext';
 import { useApi } from '@/hooks/useApi';
 import { AccentField } from '@/components/shared/AccentField';
 import { ApplicationUpdateSection } from '@/components/shared/ApplicationUpdate';
+import { TermsDialog } from '@/components/shared/TermsDialog';
 import { GAMES } from '@/lib/games';
 import { cn } from '@/lib/utils';
 
@@ -290,6 +291,7 @@ export function SettingsDialog({ open, onOpenChange, onStartTour }) {
   const { user } = useAuth();
   // The guest account has no profile or password to edit (the API refuses).
   const isGuest = user?.id === 'guest';
+  const [termsOpen, setTermsOpen] = useState(false);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -376,9 +378,19 @@ export function SettingsDialog({ open, onOpenChange, onStartTour }) {
                 <Compass className="h-3.5 w-3.5" /> {t('settings.tourRepeat')}
               </Button>
             </section>
+
+            {/* Legal */}
+            <section>
+              <SectionHeading icon={Scale}>{t('settings.legal')}</SectionHeading>
+              <p className="mb-3 text-xs text-muted-foreground">{t('settings.legalDesc')}</p>
+              <Button variant="glass" size="sm" onClick={() => setTermsOpen(true)}>
+                <Scale className="h-3.5 w-3.5" /> {t('settings.viewTerms')}
+              </Button>
+            </section>
           </DialogBody>
         </div>
       </DialogContent>
+      <TermsDialog open={termsOpen} onOpenChange={setTermsOpen} />
     </Dialog>
   );
 }

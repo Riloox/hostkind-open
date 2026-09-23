@@ -83,6 +83,12 @@ function hashPassword(password) {
   return `${salt}:${crypto.scryptSync(String(password), salt, 64).toString('hex')}`;
 }
 
+// Seeded accounts have already accepted the current Terms of Use so specs land
+// on the panel rather than the acceptance dialog. src/lib/terms.js is ESM, so
+// the version is read from its source.
+const TERMS_VERSION = fs.readFileSync(path.join(__dirname, '../../src/lib/terms.js'), 'utf8')
+  .match(/TERMS_VERSION = '([^']+)'/)[1];
+
 function seedUser(account) {
   return {
     id: crypto.randomUUID(),
@@ -91,6 +97,7 @@ function seedUser(account) {
     name: account.name,
     role: account.role,
     passwordHash: hashPassword(account.password),
+    termsAcceptedVersion: TERMS_VERSION,
   };
 }
 
@@ -121,6 +128,7 @@ function baseConfig({ port, requireAuth, users, servers, backupsDir }) {
     jwtSecret: crypto.randomBytes(32).toString('hex'),
     sessionHours: 168,
     requireAuth,
+    guestTermsAccepted: { version: TERMS_VERSION, acceptedAt: new Date(0).toISOString() },
     consoleHistoryLines: 500,
     playerListIntervalSeconds: 30,
     watchdog: { enabled: false, maxRestarts: 3, windowMinutes: 10 },
