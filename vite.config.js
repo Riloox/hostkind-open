@@ -49,8 +49,44 @@ const cjsToEsm = {
   },
 };
 
+// i18n.json holds every language (~120 kB each) and is shared with the
+// backend. Importing it whole put all of them in the entry chunk. Instead the
+// frontend imports `virtual:i18n`: the metadata plus the default language
+// (always needed - it is the fallback for missing keys), and a loader per
+// other language that Rollup splits into its own chunk.
+const I18N_JSON = path.join(__dirname, 'i18n.json');
+const I18N_ID = 'virtual:i18n';
+const I18N_LANG_PREFIX = 'virtual:i18n/lang/';
+const i18nSplit = {
+  name: 'i18n-split',
+  resolveId(id) {
+    if (id === I18N_ID || id.startsWith(I18N_LANG_PREFIX)) return `\0${id}`;
+  },
+  load(id) {
+    if (!id.startsWith(`\0${I18N_ID}`)) return;
+    this.addWatchFile(I18N_JSON);
+    const data = JSON.parse(readFileSync(I18N_JSON, 'utf8'));
+    if (id.startsWith(`\0${I18N_LANG_PREFIX}`)) {
+      const dict = data.dictionaries[id.slice(`\0${I18N_LANG_PREFIX}`.length)] || {};
+      // JSON.parse of a string literal parses faster than an object literal.
+      return `export default JSON.parse(${JSON.stringify(JSON.stringify(dict))});`;
+    }
+    const loaders = data.SUPPORTED_LANGS
+      .filter((lang) => lang !== data.DEFAULT_LANG)
+      .map((lang) => `${JSON.stringify(lang)}: () => import(${JSON.stringify(I18N_LANG_PREFIX + lang)})`);
+    return [
+      `import defaultDictionary from ${JSON.stringify(I18N_LANG_PREFIX + data.DEFAULT_LANG)};`,
+      `export const SUPPORTED_LANGS = ${JSON.stringify(data.SUPPORTED_LANGS)};`,
+      `export const DEFAULT_LANG = ${JSON.stringify(data.DEFAULT_LANG)};`,
+      `export const SPANISH_COUNTRIES = ${JSON.stringify(data.SPANISH_COUNTRIES)};`,
+      'export { defaultDictionary };',
+      `export const loaders = { ${loaders.join(', ')} };`,
+    ].join('\n');
+  },
+};
+
 export default defineConfig({
-  plugins: [react(), cjsToEsm],
+  plugins: [react(), cjsToEsm, i18nSplit],
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
   },

@@ -5,25 +5,20 @@
 /* Hallmark · pre-emit critique: P5 H5 E4 S5 R4 V4 */
 /* Hallmark · genre: atmospheric · macrostructure: Workbench · design-system: design.md · designed-as-app */
 
+/* The display face is Saira Condensed 800 only (see the type note in
+   tokens.css). As the family's single face it renders every display weight,
+   including headings (which inherit 400) and the 700 toast titles. */
 @font-face {
   font-family: 'Saira Condensed';
-  src: url('./assets/fonts/saira-condensed-700.ttf') format('truetype');
+  src: url('./assets/fonts/saira-condensed-800.woff2') format('woff2');
   font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Saira Condensed';
-  src: url('./assets/fonts/saira-condensed-800.ttf') format('truetype');
-  font-style: normal;
-  font-weight: 700;
+  font-weight: 800;
   font-display: swap;
 }
 
 @font-face {
   font-family: 'Saira';
-  src: url('./assets/fonts/saira-400.ttf') format('truetype');
+  src: url('./assets/fonts/saira-400.woff2') format('woff2');
   font-style: normal;
   font-weight: 400;
   font-display: swap;
@@ -31,7 +26,7 @@
 
 @font-face {
   font-family: 'Saira';
-  src: url('./assets/fonts/saira-italic-400.ttf') format('truetype');
+  src: url('./assets/fonts/saira-italic-400.woff2') format('woff2');
   font-style: italic;
   font-weight: 400;
   font-display: swap;
@@ -39,7 +34,7 @@
 
 @font-face {
   font-family: 'Saira';
-  src: url('./assets/fonts/saira-600.ttf') format('truetype');
+  src: url('./assets/fonts/saira-600.woff2') format('woff2');
   font-style: normal;
   font-weight: 600;
   font-display: swap;
@@ -47,7 +42,7 @@
 
 @font-face {
   font-family: 'Saira';
-  src: url('./assets/fonts/saira-700.ttf') format('truetype');
+  src: url('./assets/fonts/saira-700.woff2') format('woff2');
   font-style: normal;
   font-weight: 700;
   font-display: swap;
@@ -55,7 +50,7 @@
 
 @font-face {
   font-family: 'IBM Plex Mono';
-  src: url('./assets/fonts/ibm-plex-mono-400.ttf') format('truetype');
+  src: url('./assets/fonts/ibm-plex-mono-400.woff2') format('woff2');
   font-style: normal;
   font-weight: 400;
   font-display: swap;
@@ -63,7 +58,7 @@
 
 @font-face {
   font-family: 'IBM Plex Mono';
-  src: url('./assets/fonts/ibm-plex-mono-600.ttf') format('truetype');
+  src: url('./assets/fonts/ibm-plex-mono-600.woff2') format('woff2');
   font-style: normal;
   font-weight: 600;
   font-display: swap;
@@ -71,7 +66,7 @@
 
 @font-face {
   font-family: 'Press Start 2P';
-  src: url('./assets/fonts/press-start-2p-400.ttf') format('truetype');
+  src: url('./assets/fonts/press-start-2p-400.woff2') format('woff2');
   font-style: normal;
   font-weight: 400;
   font-display: swap;
@@ -415,17 +410,24 @@
   transition: background-color var(--duration-slow) var(--ease-out);
 }
 
-/* The halo layer. Nothing runs here unless the server is doing something. */
+/* The halo layer. Nothing runs here unless the server is doing something.
+   `transform-origin` is pinned to the centre and the layer is given a stable
+   `will-change` while it animates: the dot sits on fractional layout pixels
+   (a flex row centres it against the label's line box), and an animated
+   transform on a layer promoted mid-animation can otherwise land a fraction of
+   a pixel off the core it is supposed to ring. */
 .status-dot__halo {
   position: absolute;
   inset: 0;
   border-radius: 9999px;
   pointer-events: none;
   opacity: 0;
+  transform-origin: center;
 }
 
 .status-dot--online .status-dot__halo {
   background: currentColor;
+  will-change: transform;
   animation: pulse-ring 1.4s var(--ease-out) infinite;
 }
 
@@ -444,6 +446,7 @@
    a border scales with the transform - 2px would land as an 8px blob. */
 .status-dot--working .status-dot__halo {
   border: var(--rule-hair) solid currentColor;
+  will-change: transform;
   animation: status-breath 1.9s var(--ease-in-out) infinite;
 }
 
@@ -466,6 +469,8 @@
   border-radius: 9999px;
   border: var(--rule-hair) solid currentColor;
   pointer-events: none;
+  transform-origin: center;
+  will-change: transform;
   animation: status-ignite-ring var(--duration-ignite) var(--ease-out) forwards;
 }
 
@@ -523,6 +528,8 @@
   .status-dot--ignite .status-dot__ignition,
   .status-dot--ignite .status-dot__core {
     animation: none !important;
+    /* Nothing moves here, so nothing needs its own composited layer. */
+    will-change: auto;
   }
   /* Without the ping, "online" would fall back to hue alone on the bare dots in
      the server selector. A static hairline ring keeps a second, non-colour

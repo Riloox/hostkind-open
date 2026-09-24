@@ -1,7 +1,33 @@
-import data from '../../i18n.json';
+// Served by the i18n-split plugin in vite.config.js: only the default
+// language ships in the entry chunk, the others load on demand.
+import {
+  SUPPORTED_LANGS,
+  DEFAULT_LANG,
+  SPANISH_COUNTRIES as SPANISH_COUNTRY_LIST,
+  defaultDictionary,
+  loaders,
+} from 'virtual:i18n';
 
-const { SUPPORTED_LANGS, DEFAULT_LANG, dictionaries } = data;
-const SPANISH_COUNTRIES = new Set(data.SPANISH_COUNTRIES);
+const SPANISH_COUNTRIES = new Set(SPANISH_COUNTRY_LIST);
+
+// Filled as languages load. t() reads it synchronously, so callers must await
+// loadDictionary(lang) before translating into a non-default language
+// (I18nProvider does); until then lookups fall back to the default language.
+const dictionaries = { [DEFAULT_LANG]: defaultDictionary };
+const pending = {};
+
+function isDictionaryLoaded(lang) {
+  return Object.hasOwn(dictionaries, lang);
+}
+
+function loadDictionary(lang) {
+  if (isDictionaryLoaded(lang)) return Promise.resolve();
+  if (!loaders[lang]) return Promise.reject(new Error(`[i18n] unknown language "${lang}"`));
+  pending[lang] ??= loaders[lang]()
+    .then((mod) => { dictionaries[lang] = mod.default; })
+    .finally(() => { delete pending[lang]; });
+  return pending[lang];
+}
 
 function countryToLanguage(countryCode) {
   if (!countryCode) return DEFAULT_LANG;
@@ -55,7 +81,10 @@ function t(lang, key, vars) {
   return format(v, vars);
 }
 
-export { SUPPORTED_LANGS, DEFAULT_LANG, dictionaries, countryToLanguage, normalizeLang, lookup, format, t };
+export {
+  SUPPORTED_LANGS, DEFAULT_LANG, dictionaries, countryToLanguage, normalizeLang, lookup, format, t,
+  isDictionaryLoaded, loadDictionary,
+};
 
 export const LANG_LABELS = {
   en: 'English',

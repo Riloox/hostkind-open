@@ -54,6 +54,21 @@ assert.doesNotMatch(
   /azure\/login|id-token:\s*write|AZURE_|HOSTKIND_ARTIFACT_SIGNING/i,
 );
 
+// Uninstall contract: a manual uninstall offers to delete the previous profile
+// (%APPDATA%\Hostkind) so a reinstall starts fresh instead of asking for a
+// login. The prompt must stay out of updates/reinstalls and silent removals.
+const nsisIncludePath = path.join(root, 'build', 'uninstaller.nsh');
+assert.match(builderSource, /include:\s*'build\/uninstaller\.nsh'/);
+assert.ok(fs.existsSync(nsisIncludePath), 'missing build/uninstaller.nsh');
+const nsisInclude = fs.readFileSync(nsisIncludePath, 'utf8');
+assert.match(nsisInclude, /!macro customUnInstall/);
+assert.match(nsisInclude, /\$\{isUpdated\}/);
+assert.match(nsisInclude, /\$\{GetOptions\} \$R0 "\/S"/);
+assert.match(nsisInclude, /RMDir \/r "\$APPDATA\\\$\{APP_FILENAME\}"/);
+// No /SD on the prompt: it would suppress the dialog because the one-click
+// uninstaller sets the silent flag before running the section.
+assert.doesNotMatch(nsisInclude, /MessageBox[^\r\n]*\/SD/);
+
 assert.ok(packageJson.scripts['desktop:pack']);
 assert.ok(packageJson.scripts['desktop:dist']);
 assert.ok(packageJson.scripts['desktop:dist:win']);

@@ -1,5 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { DEFAULT_LANG, LANG_LABELS, SUPPORTED_LANGS, t as tRaw } from '@/i18n';
+import {
+  DEFAULT_LANG, LANG_LABELS, SUPPORTED_LANGS, isDictionaryLoaded, loadDictionary, t as tRaw,
+} from '@/i18n';
 
 const I18nContext = createContext(null);
 
@@ -48,10 +50,28 @@ export function I18nProvider({ initialLang, serverDefaultLang, children }) {
     }
   }, [serverDefaultLang]);
 
+  // Non-default dictionaries are separate chunks. `shownLang` is the language
+  // actually rendered: it trails `lang` until that dictionary has loaded, so a
+  // switch never shows a half-translated frame, and a failed load keeps the
+  // current language (the default one on first load) instead of a blank app.
+  const [shownLang, setShownLang] = useState(() => (isDictionaryLoaded(lang) ? lang : null));
+  useEffect(() => {
+    let cancelled = false;
+    loadDictionary(lang)
+      .then(() => { if (!cancelled) setShownLang(lang); })
+      .catch((err) => {
+        // eslint-disable-next-line no-console
+        console.warn(err);
+        if (!cancelled) setShownLang((prev) => prev ?? DEFAULT_LANG);
+      });
+    return () => { cancelled = true; };
+  }, [lang]);
+
   // Keep <html lang> in sync with the active language.
   useEffect(() => {
-    try { document.documentElement.lang = lang; } catch {}
-  }, [lang]);
+    if (!shownLang) return;
+    try { document.documentElement.lang = shownLang; } catch {}
+  }, [shownLang]);
 
   const setLang = useCallback((next) => {
     if (!SUPPORTED_LANGS.includes(next)) return;
@@ -59,15 +79,19 @@ export function I18nProvider({ initialLang, serverDefaultLang, children }) {
     writeStored(next);
   }, []);
 
-  const t = useCallback((key, vars) => tRaw(lang, key, vars), [lang]);
+  const t = useCallback((key, vars) => tRaw(shownLang, key, vars), [shownLang]);
 
   const value = useMemo(() => ({
-    lang,
+    lang: shownLang,
     setLang,
     supported: SUPPORTED_LANGS,
     labels: LANG_LABELS,
     t,
-  }), [lang, setLang, t]);
+  }), [shownLang, setLang, t]);
+
+  // Only a first load into a non-default language waits here (one small local
+  // chunk); every later switch keeps rendering the previous language meanwhile.
+  if (!shownLang) return null;
 
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }

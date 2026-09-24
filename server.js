@@ -30,6 +30,7 @@ const zlib = require('zlib');
 
 const express = require('express');
 const helmet = require('helmet');
+const compression = require('compression');
 const { rateLimit } = require('express-rate-limit');
 const { WebSocketServer } = require('ws');
 const multer = require('multer');
@@ -164,44 +165,88 @@ const limitPalworldPlayers = palworldOperations.createRateLimiter({ limit: PALWO
 // Get-CimInstance probe (KernelModeTime / UserModeTime / WorkingSetSize) and
 // falls back to pidusage on other platforms. Results are cached ~1s so the 2s
 // live stats stream and the 60s metrics sampler don't spawn PowerShell each
-// overlap.
+// overlap, and every pid probed in the same tick shares one PowerShell call
+// (see procUsageMany), so the cost no longer grows with the number of servers.
 const procUsageHistory = {}; // { [pid]: { ctime, uptime } }
 const procUsageCache = {};    // { [pid]: { ts, val } }
+// A probe still in flight is shared: the stats stream and the metrics sampler
+// can both miss the cache while one PowerShell spawn (often >1s on Windows) is
+// still running, and each would otherwise start its own.
+const procUsageInflight = new Map(); // pid -> Promise
 function procUsage(pid) {
-  return new Promise((resolve) => {
-    if (pid == null || pid < 0) return resolve(null);
+  if (pid == null || pid < 0) return Promise.resolve(null);
+  const cached = procUsageCache[pid];
+  if (cached && (Date.now() - cached.ts) < 900) return Promise.resolve(cached.val);
+  const pending = procUsageInflight.get(pid);
+  if (pending) return pending;
+  const probe = probeProcUsage(pid).finally(() => procUsageInflight.delete(pid));
+  procUsageInflight.set(pid, probe);
+  return probe;
+}
+// Warms the cache for several pids at once. On Windows every pid that misses
+// the cache in the same tick joins one PowerShell call, so callers that then
+// await procUsage() one pid at a time get cached results instead of each
+// spawning their own.
+function procUsageMany(pids) {
+  return Promise.all(pids.map(procUsage));
+}
+function probeProcUsage(pid) {
+  if (process.platform !== 'win32') {
     const now = Date.now();
-    const cached = procUsageCache[pid];
-    if (cached && (now - cached.ts) < 900) return resolve(cached.val);
-
-    const finish = (val) => {
+    return pidusage(pid).then((val) => {
       if (val) procUsageCache[pid] = { ts: now, val };
-      resolve(val);
-    };
-
-    if (process.platform !== 'win32') {
-      return pidusage(pid).then(finish, () => resolve(null));
+      return val;
+    }, () => null);
+  }
+  // Only integer pids reach the PowerShell filter string.
+  if (!Number.isInteger(pid)) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    if (!procUsageQueue) {
+      procUsageQueue = new Map();
+      setImmediate(flushProcUsageQueue);
     }
-
-    const psCmd =
-      `Get-CimInstance Win32_Process -Filter "ProcessId=${pid}" | ` +
-      `Select-Object -Property KernelModeTime,UserModeTime,WorkingSetSize | ` +
-      `ConvertTo-Json -Compress`;
-    execFile(
-      'powershell.exe',
-      ['-NoProfile', '-NonInteractive', '-Command', psCmd],
-      { windowsHide: true, timeout: 5000 },
-      (err, stdout) => {
-        if (err) { delete procUsageCache[pid]; return resolve(null); }
-        let data;
-        try { data = JSON.parse((stdout || '').trim()); } catch (_) { return resolve(null); }
-        if (!data || data.KernelModeTime == null) return resolve(null);
+    // procUsageInflight guarantees one queued probe per pid.
+    procUsageQueue.set(pid, resolve);
+  });
+}
+// Windows: pids queued in the current tick, flushed as one Get-CimInstance call.
+let procUsageQueue = null; // Map pid -> resolve
+function flushProcUsageQueue() {
+  const batch = procUsageQueue;
+  procUsageQueue = null;
+  const pids = [...batch.keys()];
+  const now = Date.now();
+  const filter = pids.map((pid) => `ProcessId=${pid}`).join(' OR ');
+  // @() and -InputObject keep the output a JSON array for one match or none.
+  const psCmd =
+    `ConvertTo-Json -Compress -InputObject @(Get-CimInstance Win32_Process -Filter "${filter}" | ` +
+    `Select-Object -Property ProcessId,KernelModeTime,UserModeTime,WorkingSetSize)`;
+  execFile(
+    'powershell.exe',
+    ['-NoProfile', '-NonInteractive', '-Command', psCmd],
+    { windowsHide: true, timeout: 5000 },
+    (err, stdout) => {
+      let rows = null;
+      if (!err) {
+        try { rows = JSON.parse((stdout || '').trim() || '[]'); } catch (_) { /* treated as a failed probe */ }
+      }
+      if (!rows) {
+        for (const [pid, resolve] of batch) { delete procUsageCache[pid]; resolve(null); }
+        return;
+      }
+      const byPid = new Map();
+      for (const row of Array.isArray(rows) ? rows : [rows]) {
+        if (row && row.ProcessId != null) byPid.set(Number(row.ProcessId), row);
+      }
+      const uptime = Math.floor(os.uptime() || (Date.now() / 1000));
+      for (const [pid, resolve] of batch) {
+        const data = byPid.get(pid);
+        if (!data || data.KernelModeTime == null) { resolve(null); continue; }
         const kernel = Number(data.KernelModeTime);
         const user = Number(data.UserModeTime);
         const memory = Number(data.WorkingSetSize);
         // Kernel/User time are in 100-ns ticks; convert to ms.
         const totalMs = (kernel + user) / 10000;
-        const uptime = Math.floor(os.uptime() || (Date.now() / 1000));
         const hst = procUsageHistory[pid];
         let cpu = 0;
         if (hst) {
@@ -210,16 +255,12 @@ function procUsage(pid) {
           if (dSec > 0) cpu = (dCpu / 1000 / dSec) * 100;
         }
         procUsageHistory[pid] = { ctime: totalMs, uptime };
-        finish({
-          cpu,
-          memory,
-          pid,
-          ctime: totalMs,
-          timestamp: now,
-        });
+        const val = { cpu, memory, pid, ctime: totalMs, timestamp: now };
+        procUsageCache[pid] = { ts: now, val };
+        resolve(val);
       }
-    );
-  });
+    }
+  );
 }
 const cron = require('node-cron');
 const jwt = require('jsonwebtoken');
@@ -1427,6 +1468,15 @@ async function adoptOrphans() {
 // ---------------------------------------------------------------------------
 
 const app = express();
+// Gzip the SPA bundle and shell (the entry chunk is ~400 kB raw, ~130 kB
+// gzipped), which matters when the panel is reached over a tunnel or relay.
+// /api is left uncompressed on purpose: its responses carry session tokens
+// next to user-controlled text, the setup BREACH-style attacks need.
+// Streams that send Cache-Control: no-transform (create progress) are skipped
+// by the middleware itself.
+app.use(compression({
+  filter: (req, res) => !(req.path === '/api' || req.path.startsWith('/api/')) && compression.filter(req, res),
+}));
 app.use(express.json({ limit: JSON_BODY_LIMIT }));
 app.use('/api', rateLimit({
   windowMs: 60 * 1000,
@@ -2956,30 +3006,35 @@ function saveMetrics() {
 }
 
 // Recursive directory size (iterative, with a safety guard against huge trees).
-function dirSize(dir) {
+// Async so a large world folder does not stall the event loop (and with it
+// every console stream and API request) while the sampler walks it.
+async function dirSize(dir) {
   let total = 0, guard = 0;
   const stack = [dir];
   while (stack.length) {
     if (++guard > 400000) break;
     const cur = stack.pop();
     let entries;
-    try { entries = fs.readdirSync(cur, { withFileTypes: true }); } catch (_) { continue; }
+    try { entries = await fs.promises.readdir(cur, { withFileTypes: true }); } catch (_) { continue; }
+    const files = [];
     for (const e of entries) {
       const p = path.join(cur, e.name);
       if (e.isDirectory()) stack.push(p);
-      else { try { total += fs.statSync(p).size; } catch (_) { /* noop */ } }
+      else files.push(p);
     }
+    const sizes = await Promise.all(files.map((p) => fs.promises.stat(p).then((st) => st.size, () => 0)));
+    for (const size of sizes) total += size;
   }
   return total;
 }
-function worldSizeMB(m) {
+async function worldSizeMB(m) {
   const desc = m.desc();
   if (!desc.dir || !fs.existsSync(desc.dir)) return 0;
   const worlds = (desc.worlds && desc.worlds.length) ? desc.worlds : ['world'];
   let bytes = 0;
   for (const w of worlds) {
     const wp = path.join(desc.dir, w);
-    if (fs.existsSync(wp)) bytes += dirSize(wp);
+    if (fs.existsSync(wp)) bytes += await dirSize(wp);
   }
   return Math.round(bytes / 1048576);
 }
@@ -2999,12 +3054,26 @@ async function diskUsage(dir) {
   }
 }
 
+// The world-size walk is async, so a slow disk could let the next tick start
+// before this one ends; skip it instead of sampling twice.
+let metricsSampling = false;
 async function sampleMetrics() {
+  if (metricsSampling) return;
+  metricsSampling = true;
+  try { await sampleMetricsOnce(); } finally { metricsSampling = false; }
+}
+async function sampleMetricsOnce() {
   metricsTick++;
   const recomputeWorld = (metricsTick % WORLD_SIZE_EVERY) === 1;
   const now = Date.now();
   const systemTotalMb = os.totalmem() / 1048576;
   const systemFreeMb = os.freemem() / 1048576;
+  const cores = os.cpus().length || 1;
+  // One batched probe for every running server; the loop below reads the cache.
+  await procUsageMany(config.servers
+    .map((s) => getManager(s.id))
+    .filter((m) => m && m.isRunning() && m.pid())
+    .map((m) => m.pid()));
   for (const s of config.servers) {
     const m = getManager(s.id);
     let cpu = 0, memMB = 0, players = 0;
@@ -3012,7 +3081,6 @@ async function sampleMetrics() {
     if (pid) {
       try {
         const u = await procUsage(pid);
-        const cores = os.cpus().length || 1;
         cpu = Math.round(Math.min(100, (u ? u.cpu : 0) / cores));
         memMB = Math.round((u ? u.memory : 0) / 1048576);
       } catch (_) { /* process may have died */ }
@@ -3020,7 +3088,7 @@ async function sampleMetrics() {
     }
     let worldMB = worldSizeCache[s.id] || 0;
     if (recomputeWorld) {
-      try { worldMB = worldSizeMB(m); worldSizeCache[s.id] = worldMB; } catch (_) { /* noop */ }
+      try { worldMB = await worldSizeMB(m); worldSizeCache[s.id] = worldMB; } catch (_) { /* noop */ }
     }
     const arr = metrics[s.id] || (metrics[s.id] = []);
     arr.push([now, cpu, memMB, players, worldMB]);
@@ -4334,7 +4402,19 @@ app.use('/api/tasks', tasksRouter({
 // ---------------------------------------------------------------------------
 
 app.use('/resources', express.static(path.join(__dirname, 'resources')));
-app.use(express.static(path.join(__dirname, 'public')));
+// Vite content-hashes every file under /assets, so a changed file always gets
+// a new URL. Let browsers keep them for a year without revalidating; otherwise
+// every page load re-asks the server about each of the ~60 chunks, fonts and
+// images. index.html is never cached this way (it is served by the SPA
+// fallback below), so a new build is still picked up on the next load.
+app.use('/assets', express.static(path.join(__dirname, 'public', 'assets'), {
+  immutable: true,
+  maxAge: '1y',
+}));
+// A chunk from a previous build must 404, not fall through to the SPA shell
+// (an HTML body under a .js URL fails with a confusing MIME-type error).
+app.use('/assets', (req, res) => res.status(404).type('text').send('Not found'));
+app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
 // The SPA rewrites the document title after mount, but a branded install must
 // not flash the stock product name in the tab (or on the login screen) while
@@ -4390,7 +4470,17 @@ function registerGlobalErrorHandler() {
 // ---------------------------------------------------------------------------
 
 let lastCpu = null;
+// The previous sample is global, so back-to-back calls (one per watched server
+// in the same stats tick) would measure a near-empty window and report ~0.
+// Reuse the last reading for calls within a second of each other.
+let lastCpuPercent = { ts: 0, value: 0 };
 function cpuPercent() {
+  const now = Date.now();
+  if (now - lastCpuPercent.ts < 1000) return lastCpuPercent.value;
+  lastCpuPercent = { ts: now, value: sampleCpuPercent() };
+  return lastCpuPercent.value;
+}
+function sampleCpuPercent() {
   const cpus = os.cpus();
   let idle = 0, total = 0;
   for (const c of cpus) {
@@ -4643,6 +4733,7 @@ function globalBroadcast(obj) {
 setInterval(async () => {
   if (clients.size === 0) return;
   const byServer = new Map();
+  const targets = [];
   for (const ws of clients) {
     if (ws.readyState !== ws.OPEN) continue;
     // A socket whose handshake was granted no server (an operator or key
@@ -4652,10 +4743,17 @@ setInterval(async () => {
     const id = ws.selectedServerId
       || (foundationCapabilities.hasAnyPerServerGrant(ws.fleetdeckUser || null, config.activeServerId) ? config.activeServerId : null);
     if (!id) continue;
-    if (!byServer.has(id)) byServer.set(id, systemStats(getManager(id)));
+    // One stats probe and one serialized frame per server, shared by every
+    // socket watching it. All probes start before any is awaited, so their
+    // process lookups land in the same tick and share one PowerShell call.
+    if (!byServer.has(id)) {
+      byServer.set(id, systemStats(getManager(id)).then((stats) => JSON.stringify({ type: 'stats', serverId: id, stats })));
+    }
+    targets.push([ws, id]);
+  }
+  for (const [ws, id] of targets) {
     try {
-      const stats = await byServer.get(id);
-      ws.send(JSON.stringify({ type: 'stats', serverId: id, stats }));
+      ws.send(await byServer.get(id));
     } catch (_) { /* connection or process disappeared */ }
   }
 }, 2000);

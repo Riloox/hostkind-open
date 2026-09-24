@@ -42,6 +42,14 @@ state, downloaded installers, runtimes, servers, or backups
 - `%LOCALAPPDATA%\Hostkind\` — installer cache and runtimes,
 - `Documents\Hostkind\` — servers and backups.
 
+Uninstalling keeps that profile by default, so a reinstall reuses your
+configuration. A manual uninstall also offers to delete `%APPDATA%\Hostkind\`
+(the panel configuration, accounts, database, running state and logs), which
+resets the app to its first-run, no-login state; server files and backups in
+`Documents\Hostkind` are never removed. Updates and silent uninstalls never
+prompt, so the profile survives an in-place upgrade
+(`build/uninstaller.nsh`).
+
 ## Local desktop builds
 
 The Electron entry points are `electron/main.cjs` and `electron/runtime.cjs`. The packager configuration is `packaging/windows/electron-builder.cjs`.
