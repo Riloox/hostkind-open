@@ -13,6 +13,7 @@
  * injected failure mid-write never leaves a truncated config behind.
  */
 
+const cryptoMod = require('crypto');
 const fsMod = require('fs');
 const netMod = require('net');
 const pathMod = require('path');
@@ -42,9 +43,13 @@ function resolveDesktopPaths({ userData, localData, documents }) {
     dataDir: pathMod.join(user, 'data'),
     runningPath: pathMod.join(user, 'running.json'),
     logDir: pathMod.join(user, 'logs'),
+    // Application updater state. The per-machine install directory is not
+    // writable by the user, so it never holds updater state or downloads.
+    updateStatePath: pathMod.join(user, 'application-update.json'),
     // Machine-local caches (%LOCALAPPDATA%\Hostkind).
     installerCache: pathMod.join(local, HOSTKIND_DIR, 'installer-cache'),
     runtimesDir: pathMod.join(local, HOSTKIND_DIR, 'runtimes'),
+    updateStagingDir: pathMod.join(local, HOSTKIND_DIR, 'updates'),
     // User-managed data (Documents\Hostkind).
     serverDir: pathMod.join(docs, HOSTKIND_DIR, 'servers'),
     backupsDir: pathMod.join(docs, HOSTKIND_DIR, 'backups'),
@@ -238,15 +243,60 @@ async function waitForPanel({ origin, child, timeoutMs = 30000, fetchImpl }) {
  * FLEETDECK_DATA_DIR, FLEETDECK_INSTALLER_CACHE, FLEETDECK_RUNTIMES_DIR), so
  * the desktop launcher reuses them instead of adding a second config path.
  * FLEETDECK_DESKTOP=1 is a diagnostic marker for the desktop boot path.
+ *
+ * The updater variables keep its state and downloads in user-writable
+ * locations. HOSTKIND_DESKTOP_UPDATE=1 (packaged builds only) switches the
+ * backend to the desktop installer, which hands Setup.exe back to the main
+ * process instead of rewriting the install directory itself.
  */
-function desktopEnvironment({ paths, configPath }) {
-  return {
+function desktopEnvironment({ paths, configPath, packaged = false }) {
+  const env = {
     FLEETDECK_CONFIG: configPath,
     FLEETDECK_DATA_DIR: paths.dataDir,
     FLEETDECK_INSTALLER_CACHE: paths.installerCache,
     FLEETDECK_RUNTIMES_DIR: paths.runtimesDir,
     FLEETDECK_DESKTOP: '1',
+    HOSTKIND_UPDATE_STATE_PATH: paths.updateStatePath,
+    HOSTKIND_UPDATE_STAGING_DIR: paths.updateStagingDir,
   };
+  if (packaged) env.HOSTKIND_DESKTOP_UPDATE = '1';
+  return env;
+}
+
+const INSTALLER_NAME_RE = /^Hostkind-(0|[1-9]\d*)(\.(0|[1-9]\d*)){2,3}-Setup\.exe$/;
+const SHA256_RE = /^[0-9a-f]{64}$/;
+
+/**
+ * Validate a backend request to launch an update installer. The backend is
+ * trusted code, but the main process still only ever runs a Hostkind
+ * Setup.exe directly inside the update staging folder whose bytes match the
+ * SHA-256 from the signed manifest. Returns the resolved installer path;
+ * throws with a readable reason otherwise.
+ */
+async function validateInstallerRequest({ message, stagingDir, platform = process.platform, fsImpl = fsMod }) {
+  if (platform !== 'win32') throw new Error('in-app installation is only supported on Windows');
+  if (!message || typeof message.installerPath !== 'string' || typeof message.sha256 !== 'string') {
+    throw new Error('malformed installer request');
+  }
+  const installerPath = pathMod.resolve(message.installerPath);
+  const root = pathMod.resolve(String(stagingDir));
+  if (pathMod.dirname(installerPath).toLowerCase() !== root.toLowerCase()) {
+    throw new Error('installer is outside the update folder');
+  }
+  if (!INSTALLER_NAME_RE.test(pathMod.basename(installerPath))) {
+    throw new Error('installer file name is not a Hostkind setup');
+  }
+  const expected = message.sha256.toLowerCase();
+  if (!SHA256_RE.test(expected)) throw new Error('installer SHA-256 is malformed');
+  const actual = await new Promise((resolve, reject) => {
+    const hash = cryptoMod.createHash('sha256');
+    const stream = fsImpl.createReadStream(installerPath);
+    stream.on('error', reject);
+    stream.on('data', (chunk) => hash.update(chunk));
+    stream.on('end', () => resolve(hash.digest('hex')));
+  });
+  if (actual !== expected) throw new Error('installer failed its SHA-256 check');
+  return installerPath;
 }
 
 module.exports = {
@@ -255,6 +305,7 @@ module.exports = {
   findFreeLoopbackPort,
   waitForPanel,
   desktopEnvironment,
+  validateInstallerRequest,
   LOOPBACK_HOST,
   AUTH_MODE_PATH,
 };

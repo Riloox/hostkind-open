@@ -593,6 +593,27 @@ function makeUpdater({
   const seededUpdater = makeUpdater({ stateStore: seededStore });
   assert.strictEqual(seededUpdater.getStatus().state, 'failed');
 
+  // A state store that cannot write (read-only Program Files install) must
+  // not strand the machine in "checking": check() still reports the update
+  // and a second check is still allowed.
+  const persistWarnings = [];
+  const readOnlyUpdater = createApplicationUpdater({
+    releaseClient: { getLatest: async () => availableResult() },
+    installer: fakeInstaller(),
+    stateStore: {
+      read: () => null,
+      write() { throw Object.assign(new Error('EPERM: operation not permitted'), { code: 'EPERM' }); },
+    },
+    platformKey: 'windows-x64',
+    currentVersion: '1.1.0',
+    now: () => CLOCK,
+    logger: { warn: (...args) => persistWarnings.push(args) },
+  });
+  const readOnlyStatus = await readOnlyUpdater.check();
+  assert.strictEqual(readOnlyStatus.state, 'available');
+  assert.strictEqual((await readOnlyUpdater.check()).state, 'available');
+  assert.ok(persistWarnings.length > 0, 'persist failures are logged');
+
   console.log('PASS application-updater-core');
 })().catch((error) => {
   console.error(error.stack || error);

@@ -330,7 +330,9 @@ export function SettingsDialog({ open, onOpenChange, onStartTour }) {
             {!isGuest && <PasswordSection />}
             {!isGuest && user?.role === 'admin' && <WatchdogSection />}
             {!isGuest && user?.role === 'admin' && <GameColorsSection />}
-            {!isGuest && user?.role === 'admin' && <ApplicationUpdateSection />}
+            {/* The desktop app runs as the synthetic guest admin; it still needs
+                a way to check for and install application updates. */}
+            {user?.role === 'admin' && <ApplicationUpdateSection />}
 
             {/* Language */}
             <section>

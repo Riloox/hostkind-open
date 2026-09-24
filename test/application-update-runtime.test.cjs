@@ -9,11 +9,17 @@ const {
   createApplicationUpdateRuntime,
   createApplicationUpdateScheduler,
   createBinaryInstaller,
+  createDesktopInstaller,
+  createParentPortInstallRequester,
   createManifestVerifier,
   createFileStateStore,
   platformKeyFor,
+  isDesktopRuntime,
   isPackagedRuntime,
+  DESKTOP_RUN_INSTALLER,
+  DESKTOP_RUN_INSTALLER_RESULT,
 } = require('../lib/application-update-runtime.cjs');
+const { validateInstallerRequest, desktopEnvironment, resolveDesktopPaths } = require('../electron/runtime.cjs');
 
 assert.strictEqual(platformKeyFor('win32', 'x64'), 'windows-x64');
 assert.strictEqual(platformKeyFor('linux', 'x64'), 'linux-x64');
@@ -181,6 +187,96 @@ assert.strictEqual(packagedWithoutKey.service.getStatus().state, 'idle');
   assert.strictEqual(helperFailures[0].error.code, 'HELPER_SPAWN_FAILED');
 
   await assert.rejects(() => runtime.service.check(), (error) => error.code === 'UNSUPPORTED_RUNTIME');
+
+  // --- Electron desktop build --------------------------------------------
+  // HOSTKIND_DESKTOP_UPDATE marks the packaged desktop backend as supported
+  // even though its execPath is the Electron executable.
+  assert.strictEqual(isDesktopRuntime({ HOSTKIND_DESKTOP_UPDATE: '1' }), true);
+  assert.strictEqual(isPackagedRuntime({ platform: 'win32', execPath: 'C:\\dev\\electron.exe', packaged: false, env: { HOSTKIND_DESKTOP_UPDATE: '1' } }), true);
+
+  const stagingDir = path.join(stateRoot, 'updates');
+  fs.mkdirSync(stagingDir, { recursive: true });
+  const setupPath = path.join(stagingDir, 'Hostkind-1.2.3-Setup.exe');
+  fs.writeFileSync(setupPath, 'fake installer bytes');
+  const setupSha = crypto.createHash('sha256').update('fake installer bytes').digest('hex');
+  const installRequests = [];
+  const desktopInstaller = createDesktopInstaller({
+    stagingDir,
+    platformKey: 'windows-x64',
+    requestInstall: async (request) => { installRequests.push(request); },
+  });
+  const desktopResult = await desktopInstaller.install({ packagePath: setupPath, version: '1.2.3', expectedSha256: setupSha });
+  assert.deepStrictEqual(desktopResult, { ok: true, restarting: true });
+  assert.deepStrictEqual(installRequests, [{ installerPath: path.resolve(setupPath), sha256: setupSha, version: '1.2.3' }]);
+  await assert.rejects(
+    () => desktopInstaller.install({ packagePath: setupPath, version: '1.2.3', expectedSha256: 'b'.repeat(64) }),
+    /SHA-256/,
+  );
+  await assert.rejects(
+    () => desktopInstaller.install({ packagePath: path.join(stateRoot, 'Hostkind-1.2.3-Setup.exe'), version: '1.2.3', expectedSha256: setupSha }),
+    /outside the update folder/,
+  );
+  const linuxDesktopInstaller = createDesktopInstaller({ stagingDir, platformKey: 'linux-x64', requestInstall: async () => {} });
+  await assert.rejects(
+    () => linuxDesktopInstaller.install({ packagePath: setupPath, version: '1.2.3', expectedSha256: setupSha }),
+    /only available on Windows/,
+  );
+  assert.strictEqual(installRequests.length, 1, 'rejected installs never reach the main process');
+
+  // The desktop runtime keeps state and staging out of the install directory.
+  const desktopStatePath = path.join(stateRoot, 'desktop', 'application-update.json');
+  const desktopRuntime = createApplicationUpdateRuntime({
+    platform: 'win32',
+    arch: 'x64',
+    execPath: 'C:\\Program Files\\Hostkind\\Hostkind.exe',
+    packaged: false,
+    currentVersion: '1.1.0',
+    env: {
+      HOSTKIND_DESKTOP_UPDATE: '1',
+      HOSTKIND_UPDATE_STATE_PATH: desktopStatePath,
+      HOSTKIND_UPDATE_STAGING_DIR: stagingDir,
+    },
+    requestInstall: async () => {},
+    logger: { warn() {} },
+  });
+  assert.strictEqual(desktopRuntime.supported, true);
+
+  // Parent-port bridge: resolves on the main process's ok, rejects on refusal.
+  const posted = [];
+  const listeners = [];
+  const fakePort = {
+    postMessage: (message) => posted.push(message),
+    on: (event, handler) => { if (event === 'message') listeners.push(handler); },
+  };
+  const requestInstall = createParentPortInstallRequester({ parentPort: fakePort, timeoutMs: 1000 });
+  const accepted = requestInstall({ installerPath: setupPath, sha256: setupSha, version: '1.2.3' });
+  assert.strictEqual(posted[0].type, DESKTOP_RUN_INSTALLER);
+  listeners.forEach((handler) => handler({ data: { type: DESKTOP_RUN_INSTALLER_RESULT, id: posted[0].id, ok: true } }));
+  await accepted;
+  const refused = requestInstall({ installerPath: setupPath, sha256: setupSha, version: '1.2.3' });
+  listeners.forEach((handler) => handler({ data: { type: DESKTOP_RUN_INSTALLER_RESULT, id: posted[1].id, ok: false, error: 'nope' } }));
+  await assert.rejects(() => refused, (error) => error.code === 'INSTALLER_ERROR' && /nope/.test(error.message));
+  await assert.rejects(
+    () => createParentPortInstallRequester({ parentPort: null })({ installerPath: setupPath, sha256: setupSha }),
+    /bridge is unavailable/,
+  );
+
+  // Main-process validation of the installer launch request.
+  const validated = await validateInstallerRequest({ message: { installerPath: setupPath, sha256: setupSha }, stagingDir, platform: 'win32' });
+  assert.strictEqual(validated, path.resolve(setupPath));
+  await assert.rejects(() => validateInstallerRequest({ message: { installerPath: setupPath, sha256: 'c'.repeat(64) }, stagingDir, platform: 'win32' }), /SHA-256/);
+  const rogue = path.join(stagingDir, 'evil.exe');
+  fs.writeFileSync(rogue, 'fake installer bytes');
+  await assert.rejects(() => validateInstallerRequest({ message: { installerPath: rogue, sha256: setupSha }, stagingDir, platform: 'win32' }), /not a Hostkind setup/);
+  await assert.rejects(() => validateInstallerRequest({ message: { installerPath: path.join(stateRoot, '..', 'Hostkind-1.2.3-Setup.exe'), sha256: setupSha }, stagingDir, platform: 'win32' }), /outside the update folder/);
+  await assert.rejects(() => validateInstallerRequest({ message: { installerPath: setupPath, sha256: setupSha }, stagingDir, platform: 'linux' }), /only supported on Windows/);
+
+  const desktopEnv = desktopEnvironment({ paths: resolveDesktopPaths({ userData: stateRoot, localData: stateRoot, documents: stateRoot }), configPath: 'x', packaged: true });
+  assert.strictEqual(desktopEnv.HOSTKIND_DESKTOP_UPDATE, '1');
+  assert.ok(desktopEnv.HOSTKIND_UPDATE_STATE_PATH.startsWith(stateRoot));
+  assert.ok(desktopEnv.HOSTKIND_UPDATE_STAGING_DIR.startsWith(stateRoot));
+  assert.strictEqual(desktopEnvironment({ paths: resolveDesktopPaths({ userData: stateRoot, localData: stateRoot, documents: stateRoot }), configPath: 'x' }).HOSTKIND_DESKTOP_UPDATE, undefined);
+
   fs.rmSync(stateRoot, { recursive: true, force: true });
   console.log('PASS application-update-runtime');
 })().catch((error) => {

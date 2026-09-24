@@ -26,7 +26,14 @@
 
 const path = require('path');
 const fs = require('fs');
+const { spawn } = require('child_process');
 const rt = require('./runtime.cjs');
+
+// Mirrors lib/application-update-runtime.cjs (DESKTOP_RUN_INSTALLER*).
+const RUN_INSTALLER = 'hostkind:update:run-installer';
+const RUN_INSTALLER_RESULT = 'hostkind:update:run-installer:result';
+// Lets the backend's HTTP reply reach the panel before the app quits.
+const QUIT_FOR_UPDATE_DELAY_MS = 1500;
 
 let _electron = null;
 function electron() {
@@ -151,6 +158,67 @@ async function failStartup({ app, backend, message, detail }, state) {
 }
 
 /**
+ * Start the installer through ShellExecute. The per-machine Setup.exe is
+ * marked requireAdministrator, so CreateProcess (child_process.spawn) fails
+ * with EACCES from this non-elevated app; Start-Process raises the UAC prompt
+ * instead. PowerShell exits 0 once the installer is running and non-zero when
+ * the prompt is declined. The path travels in an environment variable so it
+ * never has to be quoted into the command line.
+ */
+function launchElevatedInstaller(installerPath) {
+  return new Promise((resolve, reject) => {
+    const systemRoot = process.env.SystemRoot || 'C:\\Windows';
+    const powershell = path.join(systemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
+    const child = spawn(powershell, [
+      '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command',
+      "Start-Process -FilePath $env:HOSTKIND_UPDATE_INSTALLER -ArgumentList '--updated' -ErrorAction Stop",
+    ], {
+      env: { ...process.env, HOSTKIND_UPDATE_INSTALLER: installerPath },
+      stdio: 'ignore',
+      windowsHide: true,
+      shell: false,
+    });
+    child.once('error', reject);
+    child.once('exit', (code) => {
+      if (code === 0) resolve();
+      else reject(new Error('the installer did not start (the administrator prompt was declined or failed)'));
+    });
+  });
+}
+
+/**
+ * In-app update install: the backend has downloaded and verified the NSIS
+ * Setup.exe into the user's update folder. Re-validate it here, launch it
+ * elevated (NSIS relaunches Hostkind when done), confirm to the backend, then
+ * quit so NSIS can replace the files. A refusal, a declined UAC prompt or a
+ * launch failure is reported back and the app stays up.
+ */
+async function runUpdateInstaller({ app, backend, message, stagingDir }, state) {
+  const reply = (ok, error) => {
+    try { backend.postMessage({ type: RUN_INSTALLER_RESULT, id: message.id, ok, error: error || null }); } catch { /* backend gone */ }
+  };
+  if (state.installingUpdate) return reply(false, 'an update installation is already starting');
+  let installerPath;
+  try {
+    installerPath = await rt.validateInstallerRequest({ message, stagingDir });
+  } catch (err) {
+    writeLog(`refused update installer request: ${err.message}`);
+    return reply(false, err.message);
+  }
+  state.installingUpdate = true;
+  writeLog(`launching update installer ${installerPath} (version ${message.version || 'unknown'})`);
+  try {
+    await launchElevatedInstaller(installerPath);
+  } catch (err) {
+    state.installingUpdate = false;
+    writeLog(`update installer launch failed: ${err.message}`);
+    return reply(false, err.message);
+  }
+  reply(true);
+  setTimeout(() => app.quit(), QUIT_FOR_UPDATE_DELAY_MS);
+}
+
+/**
  * The whole desktop bootstrap. Exported separately (and only run through
  * Electron) so the module stays require-safe under plain Node.
  */
@@ -179,6 +247,7 @@ async function bootstrap(app, e, state) {
     paths.logDir,
     paths.installerCache,
     paths.runtimesDir,
+    paths.updateStagingDir,
     paths.serverDir,
     paths.backupsDir,
   ];
@@ -218,7 +287,7 @@ async function bootstrap(app, e, state) {
 
   // --- backend child ----------------------------------------------------
   const origin = buildOrigin(rt.LOOPBACK_HOST, port);
-  const backendEnv = { ...process.env, ...rt.desktopEnvironment({ paths, configPath: paths.configPath }) };
+  const backendEnv = { ...process.env, ...rt.desktopEnvironment({ paths, configPath: paths.configPath, packaged: app.isPackaged }) };
   let backend = null;
   try {
     backend = e.utilityProcess.fork(
@@ -252,7 +321,14 @@ async function bootstrap(app, e, state) {
 
   // A backend that dies before readiness must fail startup (waitForPanel
   // rejects on 'exit'; this listener also covers the post-readiness case).
+  backend.on('message', (message) => {
+    if (message && message.type === RUN_INSTALLER) {
+      runUpdateInstaller({ app, backend, message, stagingDir: paths.updateStagingDir }, state);
+    }
+  });
+
   backend.on('exit', (code) => {
+    if (state.backendKilled) return;
     writeLog(`backend exited unexpectedly (code ${code})`);
     if (state.readied) {
       if (!state.fatalShown) {
@@ -407,7 +483,7 @@ if (process.versions && process.versions.electron && process.type === 'browser')
   if (!gotLock) {
     app.quit();
   } else {
-    const state = { mainWindow: null, backend: null, readied: false, fatalShown: false };
+    const state = { mainWindow: null, backend: null, readied: false, fatalShown: false, installingUpdate: false };
     app.on('second-instance', () => {
       if (state.mainWindow) {
         if (state.mainWindow.isMinimized()) state.mainWindow.restore();

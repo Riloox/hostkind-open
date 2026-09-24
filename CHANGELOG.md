@@ -7,6 +7,19 @@ All notable changes to Hostkind are documented here. This project follows
 
 No entries yet.
 
+## [0.1.4.3] - 2026-09-24
+
+### Fixed
+
+- The Windows desktop app can now update itself. Before, checking for updates failed with `EPERM: operation not permitted, mkdir 'C:\Program Files\Hostkind\...'` because the updater kept its state and downloads inside the install folder, which a normal user cannot write. Update state now lives in `%APPDATA%\Hostkind` and downloads in `%LOCALAPPDATA%\Hostkind\updates`.
+- Clicking **Update** in the desktop app downloads and verifies the new installer, asks for administrator approval, installs it and reopens Hostkind. Declining the prompt leaves the app running and reports the update as failed so you can retry.
+- The Application update section in Settings now shows in the desktop app, which runs without sign-in.
+- A failure to save update state no longer leaves the updater stuck on "checking".
+
+### Changed
+
+- High-priority updates still install automatically. On the desktop app, that now shows a Windows administrator prompt without you clicking **Update**.
+
 ## [0.1.4.2] - 2026-09-24
 
 ### Performance
