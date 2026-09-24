@@ -119,6 +119,7 @@ function ProfileSection() {
 function PasswordSection() {
   const t = useT();
   const api = useApi();
+  const { user, login } = useAuth();
   const [form, setForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [saving, setSaving] = useState(false);
 
@@ -131,10 +132,13 @@ function PasswordSection() {
     }
     setSaving(true);
     try {
-      await api('/api/me/password', {
+      const data = await api('/api/me/password', {
         method: 'PUT',
         body: { currentPassword: form.currentPassword, newPassword: form.newPassword },
       });
+      // The change signs out every earlier session, this one included; keep
+      // working on the replacement token the server issued.
+      if (data?.token) login(data.token, user);
       toast.success(t('profile.passwordChanged'));
       setForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
     } catch (e) { toast.error(e.message); }

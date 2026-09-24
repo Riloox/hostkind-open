@@ -49,10 +49,20 @@ tests.push(() => {
   const fn = SERVER_JS.slice(SERVER_JS.indexOf('function globalBroadcast(obj) {'));
   const end = fn.indexOf('\n}');
   const body = fn.slice(0, end);
-  assert.ok(/obj\.serverId == null/.test(body),
+  assert.ok(/frameServerId == null/.test(body),
     'a server-less frame must still reach every socket');
-  assert.ok(/hasAnyPerServerGrant\(ws\.fleetdeckUser \|\| null, obj\.serverId\)/.test(body),
+  assert.ok(/obj\.notification && obj\.notification\.serverId/.test(body),
+    'a notification frame must be scoped by the server inside its payload');
+  assert.ok(/hasAnyPerServerGrant\(ws\.fleetdeckUser \|\| null, frameServerId\)/.test(body),
     'a server-scoped frame must be gated on the socket caller\'s grants');
+});
+
+// 5. The notification snapshot sent on connect is filtered the same way.
+tests.push(() => {
+  const conn = SERVER_JS.slice(SERVER_JS.indexOf("wss.on('connection', (ws, req) => {"));
+  const handshake = conn.slice(0, conn.indexOf("ws.on('message'"));
+  assert.ok(/notifications\.filter\(\(n\) => notificationVisible\(user, n\)\)/.test(handshake),
+    'the handshake must only send notifications the caller may see');
 });
 
 let failed = 0;

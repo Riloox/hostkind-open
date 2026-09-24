@@ -64,6 +64,7 @@ const { router: operationsRouter } = require('./lib/routes/operations.cjs');
 const foundationAudit = require('./lib/audit.cjs');
 const auditRouter = require('./lib/routes/audit.cjs');
 const foundationCapabilities = require('./lib/capabilities.cjs');
+const { bodyServerId } = require('./lib/request-server.cjs');
 const branding = require('./lib/branding.cjs');
 const apiKeys = require('./lib/apiKeys.cjs');
 const usersRouter = require('./lib/routes/users.cjs');
@@ -375,6 +376,9 @@ function verifyPassword(pw, stored) {
   const b = Buffer.from(test, 'hex');
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
+// A throwaway hash the login route verifies against when no account matches.
+const DUMMY_PASSWORD_HASH = hashPassword(crypto.randomBytes(16).toString('hex'));
+
 function findUser(id) {
   return (config.users || []).find((u) => u.id === id) || null;
 }
@@ -1366,9 +1370,16 @@ function activeManager() {
   return getManager(config.activeServerId);
 }
 
+// The server a request names explicitly. The capability middleware and every
+// handler resolve it through this one function, so they can never disagree
+// about which server is being acted on (see lib/request-server.cjs for why a
+// multipart form field is not a source).
+function requestedServerId(req) {
+  return req.get('X-Hostkind-Server-Id') || (req.query && req.query.serverId) || bodyServerId(req);
+}
+
 function targetManager(req) {
-  const id = req.get('X-Hostkind-Server-Id') || (req.query && req.query.serverId) || (req.body && req.body.serverId) || config.activeServerId;
-  return getManager(id);
+  return getManager(requestedServerId(req) || config.activeServerId);
 }
 
 // Pre-create a manager (offline) for every registered server.
@@ -1504,8 +1515,28 @@ app.use((req, res, next) => {
       return res.status(403).json({ error: 'origin not allowed' });
     }
   }
+  if (!hostAllowed(req.headers.host)) {
+    return res.status(403).json({ error: 'host not allowed' });
+  }
   next();
 });
+
+// DNS-rebinding defense for guest mode. With sign-in off every request runs as
+// the guest admin, so a web page that rebinds its own domain to the panel's
+// address becomes same-origin and could read any GET route: the Origin check
+// above never fires for reads. A rebinding attack always arrives under the
+// attacker's domain name, so while sign-in is off only IP literals, localhost,
+// and config.allowedOrigins hostnames are accepted as the Host. With sign-in on,
+// every route needs a bearer token the rebinding page does not have.
+function hostAllowed(hostHeader) {
+  if (config.requireAuth !== false) return true;
+  if (!hostHeader || typeof hostHeader !== 'string') return true; // HTTP/1.0, non-browser clients
+  let hostname;
+  try { hostname = new URL(`http://${hostHeader}`).hostname.toLowerCase().replace(/^\[|\]$/g, ''); }
+  catch (_) { return false; }
+  if (hostname === 'localhost' || hostname.endsWith('.localhost') || net.isIP(hostname)) return true;
+  return originAllowed(`http://${hostname}`);
+}
 
 // Routes must never echo raw fs/network errors verbatim: err.message embeds
 // absolute paths and other internals. Log the full message server-side and
@@ -1625,8 +1656,12 @@ function localizeErr(user, err) {
 }
 
 // --- auth ---
+// `tv` is the account's token version. Changing a password bumps it, which
+// signs out every session issued before the change (a stolen token must not
+// outlive the password reset meant to cut it off). Tokens minted before the
+// field existed carry no tv and match version 0.
 function signToken(user) {
-  return jwt.sign({ sub: user.id, email: user.email, lang: i18n.normalizeLang(user.language) }, config.jwtSecret, {
+  return jwt.sign({ sub: user.id, email: user.email, lang: i18n.normalizeLang(user.language), tv: user.tokenVersion || 0 }, config.jwtSecret, {
     expiresIn: `${config.sessionHours || 168}h`,
   });
 }
@@ -1640,18 +1675,26 @@ function verifyToken(token) {
   }
 }
 
-// Resolve the live user behind a token (so deleting a user revokes its sessions).
+// Resolve the live user behind a token (so deleting a user revokes its sessions,
+// and a password change revokes the ones issued before it).
 function userFromToken(token) {
   const payload = token ? verifyToken(token) : null;
-  return payload ? findUser(payload.sub) : null;
+  const user = payload ? findUser(payload.sub) : null;
+  if (!user || (payload.tv || 0) !== (user.tokenVersion || 0)) return null;
+  return user;
+}
+
+// The principal behind a bearer credential. An API key is checked first and
+// only when the token is shaped like one, so a JWT never touches the key table
+// and a key never reaches jwt.verify.
+function principalFromToken(token) {
+  return (apiKeys.looksLikeApiKey(token) ? apiKeys.verify(token) : userFromToken(token)) || guestUser();
 }
 
 function authMiddleware(req, res, next) {
   const header = req.headers.authorization || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : (req.query.token || '');
-  // An API key is checked first and only when the token is shaped like one, so
-  // a JWT never touches the key table and a key never reaches jwt.verify.
-  const user = (apiKeys.looksLikeApiKey(token) ? apiKeys.verify(token) : userFromToken(token)) || guestUser();
+  const user = principalFromToken(token);
   if (!user) {
     return res.status(401).json({ error: tErr(user, 'errors.unauthorized') });
   }
@@ -1736,6 +1779,9 @@ app.post('/api/login', limitLogin, async (req, res) => {
   }
 
   const user = findUserByLogin(identifier);
+  // An unknown account still pays for one scrypt, so response time does not
+  // reveal which usernames and emails exist.
+  if (!user) verifyPassword(password, DUMMY_PASSWORD_HASH);
   if (!user || !verifyPassword(password, user.passwordHash)) {
     noteLoginFailure(ipKey, LOGIN_IP_MAX_ATTEMPTS);
     if (identifier) noteLoginFailure(idKey, LOGIN_MAX_ATTEMPTS);
@@ -1873,9 +1919,9 @@ function requestServerId(req) {
     const task = (config.tasks || []).find((item) => item.id === decodeURIComponent(taskMatch[1]));
     if (task) return task.serverId;
   }
-  const requested = req.get('X-Hostkind-Server-Id') || (req.query && req.query.serverId) || (req.body && req.body.serverId);
+  const requested = requestedServerId(req);
   if (requested) return requested;
-  if (/^\/(?:server|status|metrics|health|crashes|command|players|playerlists|whitelist|palworld|terraria|addons|modrinth|modpacks|configs|files|backups|tasks|worlds)(?:\/|$)/.test(req.path)) {
+  if (/^\/(?:server|status|metrics|system|health|crashes|command|players|playerlists|whitelist|palworld|terraria|addons|modrinth|modpacks|configs|files|backups|tasks|worlds)(?:\/|$)/.test(req.path)) {
     return config.activeServerId || null;
   }
   return null;
@@ -1956,7 +2002,7 @@ function capabilityForRequest(req) {
   if (/^\/tasks(?:\/|$)/.test(p)) {
     return method === 'GET' ? CAPABILITIES.SCHEDULES_VIEW : CAPABILITIES.SCHEDULES_MANAGE;
   }
-  if (p === '/status' || p === '/metrics' || /^\/(?:health|crashes)(?:\/|$)/.test(p)) return method === 'GET' ? foundationCapabilities.CAPABILITIES.HEALTH_VIEW : foundationCapabilities.CAPABILITIES.HEALTH_MANAGE;
+  if (p === '/status' || p === '/metrics' || p === '/system' || /^\/(?:health|crashes)(?:\/|$)/.test(p)) return method === 'GET' ? foundationCapabilities.CAPABILITIES.HEALTH_VIEW : foundationCapabilities.CAPABILITIES.HEALTH_MANAGE;
   return null;
 }
 
@@ -2475,7 +2521,7 @@ app.use('/api', require('./lib/routes/bug-reports.cjs')({
   panelVersion: () => PANEL_VERSION,
 }));
 app.use('/api/health', healthRouter({
-  resolveServerId: (req) => req.get('X-Hostkind-Server-Id') || (req.query && req.query.serverId) || (req.body && req.body.serverId) || config.activeServerId || null,
+  resolveServerId: (req) => requestedServerId(req) || config.activeServerId || null,
   knownServer: (id) => !!findServer(id),
 }));
 
@@ -2693,6 +2739,7 @@ app.use('/api', usersRouter({
   verifyPassword,
   hashPassword,
   passwordIssue,
+  signToken,
   MIN_PASSWORD_LENGTH,
   i18n,
   log,
@@ -4417,7 +4464,13 @@ function addNotification(type, title, message, serverId, i18nMeta = {}) {
   return notificationStore.add(type, title, message, serverId, i18nMeta);
 }
 
-app.use('/api/notifications', notificationsRouter({ store: notificationStore }));
+// A notification about one server is visible only to principals who can see
+// that server; panel-wide ones (no serverId) reach everyone.
+function notificationVisible(user, n) {
+  return !n || n.serverId == null || foundationCapabilities.hasAnyPerServerGrant(user || null, n.serverId);
+}
+
+app.use('/api/notifications', notificationsRouter({ store: notificationStore, canSee: notificationVisible }));
 
 // ---------------------------------------------------------------------------
 // WebSocket
@@ -4438,7 +4491,7 @@ server.on('upgrade', (req, socket, head) => {
   // WS upgrades. Reject origins we don't recognize (same rule set as the
   // state-changing HTTP middleware above). Non-browser clients without an
   // Origin header still need a valid token below.
-  if (req.headers.origin && !originAllowed(req.headers.origin)) {
+  if ((req.headers.origin && !originAllowed(req.headers.origin)) || !hostAllowed(req.headers.host)) {
     socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
     socket.destroy();
     return;
@@ -4447,7 +4500,7 @@ server.on('upgrade', (req, socket, head) => {
   // Same two-principal resolution as authMiddleware: a key that may read a
   // console can stream it, rather than having the REST surface and the socket
   // disagree about who the caller is.
-  const user = (apiKeys.looksLikeApiKey(token) ? apiKeys.verify(token) : userFromToken(token)) || guestUser();
+  const user = principalFromToken(token);
   if (!user) {
     socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
     socket.destroy();
@@ -4458,6 +4511,10 @@ server.on('upgrade', (req, socket, head) => {
     // The upgrade already resolved the caller; carry that identity onto the
     // socket so the message handler can authorize without re-parsing a token.
     ws.fleetdeckUser = user;
+    // Kept so each command re-resolves the caller: a socket outlives the
+    // moment it was opened, and a deleted user, a revoked key, a changed
+    // password, or re-enabled sign-in must stop it from driving a console.
+    ws.fleetdeckToken = token;
     wss.emit('connection', ws, req);
   });
 });
@@ -4498,7 +4555,7 @@ wss.on('connection', (ws, req) => {
   }
   if (ws.selectedServerId) sendServerSnapshot(ws, ws.selectedServerId);
   // Send existing notifications
-  ws.send(JSON.stringify({ type: 'notifications', notifications }));
+  ws.send(JSON.stringify({ type: 'notifications', notifications: notifications.filter((n) => notificationVisible(user, n)) }));
 
   ws.on('message', (data) => {
     let msg;
@@ -4511,7 +4568,7 @@ wss.on('connection', (ws, req) => {
       // The socket, unlike a REST request, never went through the capability
       // middleware, so the same commands.run gate /api/command enforces has to
       // be checked here or any token holder can drive any server's console.
-      const user = ws.fleetdeckUser || null;
+      const user = principalFromToken(ws.fleetdeckToken || '');
       const serverId = msg.serverId || ws.selectedServerId || config.activeServerId;
       if (!user || !serverId || !foundationCapabilities.has(user, serverId, foundationCapabilities.CAPABILITIES.COMMANDS_RUN)) {
         ws.send(JSON.stringify({ type: 'error', code: 'command_forbidden', error: 'Console command is not allowed' }));
@@ -4566,12 +4623,15 @@ wss.on('connection', (ws, req) => {
 function globalBroadcast(obj) {
   const data = JSON.stringify(obj);
   // Live frames scoped to one server (console lines, status, crash events,
-  // server metadata) reach only sockets whose caller may see that server; a
-  // server-less frame (notifications, etc.) goes to everyone. This mirrors the
-  // handshake filter: an operator without a grant on a server never receives
-  // its console stream or lifecycle events.
-  const visibleTo = (ws) => !obj || obj.serverId == null
-    || foundationCapabilities.hasAnyPerServerGrant(ws.fleetdeckUser || null, obj.serverId);
+  // server metadata, notifications about a server) reach only sockets whose
+  // caller may see that server; a server-less frame goes to everyone. This
+  // mirrors the handshake filter: an operator without a grant on a server
+  // never receives its console stream, lifecycle events, or notifications.
+  // A notification frame carries its server inside the payload.
+  const frameServerId = !obj ? null
+    : (obj.serverId != null ? obj.serverId : (obj.notification && obj.notification.serverId));
+  const visibleTo = (ws) => frameServerId == null
+    || foundationCapabilities.hasAnyPerServerGrant(ws.fleetdeckUser || null, frameServerId);
   for (const ws of clients) {
     if (ws.readyState === ws.OPEN && visibleTo(ws)) {
       try { ws.send(data); } catch (_) { /* noop */ }
