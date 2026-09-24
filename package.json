@@ -1,6 +1,6 @@
 {
   "name": "hostkind-open",
-  "version": "0.1.4",
+  "version": "0.1.4.1",
   "description": "Self-hosted web panel for managing servers and long-running processes",
   "license": "AGPL-3.0-only",
   "author": "Federico Prunell Alza",
@@ -31,7 +31,7 @@
     "test:anti-slop": "node test/anti-slop-rules.test.cjs",
     "test:modrinth-icons": "node test/modrinth-icons.test.cjs",
     "test:terraria-workshop-icons": "node test/terraria-workshop-icons.test.cjs",
-    "test:windows-distribution": "node test/windows-distribution.test.cjs && node test/linux-distribution.test.cjs && node test/installer-artifacts.test.cjs",
+    "test:windows-distribution": "node test/windows-distribution.test.cjs && node test/desktop-package-files.test.cjs && node test/linux-distribution.test.cjs && node test/installer-artifacts.test.cjs",
     "test:application-updater": "node test/application-update-apply.test.cjs && node test/application-update-audit-wiring.test.cjs && node test/application-update-manifest.test.cjs && node test/application-update-runtime.test.cjs && node test/application-update-workflow.test.cjs && node test/application-updater-core.test.cjs && node test/application-updater-bootstrap.test.cjs && node test/application-update-routes.test.cjs && node test/application-update-service-wrappers.test.cjs",
     "test:tshock": "node test/terraria-tshock.test.cjs",
     "test:terraria-runtime-path": "node --test test/terraria-runtime-path.test.cjs",
