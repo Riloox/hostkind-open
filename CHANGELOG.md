@@ -7,6 +7,28 @@ All notable changes to Hostkind are documented here. This project follows
 
 No entries yet.
 
+## [0.1.4] - 2026-09-23
+
+Security release. Upgrade is recommended for every install, especially ones with operator accounts or API keys.
+
+### Security
+
+- File, plugin and mod uploads, and world imports, now always land in the server the permission check authorized. Previously a form field could point an upload at a different server than the one that was checked, so an operator with upload rights on one server could write into another.
+- `GET /api/config` no longer returns server descriptors or schedules. Those carried game passwords, launch arguments and folders for every server and were readable by any signed-in account or API key. Non-admins now get only the panel settings their screens use.
+- Notifications about a server are now visible only to accounts that can see that server, in the notification list, over the live WebSocket stream, and when marking or clearing them.
+- Switching the panel's active server (`POST /api/active`) now requires access to that server.
+- Changing your password signs out every other session, and an admin resetting a user's password signs out all of that user's sessions. The session you change it from continues on a fresh token.
+- WebSocket console commands re-check the caller on every command, so a deleted user, a revoked key or a changed password stops an already open console.
+- With sign-in turned off, the panel only answers to IP addresses, `localhost` and `allowedOrigins` hostnames, which blocks DNS-rebinding pages from reading it.
+- The native folder picker is admin-only, and `/api/system` requires `health.view` on the server it reports on.
+- Signing in to an account that does not exist takes as long as a wrong password, so response time no longer reveals which accounts exist.
+- Modrinth modpack (`.mrpack`) extraction now enforces entry count, size and compression-ratio limits.
+- Bug-report relay: anonymous report text can no longer @mention GitHub users, embed images or raw HTML, or forge report sections in any field.
+
+### Documentation
+
+- `OPERATIONS.md` has a new "Operator trust boundary" section. Game servers run as the panel's OS user, so the `files.manage`, `plugins.manage` and `content.install` grants are equivalent to panel admin and should only go to people you would trust with the host.
+
 ## [0.1.3.4] - 2026-09-23
 
 ### Added

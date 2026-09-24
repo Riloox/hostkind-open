@@ -74,14 +74,25 @@ function classifyResponse(status, { retryAfter } = {}) {
 }
 
 /*
- * Escape user-supplied text so it can never introduce a Markdown heading:
- * leading '#' (with the 0-3 spaces ATX allows) is backslash-escaped per line.
+ * Escape user-supplied text. Reports reach the relay anonymously and land in a
+ * public issue tracker, so the text must not be able to:
+ *   - introduce a Markdown heading (leading '#' with the 0-3 spaces ATX allows
+ *     is backslash-escaped per line) and so forge a report section;
+ *   - @mention a user or team, which notifies arbitrary GitHub accounts (a
+ *     word joiner after '@' keeps the text readable and links nothing);
+ *   - carry raw HTML, including a comment that forges or hides the marker
+ *     ('<' becomes an entity);
+ *   - embed a remote image, which GitHub fetches for every reader.
  */
 function escapeMarkdown(text) {
   if (text == null) return '';
-  return String(text).split(/\r?\n/).map((line) => (
-    /^ {0,3}#{1,6}/.test(line) ? line.replace(/^( {0,3})(#{1,6})/, '$1\\$2') : line
-  )).join('\n');
+  return String(text).split(/\r?\n/).map((line) => {
+    let out = /^ {0,3}#{1,6}/.test(line) ? line.replace(/^( {0,3})(#{1,6})/, '$1\\$2') : line;
+    out = out.replace(/</g, '&lt;');
+    out = out.replace(/!\[/g, '!\\[');
+    out = out.replace(/@(?=[A-Za-z0-9_-])/g, '@⁠');
+    return out;
+  }).join('\n');
 }
 
 function valueOrDash(value) {
@@ -104,20 +115,20 @@ function buildIssueBody(input = {}) {
     escapeMarkdown(valueOrDash(input.description)),
     '',
     '## Current screen',
-    valueOrDash(input.route),
-    valueOrDash(input.view),
+    escapeMarkdown(valueOrDash(input.route)),
+    escapeMarkdown(valueOrDash(input.view)),
     '',
     '## Game',
-    valueOrDash(input.game),
+    escapeMarkdown(valueOrDash(input.game)),
     '',
     '## Timestamp',
-    valueOrDash(input.timestamp),
+    escapeMarkdown(valueOrDash(input.timestamp)),
     '',
     '## Hostkind version',
-    valueOrDash(input.version),
+    escapeMarkdown(valueOrDash(input.version)),
     '',
     '## Browser',
-    valueOrDash(input.userAgent),
+    escapeMarkdown(valueOrDash(input.userAgent)),
     '',
     '## Reproduction steps',
     escapeMarkdown(valueOrDash(input.reproSteps)),

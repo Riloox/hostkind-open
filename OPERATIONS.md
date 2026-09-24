@@ -90,6 +90,23 @@ build once, the service just keeps it running.
   when one is set. Servers without their own watchdog inherit the panel-wide
   value.
 
+## Operator trust boundary
+
+Game servers run as the same OS user as the panel. Anything a server runs
+(a Minecraft plugin, a mod, a start script) can read what the panel can read,
+including `config.json` with its `jwtSecret` and every password hash. Treat
+these per-server grants as equivalent to panel admin, and give them only to
+people you would trust with the host:
+
+- `files.manage` (write any file in the server folder, upload any file type)
+- `plugins.manage` and `content.install` (add code the server loads)
+- `configs.edit` on servers whose config selects what runs
+
+Read-only and console-only grants (`*.view`, `players.*`, `commands.run`
+where the game's console cannot load code) do not cross this line. To isolate
+tenants from each other and from the panel, run each server under its own
+low-privilege OS account or container. Hostkind does not do that for you yet.
+
 ## Bug reports (GitHub issues)
 
 The panel stores every in-app bug report locally first, then (when enabled)
