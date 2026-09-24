@@ -98,17 +98,19 @@ const CONSOLE_DUPLICATE_WINDOW_MS = 1500;
 const CONSOLE_ANSI_ESCAPE_RE = /[\u001B\u009B][[\]()#;?]*(?:(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><~])/g;
 const CONSOLE_MC_TIMESTAMP_RE = /^\[\d{2}:\d{2}:\d{2}(?:\s+\w+)?\](?:\s*\[[^\]]*\])?:\s*/;
 
+// Stored frames carry their key (dedupeKey) so the duplicate scan below does a
+// string compare per earlier line instead of three regex passes.
 function consoleLineKey(line) {
+  if (typeof line?.dedupeKey === 'string') return line.dedupeKey;
   return String(line?.text || '')
     .replace(CONSOLE_ANSI_ESCAPE_RE, '')
     .replace(/\r/g, '')
     .replace(CONSOLE_MC_TIMESTAMP_RE, '');
 }
 
-function isRecentConsoleDuplicate(lines, line) {
+function isRecentConsoleDuplicate(lines, line, key) {
   if (!line || line.level === 'cmd') return false;
   const timestamp = line.ts || 0;
-  const key = consoleLineKey(line);
   for (let i = lines.length - 1; i >= 0; i -= 1) {
     const previous = lines[i];
     const delta = Math.abs(timestamp - (previous.ts || 0));
@@ -124,15 +126,33 @@ function isRecentConsoleDuplicate(lines, line) {
 // merely shifted position.
 let consoleSeq = 0;
 
-function appendConsoleFrame(lines, line) {
-  if (isRecentConsoleDuplicate(lines, line)) return lines;
-  consoleSeq += 1;
-  return [...lines, { ...line, seq: consoleSeq }].slice(-1200);
+const CONSOLE_MAX_LINES = 1200;
+
+// Appends a batch of lines with a single copy of the buffer. Copying (and
+// re-rendering) once per line made a chatty server boot, or loading a full
+// history, quadratic.
+function appendConsoleFrames(lines, incoming) {
+  let next = null;
+  for (const line of incoming) {
+    const key = consoleLineKey(line);
+    if (isRecentConsoleDuplicate(next || lines, line, key)) continue;
+    if (!next) next = lines.slice();
+    consoleSeq += 1;
+    next.push({ ...line, seq: consoleSeq, dedupeKey: key });
+  }
+  if (!next) return lines;
+  return next.length > CONSOLE_MAX_LINES ? next.slice(-CONSOLE_MAX_LINES) : next;
 }
 
 function dedupeConsoleHistory(lines) {
-  return (Array.isArray(lines) ? lines : []).reduce((result, line) => appendConsoleFrame(result, line), []);
+  return appendConsoleFrames([], Array.isArray(lines) ? lines : []);
 }
+
+// Live lines are queued and flushed together at most this often, so a server
+// printing hundreds of lines a second costs ~20 shell renders, not hundreds.
+// A timer rather than requestAnimationFrame: rAF pauses in background tabs,
+// and the queue would grow without bound there.
+const CONSOLE_FLUSH_MS = 50;
 
 // The game named by the current URL, or null when it doesn't name one (the
 // hub at `/games`, a bookmarked `/`, a pre-hub link like `/console`).
@@ -328,6 +348,8 @@ function AppShell({ onLoggedIn }) {
   const [showGames, setShowGames] = useState(boot.hub);
   const [serversLoaded, setServersLoaded] = useState(false);
   const [consoleLines, setConsoleLines] = useState([]);
+  const pendingLinesRef = useRef([]);
+  const lineFlushTimerRef = useRef(null);
   const [connState, setConnState] = useState('connecting');
 
   const isAdmin = user?.role === 'admin';
@@ -638,16 +660,38 @@ function AppShell({ onLoggedIn }) {
     finally { setServersLoaded(true); }
   }
 
+  const flushConsoleLines = useCallback(() => {
+    lineFlushTimerRef.current = null;
+    const batch = pendingLinesRef.current;
+    if (!batch.length) return;
+    pendingLinesRef.current = [];
+    setConsoleLines(prev => appendConsoleFrames(prev, batch));
+  }, []);
+
+  // Queued lines belong to whatever the console showed before a reset (a
+  // server switch, or a history that already contains them).
+  const dropPendingConsoleLines = useCallback(() => {
+    pendingLinesRef.current = [];
+    clearTimeout(lineFlushTimerRef.current);
+    lineFlushTimerRef.current = null;
+  }, []);
+
+  useEffect(() => dropPendingConsoleLines, [dropPendingConsoleLines]);
+
   // WebSocket
   const { sendMessage } = useWebSocket({
     onLine: useCallback((msg) => {
       if (msg.serverId !== activeServerId) return;
-      setConsoleLines(prev => appendConsoleFrame(prev, msg.line));
-    }, [activeServerId]),
+      pendingLinesRef.current.push(msg.line);
+      if (!lineFlushTimerRef.current) {
+        lineFlushTimerRef.current = setTimeout(flushConsoleLines, CONSOLE_FLUSH_MS);
+      }
+    }, [activeServerId, flushConsoleLines]),
     onHistory: useCallback((msg) => {
       if (msg.serverId !== activeServerId) return;
+      dropPendingConsoleLines();
       setConsoleLines(dedupeConsoleHistory(msg.lines));
-    }, [activeServerId]),
+    }, [activeServerId, dropPendingConsoleLines]),
     onStatus: useCallback((msg) => {
       if (!msg) return;
       updateStatus(msg);
@@ -681,6 +725,7 @@ function AppShell({ onLoggedIn }) {
     if (!id || id === activeServerId) return;
     try {
       setActiveServerId(id);
+      dropPendingConsoleLines();
       setConsoleLines([]);
       sendMessage({ type: 'selectServer', serverId: id });
     } catch (e) { toast.error(e.message); }

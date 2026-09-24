@@ -106,7 +106,10 @@ module.exports = {
     oneClick: true,
     perMachine: true,
     allowElevation: true,
+    // Keep the profile by default; build/uninstaller.nsh prompts on a manual
+    // uninstall and deletes %APPDATA%\Hostkind only when the user chooses to.
     deleteAppDataOnUninstall: false,
+    include: 'build/uninstaller.nsh',
     artifactName: 'Hostkind-${version}-Setup.${ext}',
     shortcutName: 'Hostkind',
     installerIcon: 'build/icon.ico',

@@ -7,6 +7,22 @@ All notable changes to Hostkind are documented here. This project follows
 
 No entries yet.
 
+## [0.1.4.2] - 2026-09-24
+
+### Performance
+
+- The panel loads faster: only the active language's translations ship with the first page, fonts are now woff2, and game logos and artwork are webp/jpg. The server gzips the panel and caches its hashed assets.
+- Live consoles render output in small batches instead of once per line, so busy servers no longer make the console lag.
+- Process stats for every running server are gathered in one probe per tick on Windows instead of one PowerShell call per server, and world-size sampling no longer blocks the panel while it walks large world folders.
+
+### Fixed
+
+- The host CPU reading no longer drops to about 0% when several servers are watched at once.
+
+### Changed
+
+- Uninstalling the Windows desktop app manually now asks whether to also delete your Hostkind data in `%APPDATA%\Hostkind`. Updates and silent uninstalls keep it.
+
 ## [0.1.4.1] - 2026-09-23
 
 ### Fixed

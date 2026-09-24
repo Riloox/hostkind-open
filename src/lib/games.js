@@ -1,10 +1,10 @@
-import minecraftLogo from '@/assets/games/minecraft-logo.png';
-import minecraftHero from '@/assets/games/minecraft-hero-v2.png';
-import terrariaLogo from '@/assets/games/terraria-logo.png';
+import minecraftLogo from '@/assets/games/minecraft-logo.webp';
+import minecraftHero from '@/assets/games/minecraft-hero-v2.jpg';
+import terrariaLogo from '@/assets/games/terraria-logo.webp';
 import terrariaHero from '@/assets/games/terraria-hero.jpg';
-import valheimLogo from '@/assets/games/valheim-logo.png';
+import valheimLogo from '@/assets/games/valheim-logo.webp';
 import valheimHero from '@/assets/games/valheim-hero.jpg';
-import palworldLogo from '@/assets/games/palworld-logo.png';
+import palworldLogo from '@/assets/games/palworld-logo.webp';
 import palworldHero from '@/assets/games/palworld-hero.jpg';
 import customHero from '@/assets/games/custom-hero.jpg';
 
