@@ -21,11 +21,13 @@ module.exports = {
   files: [
     'server.js',
     'electron/**',
+    'config/**',
     'lib/**',
     'public/**',
     'resources/**',
     'scripts/apply-application-update.cjs',
     'scripts/hostkind-bootstrap.cjs',
+    'scripts/resolve-port.cjs',
     'i18n.cjs',
     'i18n.json',
     'config.example.json',
@@ -37,7 +39,12 @@ module.exports = {
 
   asar: true,
 
+  // App, installer and window icons come from the Hostkind logo
+  // (resources/hostkind.svg). build/ is electron-builder's buildResources.
+  icon: 'build/icon.png',
+
   win: {
+    icon: 'build/icon.ico',
     target: [
       {
         target: 'nsis',
@@ -58,10 +65,9 @@ module.exports = {
 
   // 0.1.2.3: Linux desktop targets for non-technical users. The .deb covers
   // Ubuntu/Debian double-click installs; the AppImage is the portable
-  // fallback for other distributions (chmod +x, then double-click). No custom
-  // icon is referenced so a missing build/ directory never breaks the build;
-  // packaging falls back to the default Electron icons.
+  // fallback for other distributions (chmod +x, then double-click).
   linux: {
+    icon: 'build/icon.png',
     target: [
       {
         target: 'AppImage',
@@ -103,6 +109,8 @@ module.exports = {
     deleteAppDataOnUninstall: false,
     artifactName: 'Hostkind-${version}-Setup.${ext}',
     shortcutName: 'Hostkind',
+    installerIcon: 'build/icon.ico',
+    uninstallerIcon: 'build/icon.ico',
     uninstallDisplayName: 'Hostkind',
   },
 };

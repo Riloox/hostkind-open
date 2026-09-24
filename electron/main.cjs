@@ -337,6 +337,7 @@ async function bootstrap(app, e, state) {
     show: false,
     autoHideMenuBar: true,
     title: 'Hostkind',
+    icon: path.join(__dirname, '..', 'resources', 'hostkind-icon.png'),
     backgroundColor: '#0b0f14',
     webPreferences: {
       contextIsolation: true,

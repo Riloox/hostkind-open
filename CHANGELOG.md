@@ -7,6 +7,16 @@ All notable changes to Hostkind are documented here. This project follows
 
 No entries yet.
 
+## [0.1.4.1] - 2026-09-23
+
+### Fixed
+
+- The Windows desktop app (and the Linux AppImage and .deb) failed to start with "The Hostkind backend did not become ready" and `Cannot find module '../config/constants.cjs'`. The installer left out the `config/` folder and `scripts/resolve-port.cjs`, which the panel backend loads at startup. A new test checks every module the packaged app loads is included in the installer.
+
+### Changed
+
+- The desktop app, its installer, uninstaller, window and Linux packages now use the Hostkind logo instead of the default Electron icon.
+
 ## [0.1.4] - 2026-09-23
 
 Security release. Upgrade is recommended for every install, especially ones with operator accounts or API keys.
