@@ -23,7 +23,7 @@
       "bug",
       "in-app-report"
     ],
-    "relayUrl": null
+    "relayUrl": "https://bugs.hostkind.site/v1/reports"
   },
   "serverDir": "",
   "jar": "",

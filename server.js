@@ -691,8 +691,11 @@ function migrateConfig() {
     changed = true;
   }
   // Configs created from the template before the public relay existed carry a
-  // placeholder host that never resolves, so reports stayed failed forever.
-  if (config.bugReports.relayUrl === 'https://reports.example.com/v1/reports') {
+  // placeholder host that never resolves (private edition) or no URL at all
+  // (open edition), so reports never left the machine.
+  const staleRelayUrl = config.bugReports.relayUrl === 'https://reports.example.com/v1/reports'
+    || (config.bugReports.mode === 'upstream-relay' && !config.bugReports.relayUrl);
+  if (staleRelayUrl) {
     config.bugReports.relayUrl = 'https://bugs.hostkind.site/v1/reports';
     changed = true;
   }

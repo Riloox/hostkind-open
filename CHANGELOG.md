@@ -11,7 +11,7 @@ No entries yet.
 
 ### Fixed
 
-- In-app bug reports now reach the issue tracker. Before, new installs sent them to a placeholder address (`reports.example.com`), so every report stayed on your machine with "relay unreachable". Reports now go to `https://bugs.hostkind.site/v1/reports`, and existing configurations that still point at the placeholder are corrected on startup.
+- In-app bug reports now reach the issue tracker. Before, installs had no working relay address (a `reports.example.com` placeholder, or none at all in the open edition), so every report stayed on your machine. Reports now go to `https://bugs.hostkind.site/v1/reports`, and existing configurations without a working address are corrected on startup. A relay address you set yourself is kept.
 
 ### Security
 
