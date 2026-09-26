@@ -690,6 +690,12 @@ function migrateConfig() {
     config.bugReports = bugReportDefaults;
     changed = true;
   }
+  // Configs created from the template before the public relay existed carry a
+  // placeholder host that never resolves, so reports stayed failed forever.
+  if (config.bugReports.relayUrl === 'https://reports.example.com/v1/reports') {
+    config.bugReports.relayUrl = 'https://bugs.hostkind.site/v1/reports';
+    changed = true;
+  }
   if (changed) saveConfig(config);
 }
 

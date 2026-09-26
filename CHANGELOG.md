@@ -7,6 +7,16 @@ All notable changes to Hostkind are documented here. This project follows
 
 No entries yet.
 
+## [0.1.4.4] - 2026-09-26
+
+### Fixed
+
+- In-app bug reports now reach the issue tracker. Before, new installs sent them to a placeholder address (`reports.example.com`), so every report stayed on your machine with "relay unreachable". Reports now go to `https://bugs.hostkind.site/v1/reports`, and existing configurations that still point at the placeholder are corrected on startup.
+
+### Security
+
+- The bug-report relay rate-limits each visitor separately. Behind its tunnel every request looked like it came from the same address, so ten reports from anyone blocked everyone for an hour. The relay now keys the limit on the visitor's real address (IPv6 by /64), and invalid requests no longer use up the global daily budget.
+
 ## [0.1.4.3] - 2026-09-24
 
 ### Fixed

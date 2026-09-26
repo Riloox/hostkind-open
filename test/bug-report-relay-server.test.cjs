@@ -16,7 +16,7 @@ const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { createRelayApp } = require('../relay/server.cjs');
+const { createRelayApp, clientKeyFor } = require('../relay/server.cjs');
 const { createStore } = require('../relay/lib/store.cjs');
 const { createQueueWorker } = require('../relay/lib/queue-worker.cjs');
 const { createRateLimiter } = require('../relay/lib/rate-limit.cjs');
@@ -299,6 +299,45 @@ tests.push(async () => {
     await h.close();
   }
   console.log('ok  relay-server limits: global daily budget -> 429');
+});
+
+tests.push(async () => {
+  // Behind the tunnel every socket is loopback: CF-Connecting-IP must split
+  // visitors into separate buckets instead of one shared bucket.
+  const perIpLimiter = createRateLimiter({ windowMs: 60_000, max: 1 });
+  const h = await boot({ perIpLimiter });
+  try {
+    assert.strictEqual((await post(h.base, PAYLOAD, { 'cf-connecting-ip': '203.0.113.1' })).status, 202);
+    assert.strictEqual((await post(h.base, PAYLOAD, { 'cf-connecting-ip': '203.0.113.1' })).status, 429);
+    assert.strictEqual((await post(h.base, PAYLOAD, { 'cf-connecting-ip': '203.0.113.2' })).status, 202);
+  } finally {
+    await h.close();
+  }
+  console.log('ok  relay-server limits: per-visitor buckets via CF-Connecting-IP');
+});
+
+tests.push(async () => {
+  const dailyLimiter = createRateLimiter({ windowMs: 86_400_000, max: 1 });
+  const h = await boot({ dailyLimiter });
+  try {
+    for (let i = 0; i < 3; i += 1) {
+      assert.strictEqual((await post(h.base, { description: 'no title' })).status, 400);
+    }
+    assert.strictEqual((await post(h.base, PAYLOAD)).status, 202, 'invalid requests must not spend the daily budget');
+  } finally {
+    await h.close();
+  }
+  console.log('ok  relay-server limits: invalid reports do not drain the daily budget');
+});
+
+tests.push(async () => {
+  const req = (remoteAddress, ip) => ({ socket: { remoteAddress }, headers: ip ? { 'cf-connecting-ip': ip } : {} });
+  assert.strictEqual(clientKeyFor(req('198.51.100.7', '203.0.113.9')), '198.51.100.7', 'header ignored off loopback');
+  assert.strictEqual(clientKeyFor(req('::ffff:127.0.0.1', '203.0.113.9')), '203.0.113.9');
+  assert.strictEqual(clientKeyFor(req('127.0.0.1', 'not-an-ip')), '127.0.0.1');
+  assert.strictEqual(clientKeyFor(req('::1', '2001:db8:1:2:aaaa::1')), clientKeyFor(req('::1', '2001:db8:1:2:bbbb::9')));
+  assert.strictEqual(clientKeyFor(req('::1', '2001:db8::1')), '2001:db8:0:0::/64');
+  console.log('ok  relay-server limits: client key trusts CF header only on loopback, IPv6 by /64');
 });
 
 /* ── misc surface ────────────────────────────────────────────────── */

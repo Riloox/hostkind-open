@@ -24,6 +24,7 @@
  * and is also the process entry point (binds 127.0.0.1 only by default).
  */
 
+const net = require('net');
 const path = require('path');
 const crypto = require('crypto');
 const express = require('express');
@@ -37,6 +38,35 @@ const { githubClientFromEnv } = require('./lib/github-client.cjs');
 const noopLogger = { info() {}, warn() {}, error() {} };
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,64}$/;
+
+function isLoopback(addr) {
+  return addr === '::1' || /^(::ffff:)?127\./.test(addr);
+}
+
+/*
+ * Rate-limit key for a request. Behind the tunnel every connection comes
+ * from cloudflared on loopback, so the socket address alone would put the
+ * whole internet in one bucket. CF-Connecting-IP is trusted ONLY on loopback
+ * connections (a direct caller cannot spoof it). IPv6 clients are keyed by
+ * their /64, which is what a single subscriber is usually allocated.
+ */
+function clientKeyFor(req) {
+  const socketAddr = (req.socket && req.socket.remoteAddress) || '';
+  let addr = socketAddr;
+  const forwarded = req.headers['cf-connecting-ip'];
+  if (isLoopback(socketAddr) && typeof forwarded === 'string' && net.isIP(forwarded.trim())) {
+    addr = forwarded.trim();
+  }
+  addr = addr.replace(/^::ffff:(?=\d+\.)/, '');
+  if (net.isIPv6(addr)) {
+    const [head, tail = ''] = addr.split('::');
+    const left = head ? head.split(':') : [];
+    const right = tail ? tail.split(':') : [];
+    const groups = [...left, ...Array(8 - left.length - right.length).fill('0'), ...right];
+    return `${groups.slice(0, 4).map((g) => parseInt(g || '0', 16).toString(16)).join(':')}::/64`;
+  }
+  return addr || 'unknown';
+}
 
 function createRelayApp(deps = {}) {
   const store = deps.store;
@@ -98,19 +128,20 @@ function createRelayApp(deps = {}) {
     express.json({ limit: jsonLimit }),
     async (req, res) => {
       try {
-        const ip = req.ip || 'unknown';
-        const ipHit = perIpLimiter.hit(ip);
+        const ipHit = perIpLimiter.hit(clientKeyFor(req));
         if (!ipHit.allowed) {
           return sendError(res, 429, 'rate_limited', ['too many submissions from this address']);
-        }
-        const dailyHit = dailyLimiter.hit('global');
-        if (!dailyHit.allowed) {
-          return sendError(res, 429, 'budget_exceeded', ['submission budget exhausted for today']);
         }
 
         const result = validateReport(req.body);
         if (!result.ok) {
           return sendError(res, 400, 'validation_failed', result.errors);
+        }
+
+        // Only valid reports spend the global budget, so junk cannot drain it.
+        const dailyHit = dailyLimiter.hit('global');
+        if (!dailyHit.allowed) {
+          return sendError(res, 429, 'budget_exceeded', ['submission budget exhausted for today']);
         }
 
         // Redact BEFORE persistence: the queue only ever stores clean data.
@@ -248,4 +279,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { createRelayApp, createRelayServer };
+module.exports = { createRelayApp, createRelayServer, clientKeyFor };
