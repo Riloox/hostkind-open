@@ -10,15 +10,13 @@ import { useFolderPicker } from '@/hooks/useFolderPicker';
 import { useT } from '@/context/I18nContext';
 import { SERVER_NAME_MAX_LENGTH } from '@/lib/limits';
 import { FolderBrowserModal } from './FolderBrowserModal';
-import { useServer } from '@/context/ServerContext';
 
-export function CustomProcessWizard({ onBack, onCreated }) {
+export function CustomProcessWizard({ game, onBack, onCreated }) {
   const api = useApi();
   const stream = useApiStream();
   const t = useT();
   const { picking, pick } = useFolderPicker(api);
-  const { currentGame } = useServer();
-  const gameType = ['terraria', 'valheim', 'palworld', 'custom'].includes(currentGame) ? currentGame : 'custom';
+  const gameType = ['terraria', 'valheim', 'palworld', 'custom'].includes(game) ? game : 'custom';
   const [form, setForm] = useState({ gameType, type: gameType, name: '', cwd: '', startCommand: '', stopCommand: '', stopSignal: 'SIGTERM', healthCheckRegex: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);

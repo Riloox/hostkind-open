@@ -91,6 +91,10 @@ export function TerrariaModsView() {
   const status = activeServerId ? getServerStatus(activeServerId) : null;
   const offline = status?.status === 'offline';
   const [tab, setTab] = useState('workshop');
+  // Opens on the Workshop until the list shows mods are installed; then on
+  // Installed, unless the user already picked a tab.
+  const tabChosen = useRef(false);
+  const chooseTab = (value) => { tabChosen.current = true; setTab(value); };
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState('');
@@ -122,6 +126,7 @@ export function TerrariaModsView() {
         api(`${API}/modpacks?serverId=${encodeURIComponent(activeServerId)}`),
       ]);
       setData(inventory);
+      if (!tabChosen.current && inventory.mods?.length) { tabChosen.current = true; setTab('installed'); }
       setSelectedMods((current) => new Set([...current].filter((name) => inventory.mods.some((mod) => mod.internalName === name))));
       setPacks(packData.packs || []);
     }
@@ -431,7 +436,6 @@ export function TerrariaModsView() {
   return (
     <div className="space-y-6">
       <ViewHeader
-        title={t('terraria.mods.title')}
         actions={<Button variant="glass" size="sm" onClick={() => { load(); browse(true); }}><RefreshCw className="h-3.5 w-3.5" />{t('common.refresh')}</Button>}
       />
 
@@ -461,7 +465,7 @@ export function TerrariaModsView() {
 
       <Card>
         <CardContent>
-          <Tabs value={tab} onValueChange={setTab}>
+          <Tabs value={tab} onValueChange={chooseTab}>
             <div className="flex flex-wrap items-end gap-4">
               <div className="space-y-1.5">
                 <div className="px-1 text-label font-medium uppercase tracking-wider text-muted-foreground">
@@ -657,7 +661,21 @@ export function TerrariaModsView() {
 
             <TabsContent value="installed">
               {!data.mods.length && !data.unreadable.length ? (
-                <p className="text-sm text-muted-foreground italic">{t('terraria.mods.empty')} · {t('terraria.mods.emptyHelp')}</p>
+                <EmptyState
+                  icon={PackageOpen}
+                  title={t('terraria.mods.empty')}
+                  message={t('terraria.mods.emptyHelp')}
+                  action={(
+                    <div className="flex flex-wrap justify-center gap-2">
+                      <Button size="sm" onClick={() => chooseTab('workshop')}>
+                        <Search className="h-3.5 w-3.5" />{t('terraria.mods.tabWorkshop')}
+                      </Button>
+                      <Button size="sm" variant="glass" onClick={() => chooseTab('add')}>
+                        <Plus className="h-3.5 w-3.5" />{t('terraria.mods.addTitle')}
+                      </Button>
+                    </div>
+                  )}
+                />
               ) : (
                 <>
                   {data.mods.length > 0 && (

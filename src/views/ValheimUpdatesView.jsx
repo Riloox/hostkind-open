@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { HardDrive, RefreshCw, RotateCcw, ShieldCheck, TriangleAlert } from 'lucide-react';
 import { toast } from 'sonner';
-import { PageIntro } from '@/components/layout/Page';
+import { ViewHeader } from '@/components/layout/Page';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -88,9 +88,7 @@ export function ValheimUpdatesView() {
   const ready = update.state === 'update-ready';
   return (
     <div className="space-y-5">
-      <PageIntro
-        title={t('valheim.updates.title')}
-        description={t('valheim.updates.subtitle')}
+      <ViewHeader
         actions={<Button variant="outline" size="sm" disabled={busy} onClick={() => load(true)}><RefreshCw className="h-4 w-4" />{t('valheim.updates.check')}</Button>}
       />
       {update.available?.stale && <Alert variant="warn"><TriangleAlert className="h-4 w-4" />{t('valheim.updates.stale')}</Alert>}

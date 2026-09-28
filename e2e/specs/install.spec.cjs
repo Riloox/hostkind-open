@@ -29,8 +29,8 @@
 const fs = require('fs');
 const path = require('path');
 const { test, expect, en } = require('../support/fixtures.cjs');
-const { serverRow, dialog, fieldByLabel, minecraftWizard } = require('../support/pages.cjs');
-const { signInFast, openView } = require('../support/actions.cjs');
+const { serverRow, serverMenu, dialog, fieldByLabel, minecraftWizard } = require('../support/pages.cjs');
+const { signInFast, openView, startAddServer, openMoreOptions } = require('../support/actions.cjs');
 
 // Which games this run is allowed to download.
 const requested = String(process.env.E2E_INSTALL || '')
@@ -50,18 +50,17 @@ const INSTALL_TIMEOUT = 20 * 60 * 1000;
  */
 async function createServer(page, panel, { game, name, fill }) {
   await openView(page, game, 'servers', { origin: panel.url });
-  const createNew = page.getByRole('button', { name: en('servers.createNew') }).first();
   // The install flow runs without retries on slow CI runners; wait for the
   // view to finish rendering before clicking (the wizard's version select
   // below has the same explicit grace).
-  await expect(createNew).toBeEnabled({ timeout: 60_000 });
-  await createNew.click();
+  await expect(page.getByRole('button', { name: en('addServer.button') }).first()).toBeEnabled({ timeout: 60_000 });
+  await startAddServer(page, game);
 
   const wizard = dialog(page, en('servers.createTitle'));
   await fill(wizard);
 
-  // The install streams progress; the row appearing is the finish line.
-  await expect(serverRow(page, name).root).toBeVisible({ timeout: INSTALL_TIMEOUT });
+  // The install streams progress; the new server opening is the finish line.
+  await expect(page.getByRole('heading', { name, exact: true })).toBeVisible({ timeout: INSTALL_TIMEOUT });
 }
 
 /** Where the panel actually put a server it just installed. */
@@ -72,9 +71,12 @@ function installedDir(panel, name) {
   return registered.dir;
 }
 
-/** Remove through the UI and confirm the registry really let go. */
+/** Remove the open server through the header menu and confirm the registry really let go. */
 async function removeServer(page, panel, name, { trashFiles }) {
-  await serverRow(page, name).remove.click();
+  await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
+  const menu = serverMenu(page);
+  await menu.trigger.click();
+  await menu.remove.click();
   const confirm = dialog(page, en('servers.removeTitle'));
   if (trashFiles) await confirm.root.getByText(en('portability.trashFilesLabel')).click();
 
@@ -87,6 +89,7 @@ async function removeServer(page, panel, name, { trashFiles }) {
   ]);
   expect(removal.status(), await removal.text()).toBe(200);
 
+  await expect(page).not.toHaveURL(/\/servers\//);
   await expect(serverRow(page, name).root).toHaveCount(0);
   expect(panel.readConfig().servers.some((server) => server.name === name)).toBe(false);
 }
@@ -105,6 +108,8 @@ test.describe('installing a real server', () => {
       name: 'PaperTest',
       async fill(wizard) {
         await fieldByLabel(wizard.root, en('servers.fieldName')).fill('PaperTest');
+        await openMoreOptions(wizard.root);
+
         await fieldByLabel(wizard.root, en('servers.fieldParent')).fill(installs.parentDir);
         // The EULA checkbox is the panel's own gate; without it nothing runs.
         await wizard.root.getByRole('checkbox').first().check();
@@ -139,6 +144,8 @@ test.describe('installing a real server', () => {
       name: 'TerrariaTest',
       async fill(wizard) {
         await fieldByLabel(wizard.root, en('servers.fieldName')).fill('TerrariaTest');
+        await openMoreOptions(wizard.root);
+
         await fieldByLabel(wizard.root, en('servers.fieldParent')).fill(installs.parentDir);
         // Vanilla is the default edition; the version list resolves upstream.
         await expect(wizard.root.locator('#terraria-version')).toBeEnabled({ timeout: 60_000 });
@@ -181,6 +188,8 @@ test.describe('installing a real server', () => {
       name: 'ValheimTest',
       async fill(wizard) {
         await fieldByLabel(wizard.root, en('servers.fieldName')).fill('ValheimTest');
+        await openMoreOptions(wizard.root);
+
         await fieldByLabel(wizard.root, en('servers.fieldParent')).fill(installs.parentDir);
         // Valheim requires a password of at least five characters.
         await fieldByLabel(wizard.root, en('servers.fieldPassword')).fill('fleetdeck');
@@ -207,6 +216,8 @@ test.describe('installing a real server', () => {
       name: 'PalworldTest',
       async fill(wizard) {
         await fieldByLabel(wizard.root, en('servers.fieldName')).fill('PalworldTest');
+        await openMoreOptions(wizard.root);
+
         await fieldByLabel(wizard.root, en('servers.fieldParent')).fill(installs.parentDir);
         await wizard.root.getByRole('button', { name: en('servers.installServer') }).click();
       },
@@ -228,9 +239,11 @@ test.describe('installing a real server', () => {
     await signInFast(page, panel);
     await openView(page, 'minecraft', 'servers', { origin: panel.url });
 
-    await page.getByRole('button', { name: en('servers.createNew') }).first().click();
+    await startAddServer(page, 'minecraft');
     const wizard = dialog(page, en('servers.createTitle'));
     await fieldByLabel(wizard.root, en('servers.fieldName')).fill('Abandoned');
+    await openMoreOptions(wizard.root);
+
     await fieldByLabel(wizard.root, en('servers.fieldParent')).fill(installs.parentDir);
     await wizard.root.getByRole('checkbox').first().check();
     // Without this the click lands before the version list resolves and the

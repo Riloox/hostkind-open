@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { ViewHeader } from '@/components/layout/Page';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -794,7 +793,6 @@ export function ContentView() {
 
   return (
     <div className="space-y-6">
-      <ViewHeader title={t('minecraft.modrinth.title')} />
       <Card>
       <CardContent>
         <Tabs value={tab} onValueChange={setTab}>

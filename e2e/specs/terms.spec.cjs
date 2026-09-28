@@ -18,7 +18,7 @@ test.describe('terms of use', () => {
   test('holds a new user until they accept, then remembers it', async ({ page, newApp }) => {
     const panel = await newApp({ config: unaccepted });
     await signInFast(page, panel);
-    await page.goto(`${panel.url}/games`);
+    await page.goto(`${panel.url}/`);
 
     const terms = dialog(page, en('terms.title'));
     await expect(terms.root).toBeVisible();
@@ -43,7 +43,7 @@ test.describe('terms of use', () => {
 
   test('asks the guest once per install when sign-in is off', async ({ page, newApp }) => {
     const panel = await newApp({ requireAuth: false, config: unaccepted });
-    await page.goto(`${panel.url}/games`);
+    await page.goto(`${panel.url}/`);
 
     const terms = dialog(page, en('terms.title'));
     await expect(terms.root).toBeVisible();

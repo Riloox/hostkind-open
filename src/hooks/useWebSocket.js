@@ -6,7 +6,7 @@ const BASE_DELAY_MS = 1000;
 const MAX_DELAY_MS = 30000;
 const MAX_RECONNECT_ATTEMPTS = 30;
 
-export function useWebSocket({ onLine, onHistory, onStatus, onStats, onServer, onNotification, onConnChange } = {}) {
+export function useWebSocket({ onLine, onHistory, onStatus, onStats, onServer, onNotification, onConnChange, onError } = {}) {
   const { token, authDisabled } = useAuth();
   const { updateStatus, activeServerId, setServers, setNotifications, pushNotification, wsRef } = useServer();
   const reconnectTimer = useRef(null);
@@ -22,19 +22,21 @@ export function useWebSocket({ onLine, onHistory, onStatus, onStats, onServer, o
   serverIdRef.current = activeServerId;
 
   // Keep latest callbacks in refs so the WS handler always calls current version
-  const callbacksRef = useRef({ onLine, onHistory, onStatus, onStats, onServer, onNotification, onConnChange });
+  const callbacksRef = useRef({ onLine, onHistory, onStatus, onStats, onServer, onNotification, onConnChange, onError });
   useEffect(() => {
-    callbacksRef.current = { onLine, onHistory, onStatus, onStats, onServer, onNotification, onConnChange };
+    callbacksRef.current = { onLine, onHistory, onStatus, onStats, onServer, onNotification, onConnChange, onError };
   });
 
+  // Returns whether the message went out, so a caller can tell the user
+  // instead of losing it while the socket reconnects.
   const sendMessage = useCallback((msg) => {
     const ws = wsRef.current;
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify(msg));
-      if (msg?.type === 'selectServer' && msg.serverId != null) {
-        lastSelectedRef.current = msg.serverId;
-      }
+    if (!ws || ws.readyState !== WebSocket.OPEN) return false;
+    ws.send(JSON.stringify(msg));
+    if (msg?.type === 'selectServer' && msg.serverId != null) {
+      lastSelectedRef.current = msg.serverId;
     }
+    return true;
   }, [wsRef]);
 
   // Deduped select: at most one selectServer per connection per serverId.
@@ -98,6 +100,8 @@ export function useWebSocket({ onLine, onHistory, onStatus, onStats, onServer, o
         // A single new notification pushed live.
         pushNotification(msg.notification);
         callbacksRef.current.onNotification?.(msg.notification);
+      } else if (msg.type === 'error') {
+        callbacksRef.current.onError?.(msg);
       }
     };
 

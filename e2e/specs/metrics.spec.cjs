@@ -18,7 +18,7 @@
  */
 
 const { test, expect, en } = require('../support/fixtures.cjs');
-const { healthView } = require('../support/pages.cjs');
+const { detailsView } = require('../support/pages.cjs');
 const { signInFast, openView } = require('../support/actions.cjs');
 const { seedSamples, clearSamples } = require('../support/metrics.cjs');
 
@@ -41,13 +41,12 @@ async function expectDrawn(plot, { minWidth = 100, minHeight = 20 } = {}) {
     .toBeGreaterThan(0);
 }
 
-/** Sign in, seed history for one server, and land on the Resources tab. */
+/** Sign in, seed history for one server, and land on its details page. */
 async function openResources(page, panel, game, serverName, opts) {
   const server = panel.server(serverName);
   const seeded = seedSamples(panel, server.id, opts);
   await signInFast(page, panel);
   await openView(page, game, 'health', { origin: panel.url });
-  await healthView(page).tabs.resources.click();
   return { server, seeded };
 }
 
@@ -56,7 +55,7 @@ test.describe('resources charts', () => {
     const panel = await newApp();
     await openResources(page, panel, 'minecraft', 'Survival');
 
-    const health = healthView(page);
+    const health = detailsView(page);
 
     // Minecraft reports players and world size on top of the two every module
     // has, so it gets four.
@@ -75,7 +74,7 @@ test.describe('resources charts', () => {
     const panel = await newApp();
     await openResources(page, panel, 'minecraft', 'Survival');
 
-    const plots = healthView(page).plots;
+    const plots = detailsView(page).plots;
     await expect(plots).toHaveCount(4);
 
     for (let i = 0; i < 4; i += 1) {
@@ -88,7 +87,7 @@ test.describe('resources charts', () => {
     // "Worker" is the custom-process module: no players, no world on disk.
     await openResources(page, panel, 'custom', 'Worker', { players: false });
 
-    const health = healthView(page);
+    const health = detailsView(page);
     await expect(health.plots).toHaveCount(2);
     await expect(page.getByText(en('minecraft.metrics.chartPlayers'), { exact: true })).toHaveCount(0);
     await expect(page.getByText(en('minecraft.metrics.chartWorldSize'), { exact: true })).toHaveCount(0);
@@ -110,9 +109,8 @@ test.describe('resources charts', () => {
     await signInFast(page, panel);
     clearSamples(panel, panel.server('Survival').id);
     await openView(page, 'minecraft', 'health', { origin: panel.url });
-    await healthView(page).tabs.resources.click();
 
-    const health = healthView(page);
+    const health = detailsView(page);
     await expect(health.noData.first()).toBeVisible();
     await expect(health.plots).toHaveCount(0);
   });
@@ -122,7 +120,7 @@ test.describe('resources charts', () => {
     // An hour of samples: inside the 1h window, and well inside 24h.
     await openResources(page, panel, 'minecraft', 'Survival', { count: 60 });
 
-    const health = healthView(page);
+    const health = detailsView(page);
     await expect(health.plots).toHaveCount(4);
 
     await health.range('metrics.range24h').click();
@@ -137,12 +135,10 @@ test.describe('resources charts', () => {
   test('survives a reload straight onto the tab', async ({ page, newApp }) => {
     const panel = await newApp();
     await openResources(page, panel, 'minecraft', 'Survival');
-    await expect(healthView(page).plots).toHaveCount(4);
+    await expect(detailsView(page).plots).toHaveCount(4);
 
     await page.reload();
-    // The tab resets to Overview on a cold load; the charts come back with it.
-    await healthView(page).tabs.resources.click();
-    await expect(healthView(page).plots).toHaveCount(4);
+    await expect(detailsView(page).plots).toHaveCount(4);
   });
 });
 
@@ -168,19 +164,5 @@ test.describe('health overview', () => {
     expect(noticeBox.y).toBeGreaterThanOrEqual(titleBox.y + titleBox.height - 2);
     // Left-aligned with the title, not pushed to the card's far edge.
     expect(Math.abs(noticeBox.x - titleBox.x)).toBeLessThan(10);
-  });
-});
-
-test.describe('dashboard sparklines', () => {
-  test('draws host trend sparklines without axes', async ({ page, newApp }) => {
-    const panel = await newApp();
-    await signInFast(page, panel);
-    await openView(page, 'minecraft', 'dashboard', { origin: panel.url });
-
-    // The resources panel polls host telemetry, so at least one sparkline
-    // mounts without any metric history being seeded at all.
-    const plots = page.locator('.uplot');
-    await expect(plots.first()).toBeVisible({ timeout: 15_000 });
-    await expectDrawn(plots.first(), { minWidth: 50, minHeight: 10 });
   });
 });

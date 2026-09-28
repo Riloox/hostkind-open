@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import {
-  ArrowRight, CheckCircle2, ChevronDown, ChevronRight, CircleDashed, HardDriveDownload,
-  PackageSearch, Power, RefreshCw, RotateCcw, ShieldCheck, TriangleAlert,
+  ArrowRight, CheckCircle2, ChevronDown, ChevronRight, CircleDashed,
+  PackageSearch, Power, RefreshCw, RotateCcw, Search, ShieldCheck, TriangleAlert,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,13 +11,13 @@ import { Alert } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { KpiTile } from '@/components/shared/KpiTile';
+import { ErrorState } from '@/components/shared/ErrorState';
 import { Loading } from '@/components/shared/Loading';
 import { useApi } from '@/hooks/useApi';
 import { useT } from '@/context/I18nContext';
 import { useServer } from '@/context/ServerContext';
 import { fmtBytes, cn } from '@/lib/utils';
-import { PageIntro } from '@/components/layout/Page';
+import { ViewHeader, useSectionPage } from '@/components/layout/Page';
 import { PalworldUpdatesView } from '@/views/PalworldUpdatesView';
 import { ValheimUpdatesView } from '@/views/ValheimUpdatesView';
 
@@ -44,8 +44,10 @@ function ManagedContentUpdatesView() {
   const api = useApi();
   const t = useT();
   const { activeServerId, getServerStatus } = useServer();
+  const section = useSectionPage();
 
   const [data, setData] = useState(null);
+  const [scanError, setScanError] = useState('');
   const [selected, setSelected] = useState(new Set());
   const [plan, setPlan] = useState(null);
   const [scanning, setScanning] = useState(false);
@@ -59,11 +61,13 @@ function ManagedContentUpdatesView() {
   async function scan() {
     if (!activeServerId) { setData(null); return; }
     setScanning(true);
+    setScanError('');
     try {
       const r = await api('/api/updates/scan', { method: 'POST', body: { serverId: activeServerId } });
       setData(r);
       setSelected(new Set());
     } catch (e) {
+      setScanError(e.message);
       toast.error(e.message);
     } finally {
       setScanning(false);
@@ -127,9 +131,7 @@ function ManagedContentUpdatesView() {
 
   return (
     <div className="space-y-5">
-      <PageIntro
-        title={t('updates.title')}
-        description={t('updates.hint')}
+      <ViewHeader
         actions={<div className="flex items-center gap-3">
           {data?.scan && (
             <span className="text-xs text-muted-foreground">
@@ -144,18 +146,12 @@ function ManagedContentUpdatesView() {
         </div>}
       />
 
-      {!activeServerId ? (
-        <Card><CardContent><EmptyState icon={PackageSearch} title={t('updates.selectServer')} /></CardContent></Card>
-      ) : scanning && !data ? (
+      {scanning && !data ? (
         <Card><CardContent className="pt-6"><Loading /></CardContent></Card>
-      ) : !data ? null : (
+      ) : !data ? (
+        scanError ? <ErrorState error={scanError} onRetry={scan} /> : null
+      ) : (
         <>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <KpiTile icon={HardDriveDownload} tone={updatable.length ? 'primary' : 'neutral'} label={t('updates.available')} value={updatable.length} />
-            <KpiTile icon={CheckCircle2} tone="online" label={t('updates.upToDate')} value={current.length} />
-            <KpiTile icon={TriangleAlert} tone={attention.length ? 'warn' : 'neutral'} label={t('updates.attention')} value={attention.length} />
-          </div>
-
           {updatable.length > 0 && !offline && (
             <Alert variant="warn" className="items-center justify-between">
               <span className="flex items-center gap-2">
@@ -241,7 +237,17 @@ function ManagedContentUpdatesView() {
           {!artifacts.length && (
             <Card>
               <CardContent>
-                <EmptyState icon={PackageSearch} title={t('updates.noManaged')} message={t('updates.noManagedHint')} />
+                <EmptyState
+                  icon={PackageSearch}
+                  title={t('updates.noManaged')}
+                  message={t('updates.noManagedHint')}
+                  action={section?.onTab && (
+                    <Button size="sm" onClick={() => section.onTab('browse')}>
+                      <Search className="h-3.5 w-3.5" />
+                      {t('minecraft.addons.browse')}
+                    </Button>
+                  )}
+                />
               </CardContent>
             </Card>
           )}

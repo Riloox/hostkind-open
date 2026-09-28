@@ -509,17 +509,6 @@
     border-color var(--duration-slow) var(--ease-out);
 }
 
-/* The floating dock re-arms when the available actions change (start becomes
-   restart+stop, and back). The controls are swapping underneath the pointer, so
-   they announce themselves rather than silently appearing under the cursor. */
-@keyframes dock-arm {
-  from { opacity: 0; transform: scale(0.86); }
-  to   { opacity: 1; transform: scale(1); }
-}
-.dock-arm {
-  animation: dock-arm var(--duration-station) var(--ease-out);
-}
-
 @media (prefers-reduced-motion: reduce) {
   /* No looping halo at all: state is already carried by hue, by the pill's
      text, and by the dot itself. Ignition collapses to the core's colour
@@ -539,7 +528,6 @@
     border: var(--rule-hair) solid currentColor;
     opacity: 0.5;
   }
-  .dock-arm,
   .ping-halo {
     animation: none;
   }
@@ -683,30 +671,6 @@
   transition: opacity 620ms var(--ease-out);
 }
 
-@keyframes game-catalogue-enter {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes game-catalogue-artwork-enter {
-  from { transform: scale(1.025); }
-  to { transform: scale(1); }
-}
-
-.game-catalogue-enter {
-  animation: game-catalogue-enter 780ms var(--ease-out) both;
-}
-
-.game-catalogue-enter .game-carousel-artwork {
-  animation: game-catalogue-artwork-enter 1100ms var(--ease-out) both;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .game-catalogue-enter,
-  .game-catalogue-enter .game-carousel-artwork {
-    animation: none;
-  }
-}
 /* Hostkind wordmark. Also previously declared twice; the surviving values are
    the ones that were actually winning. The old `-webkit-font-smoothing: none`
    is gone with its stale "keep the pixel art crisp" comment - the mark has not
@@ -985,7 +949,7 @@ body {
 
 /* No `background` here on purpose. The base layer above already applies
    `bg-background`; declaring the bed a second time from a different token was
-   what let the body, the app shell and `.app-environment-shade` drift apart. */
+   what let the body and the app shell drift apart. */
 body {
   min-width: 320px;
   font-family: var(--font-body);
@@ -1029,55 +993,15 @@ a,
   outline-offset: 3px;
 }
 
-/* The forge bed.
-   Layer order matters: the artwork scrim is the *bottom* layer and goes fully
-   opaque at 26rem, so the ember layers have to sit above it or the heat would
-   visibly stop at that line. A slow rise from the bottom edge of the viewport
-   carries most of it, with a weak high corner catch for asymmetry.
-
-   Deliberately wide and weak. This sits behind a full screen of working text,
-   and it is the one place in the app where an ambient effect is allowed to
-   touch the content bed at all. */
-.app-environment-shade {
-  background:
-    radial-gradient(128% 58% at 50% 106%, oklch(var(--ember-2) / 0.22), transparent 66%),
-    radial-gradient(76% 42% at 88% 4%, oklch(var(--ember-4) / 0.07), transparent 72%),
-    linear-gradient(
-      to bottom,
-      transparent 0%,
-      oklch(var(--background) / 0.78) 13rem,
-      oklch(var(--background)) 26rem
-    );
-}
-
+/* Phones: the sidebar is a drawer (Sidebar.jsx), so nothing here narrows it
+   or pads the page for it. Touch targets grow to a finger's size. */
 @media (max-width: 47.99rem) {
-  .fleet-sidebar {
-    width: 52px !important;
+  .fleet-sidebar nav button {
+    min-height: 44px;
   }
 
-  .fleet-sidebar nav {
-    padding-inline: var(--space-2xs);
-  }
-
-  .fleet-sidebar nav button,
-  .fleet-sidebar > div:last-child button {
-    min-height: 44px !important;
-    justify-content: center !important;
-    padding-inline: 0 !important;
-  }
-
-  .fleet-sidebar nav button > span,
-  .fleet-sidebar nav button > svg:last-child,
-  .fleet-sidebar nav > div > button,
-  .fleet-sidebar > div:last-child button > :not(svg) {
-    display: none !important;
-  }
-
-  .app-main {
-    padding-left: 52px !important;
-  }
-
-  button,
+  /* Checkboxes and switches are buttons too, but keep their own shape. */
+  button:not([role='checkbox']):not([role='switch']),
   [role='button'],
   a[role='button'] {
     min-height: 44px;

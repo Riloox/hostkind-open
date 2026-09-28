@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Ban, Check, Clock3, Copy, HeartPulse, LogOut, Megaphone, RefreshCw, Search, UserRoundX, Users } from 'lucide-react';
+import { Ban, Check, Copy, HeartPulse, LogOut, Megaphone, RefreshCw, Search, UserRoundX, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { ViewHeader } from '@/components/layout/Page';
 import { PalworldAnnouncementDialog } from '@/components/shared/PalworldAnnouncementDialog';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { StartServerButton } from '@/components/shared/StartServerButton';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { Loading } from '@/components/shared/Loading';
 import { Badge } from '@/components/ui/badge';
@@ -130,8 +131,7 @@ export function PalworldPlayersView() {
   return (
     <div className="space-y-5">
       <ViewHeader
-        title={t('palworld.playersTitle')}
-        description={t('palworld.playersSubtitle')}
+        title={t('nav.players')}
         actions={
           <div className="flex flex-wrap gap-2">
             {canManage && (
@@ -148,24 +148,23 @@ export function PalworldPlayersView() {
         }
       />
 
-      <div className="grid gap-3 sm:grid-cols-3">
-        <div className="flex items-center gap-3 border-2 border-border bg-card p-4">
-          <HeartPulse className={`h-5 w-5 ${healthy ? 'text-status-online' : 'text-status-error'}`} />
-          <div><p className="text-label font-semibold uppercase tracking-wider text-muted-foreground">{t('palworld.restHealth')}</p><p className="text-sm font-semibold">{healthy ? t('palworld.healthy') : t(`palworld.health_${data.restHealth?.state || 'unavailable'}`)}</p></div>
+      {/* The admin API is how the panel sees players at all; say so only when it is not answering. */}
+      {processStatus === 'online' && !loading && !healthy && (
+        <div className="flex items-center gap-3 rounded-md border border-status-warn/40 bg-status-warn/5 px-4 py-3 text-sm">
+          <HeartPulse className="h-4 w-4 shrink-0 text-status-warn" />
+          <span><span className="font-medium">{t('palworld.restHealth')}:</span> {t(`palworld.health_${data.restHealth?.state || 'unavailable'}`)}</span>
         </div>
-        <div className="flex items-center gap-3 border-2 border-border bg-card p-4">
-          <Users className="h-5 w-5 text-primary" />
-          <div><p className="text-label font-semibold uppercase tracking-wider text-muted-foreground">{t('palworld.playerCount')}</p><p className="text-sm font-semibold tabular-nums">{data.playerCount} / {data.maxPlayers || '—'}</p></div>
-        </div>
-        <div className="flex items-center gap-3 border-2 border-border bg-card p-4">
-          <Clock3 className="h-5 w-5 text-muted-foreground" />
-          <div><p className="text-label font-semibold uppercase tracking-wider text-muted-foreground">{t('palworld.lastRefresh')}</p><p className="text-sm font-semibold">{data.sampledAt ? ageLabel(data.sampledAt, t) : '—'}</p></div>
-        </div>
-      </div>
+      )}
 
       <Card>
         <CardHeader className="gap-3 sm:flex-row sm:items-center">
-          <CardTitle className="flex-1">{t('palworld.onlinePlayers')}</CardTitle>
+          <div className="flex-1">
+            <CardTitle>{t('palworld.onlinePlayers')}</CardTitle>
+            <p className="text-xs tabular-nums text-muted-foreground">
+              {data.maxPlayers ? t('players.countOf', { count: data.playerCount, max: data.maxPlayers }) : data.playerCount}
+              {data.sampledAt ? ` · ${t('palworld.lastRefresh')} ${ageLabel(data.sampledAt, t)}` : ''}
+            </p>
+          </div>
           <div className="flex w-full gap-2 sm:w-auto">
             <div className="relative min-w-0 flex-1 sm:w-72">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -177,8 +176,15 @@ export function PalworldPlayersView() {
           </div>
         </CardHeader>
         <CardContent>
-          {loading ? <Loading /> : error ? <ErrorState error={error} onRetry={() => load()} /> : players.length === 0 ? (
-            <EmptyState icon={Users} title={query ? t('palworld.noMatches') : t('palworld.noPlayers')} message={query ? t('palworld.tryAnotherSearch') : t('palworld.noPlayersHint')} />
+          {/* A stopped server has no admin API to ask: that is not an error. */}
+          {processStatus === 'offline' ? (
+            <EmptyState icon={Users} title={t('palworld.noPlayers')} message={t('players.offlineHint')} action={<StartServerButton />} />
+          ) : loading ? <Loading /> : error ? <ErrorState error={error} onRetry={() => load()} /> : players.length === 0 ? (
+            <EmptyState
+              icon={Users}
+              title={query ? t('palworld.noMatches') : t('palworld.noPlayers')}
+              message={query ? t('palworld.tryAnotherSearch') : t('palworld.noPlayersHint')}
+            />
           ) : (
             <div className="divide-y divide-border border-y border-border">
               {players.map((player) => (

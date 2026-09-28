@@ -7,6 +7,71 @@ All notable changes to Hostkind are documented here. This project follows
 
 No entries yet.
 
+## [0.2.0] - 2026-09-28
+
+A simpler Hostkind. The panel now opens on your servers instead of a games carousel, every server has the same short menu, and the question "are my servers OK, and does anything need me?" is answered on the first screen. Nothing you had is gone; most of it moved. Your servers, worlds, backups, schedules and settings are untouched, and old bookmarks and links still open the right page.
+
+### Where things moved
+
+- **Home.** With one server, Hostkind opens straight onto it. With two or more, it opens on **All servers**: one row per server with status, players, CPU, memory, last backup and anything that needs attention, plus Start/Stop. With none, it asks which game you want to host. The games carousel is gone.
+- **Choosing a server** happens at the top of the sidebar. The same list has **All servers** and **+ Add server**, and Add server is where you pick the game.
+- **Start, Stop and Restart** sit in the header next to the server's name and status. The control dock at the bottom of the screen is gone.
+- **The sidebar** is the same short list for every server: Overview, Console, Players, Worlds, Mods, Backups, Schedules, Settings. A game only shows the sections it supports.
+- **Dashboard** is now **Overview**. It shows status, players, CPU and memory, and a **Needs attention** list (a crash, a stale backup, a pending update, a server that has never been started) with the button that fixes each one right next to it.
+- **Health** and **Metrics** are now **Details**, one click from the Overview. The crash history lives there too.
+- **Addons**, **Content**, **Modrinth** and **Updates** are now **Mods**, with Installed, Browse and Updates tabs. Palworld and Valheim game updates are under Settings → Version.
+- **Map** is a tab of **Worlds**.
+- **Configs** and **Files** are tabs of the server's **Settings** (Game, Files), next to a new **General** tab for renaming, cloning and removing the server. Admins also find those in the header's **⋯** menu.
+- **Users**, **Audit log**, **App updates** and your own preferences (password, language, hotkeys) moved out of the settings dialog into one **Hostkind settings** page, opened from your profile menu. `/settings` is that page; a server's settings are at `/servers/<id>/settings`.
+- **What's new** and **Report a problem** are in the profile menu. A dot on your profile picture means there are release notes you haven't read.
+
+### Removed
+
+- The onboarding tour.
+- The release notes window that opened by itself after an update. It now waits in the profile menu.
+- The "start the server first" window that blocked Mods, Worlds and Settings on a new server. Those pages now show a short notice with a **Start** button and stay usable.
+- The floating bug-report button.
+
+### Added
+
+- **Presets when adding a server.** Each game's wizard starts with ready-made starting points that fill in the form, and every field stays editable. Minecraft: Survival, Creative, Hardcore, Pure vanilla, Fabric mods, NeoForge mods. Terraria: Classic, Expert, Master, Journey, Community (TShock), Modded (tModLoader). Valheim: With friends, Relaxed, Challenge, Hardcore, Builder, Public. Palworld: With friends, Relaxed, Hardcore, PvP, Community.
+- **Game rules at creation.** New Minecraft servers take a game mode, difficulty, hardcore, world type and message of the day; Palworld servers a death penalty, experience and capture rates, PvP, hardcore and crossplay; Valheim servers a world difficulty and its individual modifiers.
+- **No folder needed.** If you don't pick a folder, a new server goes in `Hostkind Servers` in your home folder. If the name is taken it becomes `name-2`, `name-3`, and so on. Hostkind never installs into a folder that already has files in it.
+- **One-click Minecraft web maps.** Worlds → Map offers BlueMap, Dynmap, squaremap and Pl3xMap, shows which ones have a build for your server's version, installs the one you pick from Modrinth, and finds the port of one you already have.
+- **Palworld console commands.** The Palworld server never read its console, so anything typed there was lost. Hostkind now sends `Broadcast`, `Save`, `ShowPlayers`, `Info`, `KickPlayer`, `BanPlayer` and `UnBanPlayer` through the server's REST API. Type `help` for the list.
+- Empty pages say what will appear there and offer the button that makes it appear (Back up now, New schedule, Browse mods, Import, Start).
+- Per-row actions: enable, disable and delete a single plugin; kick or ban a Terraria player from the list.
+- Phones: the sidebar becomes a drawer behind a menu button, and no page scrolls sideways.
+- Switching to a server of another game fades the colours over instead of snapping.
+
+### Changed
+
+- **Schedules** lists only the open server's schedules, next run first. It used to list every schedule of that game.
+- One name per thing throughout the panel: "Back up now", "Schedules", "Mods", "Overview".
+- The Windows installer is smaller: it no longer ships build leftovers of the database module or Chromium languages other than English and Spanish.
+
+### Fixed
+
+- A console command typed on one server could run on another. With sign-in turned off, as in the desktop app, the console stayed attached to the panel's default server, so commands typed on any other server's console went there. Commands now always go to the server whose console you are on, and a command to a stopped server says so.
+- Terraria and TShock on Windows ignored console commands, and **Stop** killed the server without saving the world. They now run under a proper console: commands work and Stop saves before exiting. Progress lines ("Resetting game objects 37%") no longer fill the console one percent at a time.
+- Console lines no longer start with leftover window-title text.
+- Installing a plugin or mod from Modrinth has failed since 0.1.3 with "table content_provenance has 16 columns but 11 values were supplied". The file was downloaded, but the install reported an error and Mods → Updates never tracked it. Installs now finish and are tracked. Plugins installed while this was broken are not tracked yet; reinstall one to have Hostkind watch it for updates.
+- **Back up now** clears the "No fresh verified backup" warning straight away. Every new backup is now checked as soon as it is made, instead of on the next health check a minute later.
+- Choosing the open file again in Settings → Game no longer clears the editor.
+- Minecraft Players showed raw text like `players.opped` in its notifications, and Minecraft Worlds did the same in its clone, archive and delete windows, operation badges and history (`worlds.op.clone`). A new test checks that every text the panel asks for exists in English and Spanish.
+
+### Security
+
+- Valheim game updates (check, apply, roll back, update policy) and installing several Modrinth projects at once had no permission check, so any signed-in account or API key could use them. They now need the matching update or plugin permission. Creating a new server from a Modrinth modpack now needs the permission to add servers.
+- On Windows, removing a server whose folder name contains `$` or a backtick could send a different folder to the Recycle Bin. The folder path is no longer placed inside the PowerShell command.
+- CurseForge and FTB imports only read files inside their own upload folder, never the folder itself.
+
+### For scripts and integrations
+
+- `POST /api/create` accepts optional game-rule fields. A request without them creates the same server as before.
+- New endpoints: `GET /api/create/defaults`, `GET /api/updates/summary`, and `GET /api/minecraft/content/map-plugins` with its install routes.
+- `POST /api/audit/tour-event` still answers but records nothing. It will be removed in 0.4.0, together with the redirects for old links.
+
 ## [0.1.4.4] - 2026-09-26
 
 ### Fixed

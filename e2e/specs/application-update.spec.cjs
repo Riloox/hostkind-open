@@ -2,7 +2,7 @@
 
 const { test, expect } = require('../support/fixtures.cjs');
 const { signInFast, openView } = require('../support/actions.cjs');
-const { appShell } = require('../support/pages.cjs');
+const { appShell, panelSettings } = require('../support/pages.cjs');
 
 function statusFor(phase) {
   return {
@@ -54,8 +54,11 @@ test('admin can review and explicitly approve a normal application update', asyn
   const shell = appShell(page);
   await shell.profileButton.click();
   await shell.menuSettings.click();
+  // App updates is its own tab of Hostkind settings.
+  await panelSettings(page).tab('updates').click();
+  await expect(page).toHaveURL(/\/settings\/updates$/);
 
-  await expect(page.getByText('Software updates', { exact: true })).toBeVisible();
+  await expect(page.getByTestId('application-update-section')).toBeVisible();
   await expect(page.getByText('0.1.2', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Download update', exact: true })).toBeVisible();
   expect(installBody).toBeNull();

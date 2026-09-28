@@ -14,7 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { Loading } from '@/components/shared/Loading';
-import { PageIntro, SummaryGrid, SummaryItem } from '@/components/layout/Page';
+import { ViewHeader } from '@/components/layout/Page';
 import { useApi } from '@/hooks/useApi';
 import { useAuth } from '@/context/AuthContext';
 import { useServer } from '@/context/ServerContext';
@@ -168,13 +168,12 @@ export function TerrariaTshockView() {
   const transportLabel = useMemo(() => data ? t(`terraria.tshock.transport.${data.status.transport}`) : '', [data, t]);
 
   if (!data && !error) return <Loading />;
-  if (error) return <ErrorState message={error} onRetry={load} />;
+  if (error) return <ErrorState error={error} onRetry={load} />;
 
   return (
     <div className="space-y-6">
-      <PageIntro
-        title={t('terraria.tshock.title')}
-        description={t('terraria.tshock.description')}
+      <ViewHeader
+        title={t('nav.players')}
         actions={<Button variant="glass" onClick={load}><RefreshCw className="h-4 w-4" />{t('common.refresh')}</Button>}
       />
 
@@ -183,34 +182,30 @@ export function TerrariaTshockView() {
           {t('terraria.tshock.publicRestDescription')}
         </Alert>
       )}
-      <Alert
-        variant={data.status.health.state === 'healthy' ? 'success' : 'softWarning'}
-        icon={data.status.transport === 'database' ? Database : ShieldCheck}
-        title={t('terraria.tshock.transportTitle', { transport: transportLabel })}
-      >
-        {data.status.reason ? t('terraria.tshock.transportFallback', { reason: data.status.reason }) : t('terraria.tshock.transportReady')}
-      </Alert>
-
-      <SummaryGrid>
-        <SummaryItem icon={Users} label={t('terraria.tshock.players')} value={data.playersUnavailable ? t('common.unavailable') : data.players.length} tone={data.playersUnavailable ? 'warn' : 'online'} />
-        <SummaryItem icon={UserRound} label={t('terraria.tshock.accounts')} value={data.accounts.length} />
-        <SummaryItem icon={ShieldCheck} label={t('terraria.tshock.groups')} value={data.groups.length} />
-        <SummaryItem icon={Ban} label={t('terraria.tshock.bans')} value={data.bans.length} tone={data.bans.length ? 'warn' : 'neutral'} />
-      </SummaryGrid>
+      {/* How the panel reaches TShock only matters when it is not the healthy default. */}
+      {(data.status.health.state !== 'healthy' || data.status.reason) && (
+        <Alert
+          variant="softWarning"
+          icon={data.status.transport === 'database' ? Database : ShieldCheck}
+          title={t('terraria.tshock.transportTitle', { transport: transportLabel })}
+        >
+          {data.status.reason ? t('terraria.tshock.transportFallback', { reason: data.status.reason }) : t('terraria.tshock.transportReady')}
+        </Alert>
+      )}
 
       <Tabs defaultValue="players">
         <TabsList className="w-full justify-start overflow-x-auto">
-          <TabsTrigger value="players">{t('terraria.tshock.players')}</TabsTrigger>
-          <TabsTrigger value="accounts">{t('terraria.tshock.accounts')}</TabsTrigger>
-          <TabsTrigger value="groups">{t('terraria.tshock.groups')}</TabsTrigger>
-          <TabsTrigger value="bans">{t('terraria.tshock.bans')}</TabsTrigger>
+          <TabsTrigger value="players">{t('terraria.tshock.players')}{data.playersUnavailable ? '' : ` (${data.players.length})`}</TabsTrigger>
+          <TabsTrigger value="accounts">{t('terraria.tshock.accounts')} ({data.accounts.length})</TabsTrigger>
+          <TabsTrigger value="groups">{t('terraria.tshock.groups')} ({data.groups.length})</TabsTrigger>
+          <TabsTrigger value="bans">{t('terraria.tshock.bans')} ({data.bans.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="players">
           <Card>
             <CardHeader><CardTitle>{t('terraria.tshock.onlinePlayers')}</CardTitle></CardHeader>
             <CardContent className="p-0">
-              {!data.players.length ? <EmptyState icon={Users} title={t('terraria.tshock.noPlayers')} description={data.playersUnavailable ? t('terraria.tshock.playersUnavailable') : t('terraria.tshock.noPlayersDescription')} /> : (
+              {!data.players.length ? <EmptyState icon={Users} title={t('terraria.tshock.noPlayers')} message={data.playersUnavailable ? t('terraria.tshock.playersUnavailable') : t('terraria.tshock.noPlayersDescription')} /> : (
                 <Table><TableHeader><TableRow><TableHead>{t('terraria.tshock.player')}</TableHead><TableHead>{t('terraria.tshock.group')}</TableHead><TableHead className="text-right">{t('common.actions')}</TableHead></TableRow></TableHeader>
                   <TableBody>{data.players.map((player) => <TableRow key={player.name}><TableCell className="font-semibold">{player.name}</TableCell><TableCell>{player.group || '—'}</TableCell><TableCell><div className="flex justify-end gap-2">
                     {canManagePlayers && <><Button size="sm" variant="glass" onClick={() => setPlayerAction({ player, action: player.muted ? 'unmute' : 'mute' })}>{player.muted ? t('terraria.tshock.unmute') : t('terraria.tshock.mute')}</Button><Button size="sm" variant="glass" onClick={() => setPlayerAction({ player, action: 'kick' })}><LogOut className="h-3.5 w-3.5" />{t('terraria.tshock.kick')}</Button><Button size="sm" variant="destructive" onClick={() => setPlayerAction({ player, action: 'ban' })}><Ban className="h-3.5 w-3.5" />{t('terraria.tshock.ban')}</Button></>}
@@ -223,9 +218,9 @@ export function TerrariaTshockView() {
         <TabsContent value="accounts">
           <Card>
             <CardHeader className="flex-row items-center justify-between"><CardTitle>{t('terraria.tshock.accounts')}</CardTitle>{canManagePlayers && <Button size="sm" onClick={() => setAccountDialog('create')}><Plus className="h-4 w-4" />{t('terraria.tshock.createAccount')}</Button>}</CardHeader>
-            <CardContent className="p-0"><Table><TableHeader><TableRow><TableHead>{t('terraria.tshock.account')}</TableHead><TableHead>{t('terraria.tshock.group')}</TableHead><TableHead>{t('terraria.tshock.lastLogin')}</TableHead><TableHead /></TableRow></TableHeader><TableBody>
+            <CardContent className="p-0">{!data.accounts.length ? <EmptyState icon={UserRound} title={t('terraria.tshock.noAccounts')} message={t('terraria.tshock.noAccountsHint')} /> : <Table><TableHeader><TableRow><TableHead>{t('terraria.tshock.account')}</TableHead><TableHead>{t('terraria.tshock.group')}</TableHead><TableHead>{t('terraria.tshock.lastLogin')}</TableHead><TableHead /></TableRow></TableHeader><TableBody>
               {data.accounts.map((account) => <TableRow key={account.name}><TableCell className="font-semibold">{account.name}</TableCell><TableCell><Badge variant="outline">{account.group || '—'}</Badge></TableCell><TableCell className="text-xs text-muted-foreground">{account.lastLogin || '—'}</TableCell><TableCell className="text-right">{canManagePlayers && <Button size="sm" variant="destructive" onClick={() => setDeleteAccount(account)}>{t('common.delete')}</Button>}</TableCell></TableRow>)}
-            </TableBody></Table></CardContent>
+            </TableBody></Table>}</CardContent>
           </Card>
         </TabsContent>
 
@@ -242,9 +237,9 @@ export function TerrariaTshockView() {
         </TabsContent>
 
         <TabsContent value="bans">
-          <Card><CardHeader><CardTitle>{t('terraria.tshock.bans')}</CardTitle></CardHeader><CardContent className="p-0"><Table><TableHeader><TableRow><TableHead>{t('terraria.tshock.identifier')}</TableHead><TableHead>{t('terraria.tshock.reason')}</TableHead><TableHead>{t('terraria.tshock.bannedBy')}</TableHead><TableHead /></TableRow></TableHeader><TableBody>
+          <Card><CardHeader><CardTitle>{t('terraria.tshock.bans')}</CardTitle></CardHeader><CardContent className="p-0">{!data.bans.length ? <EmptyState icon={Ban} title={t('terraria.tshock.noBans')} /> : <Table><TableHeader><TableRow><TableHead>{t('terraria.tshock.identifier')}</TableHead><TableHead>{t('terraria.tshock.reason')}</TableHead><TableHead>{t('terraria.tshock.bannedBy')}</TableHead><TableHead /></TableRow></TableHeader><TableBody>
             {data.bans.map((ban) => <TableRow key={ban.identifier}><TableCell className="tabular-nums">{ban.identifier}</TableCell><TableCell>{ban.reason || '—'}</TableCell><TableCell>{ban.bannedBy || '—'}</TableCell><TableCell className="text-right">{canManagePlayers && <Button size="sm" variant="glass" disabled={busy} onClick={() => unban(ban.identifier)}>{t('terraria.tshock.unban')}</Button>}</TableCell></TableRow>)}
-          </TableBody></Table></CardContent></Card>
+          </TableBody></Table>}</CardContent></Card>
         </TabsContent>
       </Tabs>
 

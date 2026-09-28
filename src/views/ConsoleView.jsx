@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { useT } from '@/context/I18nContext';
 import { useServer } from '@/context/ServerContext';
 import { Send, ArrowDown, Search, X, Globe2, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { StartServerButton } from '@/components/shared/StartServerButton';
 
 function detectLevel(text) {
   if (!text) return '';
@@ -33,6 +34,12 @@ const LEVEL_BAR = {
 const MAX_LINES = 1200;
 const HISTORY_KEY = 'fleetdeck.console.history';
 const HISTORY_LIMIT = 50;
+
+// Example commands in the input match the game; the default is Minecraft's.
+const COMMAND_PLACEHOLDERS = {
+  terraria: 'console.commandPlaceholderTerraria',
+  palworld: 'console.commandPlaceholderPalworld',
+};
 
 // Strip the many Minecraft log header shapes that come in front of real text
 // so our custom timestamp column is the only one shown. This covers, in order:
@@ -178,8 +185,9 @@ function ValheimStatus({ status }) {
 
 export function ConsoleView({ lines, onCommand, onNavigate }) {
   const t = useT();
-  const { activeServerId, getServerStatus, supports } = useServer();
+  const { activeServerId, activeServer, getServerStatus, supports } = useServer();
   const status = activeServerId ? getServerStatus(activeServerId) : null;
+  const serverState = status?.status || 'offline';
   const [cmd, setCmd] = useState('');
   const [filter, setFilter] = useState('');
   const [autoscroll, setAutoscroll] = useState(true);
@@ -329,8 +337,8 @@ export function ConsoleView({ lines, onCommand, onNavigate }) {
 
   return (
     <Card className="overflow-hidden">
-      <CardHeader>
-        <CardTitle>{t('console.title')}</CardTitle>
+      <CardHeader className="flex-wrap">
+        <CardTitle className="shrink-0">{t('console.title')}</CardTitle>
         <div className="flex flex-wrap items-center justify-end gap-2">
           <div className="relative min-w-[180px] max-w-[260px] flex-1 sm:flex-none">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -367,6 +375,19 @@ export function ConsoleView({ lines, onCommand, onNavigate }) {
         {displayLines.length === 0 && normalizedFilter ? (
           <div className="flex h-full items-center justify-center text-sm text-muted-foreground/70">
             {t('console.filterEmpty')}
+          </div>
+        ) : displayLines.length === 0 && historyLoaded ? (
+          // Nothing to show yet: say why, and when it is because the server
+          // is stopped, offer the Start that makes output appear.
+          <div data-console-empty className="flex h-full flex-col items-center justify-center gap-3 text-center text-sm text-muted-foreground/80">
+            {serverState === 'offline' ? (
+              <>
+                <p>{t('console.emptyOffline')}</p>
+                <StartServerButton />
+              </>
+            ) : (
+              <p>{t('console.emptyWaiting')}</p>
+            )}
           </div>
         ) : displayLines.map((line, i) => {
           const level = line.level || detectLevel(line.text) || '';
@@ -406,9 +427,9 @@ export function ConsoleView({ lines, onCommand, onNavigate }) {
         )}
       </div>
 
-      {status?.valheim?.commandInput === false ? (
+      {status?.valheim?.commandInput === false || status?.commandInput === false ? (
         <div className="border-t border-border bg-console px-4 py-2 text-xs text-muted-foreground">
-          {t('valheim.console.noCommands')}
+          {t(status?.valheim?.commandInput === false ? 'valheim.console.noCommands' : 'console.noCommandsRest')}
         </div>
       ) : <form onSubmit={handleSubmit} className="flex items-center gap-2 border-t border-border px-4 py-2 bg-console">
         <span className="font-mono text-status-online shrink-0">&gt;</span>
@@ -417,7 +438,7 @@ export function ConsoleView({ lines, onCommand, onNavigate }) {
           value={cmd}
           onChange={e => setCmd(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={t('console.commandPlaceholder')}
+          placeholder={t(COMMAND_PLACEHOLDERS[activeServer?.type] || 'console.commandPlaceholder')}
           autoComplete="off"
           className="flex-1 font-mono border-0 bg-transparent focus-visible:ring-0 h-7"
         />

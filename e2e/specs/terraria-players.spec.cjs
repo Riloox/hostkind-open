@@ -20,7 +20,7 @@ test('Terraria Players uses a game-specific empty roster surface', async ({ page
   await openView(page, 'terraria', 'players');
 
   await expect(page.getByTestId('terraria-players-view')).toBeVisible();
-  await expect(page.getByRole('heading', { name: en('terraria.players.title'), exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: en('nav.players'), exact: true })).toBeVisible();
   await expect(page.getByTestId('terraria-players-empty')).toBeVisible();
   await expect(page.getByRole('button', { name: en('minecraft.players.makeOp'), exact: true })).toHaveCount(0);
   await expect(page.locator('img[src*="minotar.net"]')).toHaveCount(0);

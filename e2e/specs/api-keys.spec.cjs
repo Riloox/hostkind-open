@@ -13,7 +13,7 @@
  */
 
 const { test, expect, en } = require('../support/fixtures.cjs');
-const { toasts, dialog, apiKeyRow } = require('../support/pages.cjs');
+const { toasts, dialog, apiKeyRow, panelSettings } = require('../support/pages.cjs');
 const { signInFast, openView } = require('../support/actions.cjs');
 const { client } = require('../support/api.cjs');
 
@@ -172,7 +172,10 @@ test.describe('api keys', () => {
     await signInFast(page, app, app.operator);
     await openView(page, 'minecraft', 'users');
 
-    // The whole Users view is gated on users.manage, keys included.
-    await expect(page).toHaveURL(/\/games\/minecraft\/dashboard$/);
+    // The whole Users & access tab is gated on users.manage, keys included,
+    // so it is not offered and its URL falls back to Hostkind settings.
+    await expect(page).toHaveURL(/\/settings$/);
+    await expect(panelSettings(page).tab('users')).toHaveCount(0);
+    await expect(page.getByTestId('api-key-token')).toHaveCount(0);
   });
 });

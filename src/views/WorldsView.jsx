@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
-  Archive, CalendarClock, CheckCircle2, Copy, Database, Download, Ellipsis, FileArchive,
-  FileBox, Globe2, HardDrive, Info, Loader2, Trash2, TriangleAlert, Upload, Wand2,
+  Archive, CheckCircle2, Copy, Download, Ellipsis, FileArchive, FileBox, Globe2, HardDrive, Info,
+  Loader2, Trash2, TriangleAlert, Upload, Wand2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -20,7 +20,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useT } from '@/context/I18nContext';
 import { useServer } from '@/context/ServerContext';
 import { fmtBytes } from '@/lib/utils';
-import { PageIntro, SummaryGrid, SummaryItem } from '@/components/layout/Page';
+import { ViewHeader } from '@/components/layout/Page';
 import { TerrariaWorldsView } from '@/views/TerrariaWorldsView';
 import { ValheimWorldsView } from '@/views/ValheimWorldsView';
 
@@ -85,7 +85,7 @@ function Impact({ preview, t }) {
       {preview.consistencyNote && (
         <p className="flex items-start gap-2 rounded-md border border-border/60 bg-muted/30 p-2 text-xs text-muted-foreground">
           <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-          {t(`worlds.note.${preview.consistencyNote}`)}
+          {t(`minecraft.worlds.note.${preview.consistencyNote}`)}
         </p>
       )}
     </div>
@@ -238,7 +238,7 @@ function PregenerateDialog({ world, onClose, serverId, api, t, onStarted }) {
   // "Unsupported" is a real answer, and it says why: no compatible Chunky for
   // this loader and Minecraft version, a vanilla server, or Modrinth unreachable.
   const unsupportedReason = chunky && !chunky.supported
-    ? t(`worlds.chunky.${chunky.reason}`, { loader: chunky.loader || '?', version: chunky.mcVersion || '?' })
+    ? t(`minecraft.worlds.chunky.${chunky.reason}`, { loader: chunky.loader || '?', version: chunky.mcVersion || '?' })
     : null;
 
   return (
@@ -383,9 +383,9 @@ function ActionDialog({ action, world, onClose, serverId, api, t, onStarted }) {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Icon className={`h-4 w-4 ${action === 'delete' ? 'text-destructive' : 'text-primary'}`} />
-            {t(`worlds.${action}`)} · {world.name}
+            {t(`minecraft.worlds.${action}`)} · {world.name}
           </DialogTitle>
-          <DialogDescription>{t(`worlds.${action}Help`)}</DialogDescription>
+          <DialogDescription>{t(`minecraft.worlds.${action}Help`)}</DialogDescription>
         </DialogHeader>
         <DialogBody className="space-y-4">
           {action === 'clone' && (
@@ -420,7 +420,7 @@ function ActionDialog({ action, world, onClose, serverId, api, t, onStarted }) {
             disabled={checking || submitting || !preview || blocked}
           >
             {(checking || submitting) && <Loader2 className="h-4 w-4 animate-spin" />}
-            {t(`worlds.${action}Confirm`)}
+            {t(`minecraft.worlds.${action}Confirm`)}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -485,30 +485,16 @@ export function WorldsView() {
   if (!data) return <EmptyState icon={Globe2} title={t('minecraft.worlds.noServer')} />;
 
   const busy = !!op && ['queued', 'running'].includes(op.state);
-  const existingWorlds = data.worlds.filter((world) => world.exists);
-  const totalSize = existingWorlds.reduce((sum, world) => sum + (world.sizeBytes || 0), 0);
-  const latestChange = existingWorlds.reduce((latest, world) => {
-    const changed = world.lastModified ? new Date(world.lastModified).getTime() : 0;
-    return changed > latest ? changed : latest;
-  }, 0);
+  const importButton = (variant) => (
+    <Button variant={variant} onClick={() => setImporting(true)} disabled={busy}>
+      <Upload className="h-4 w-4" />{t('minecraft.worlds.import')}
+    </Button>
+  );
 
   return (
     <div className="space-y-5">
-      <PageIntro
-        title={t('minecraft.worlds.title')}
-        description={t('minecraft.worlds.subtitle')}
-        actions={<Button onClick={() => setImporting(true)} disabled={busy}>
-          <Upload className="h-4 w-4" />{t('minecraft.worlds.import')}
-        </Button>}
-      />
-
-      <SummaryGrid className="sm:grid-cols-3 xl:grid-cols-3">
-        {[
-          { icon: Database, label: t('minecraft.worlds.summaryWorlds'), value: existingWorlds.length },
-          { icon: HardDrive, label: t('minecraft.worlds.summaryStorage'), value: fmtBytes(totalSize) },
-          { icon: CalendarClock, label: t('minecraft.worlds.summaryUpdated'), value: latestChange ? fmtDate(latestChange) : '-' },
-        ].map(({ icon, label, value }) => <SummaryItem key={label} icon={icon} label={label} value={value} />)}
-      </SummaryGrid>
+      {/* An empty list carries the button itself; one is enough. */}
+      <ViewHeader actions={data.worlds.length ? importButton('default') : null} />
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><FileBox className="h-4 w-4" />{t('minecraft.worlds.registered')}</CardTitle>
@@ -516,7 +502,13 @@ export function WorldsView() {
         </CardHeader>
         <CardContent className="grid gap-3 lg:grid-cols-2">
           {data.worlds.length === 0 && (
-            <div className="col-span-full rounded-lg border border-dashed px-4 py-10 text-center text-sm text-muted-foreground">{t('minecraft.worlds.empty')}</div>
+            <EmptyState
+              className="col-span-full"
+              icon={Globe2}
+              title={t('minecraft.worlds.empty')}
+              message={t('minecraft.worlds.emptyHint')}
+              action={importButton('default')}
+            />
           )}
           {data.worlds.map((world) => (
             <div key={world.id} className="group flex min-h-44 flex-col rounded-xl border bg-background/35 p-4 transition-colors hover:border-primary/30 hover:bg-background/60">
@@ -526,7 +518,7 @@ export function WorldsView() {
                     <span className="truncate font-semibold">{world.name}</span>
                     {!world.exists && <Badge variant="destructive">{t('minecraft.worlds.missing')}</Badge>}
                     {world.exists && !world.hasMarker && <Badge variant="secondary">{t('minecraft.worlds.noMarker')}</Badge>}
-                    {world.operation && <Badge variant="outline">{t(`worlds.op.${world.operation.action}`)}</Badge>}
+                    {world.operation && <Badge variant="outline">{t(`minecraft.worlds.op.${world.operation.action}`)}</Badge>}
                   </div>
                   <p className="mt-1 truncate text-label text-muted-foreground" title={world.relativePath}>{world.relativePath}</p>
                   {world.dimensions.length > 0 && (
@@ -585,13 +577,13 @@ export function WorldsView() {
             {data.operations.slice(0, 10).map((entry) => (
               <div key={entry.operationId} className="flex flex-wrap items-center justify-between gap-2 text-sm">
                 <span>
-                  {t(`worlds.op.${entry.action}`)}
+                  {t(`minecraft.worlds.op.${entry.action}`)}
                   {entry.worldId ? ` · ${entry.worldId}` : ''}
                 </span>
                 <span className="flex items-center gap-2 text-xs text-muted-foreground">
                   {fmtDate(entry.queuedAt)}
                   <Badge variant={entry.state === 'succeeded' ? 'secondary' : entry.state === 'running' ? 'outline' : 'destructive'}>
-                    {t(`worlds.state.${entry.state}`)}
+                    {t(`minecraft.worlds.state.${entry.state}`)}
                   </Badge>
                 </span>
               </div>

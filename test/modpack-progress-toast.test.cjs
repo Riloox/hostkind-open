@@ -14,7 +14,9 @@ assert.match(toast, /export function dismissModpackProgressToast\s*\(/, 'complet
 assert.doesNotMatch(toast, /dismissible:\s*false/, 'the progress toast must not disable dismissal');
 assert.doesNotMatch(toast, /closeButton:\s*false/, 'the progress toast must not hide its close button');
 
-for (const relative of ['src/views/ModrinthView.jsx', 'src/views/ServersView.jsx']) {
+// The create-from-modpack dialog lives with the other create dialogs, which
+// the Add-server flow loads.
+for (const relative of ['src/views/ModrinthView.jsx', 'src/views/servers/CreateServerModals.jsx']) {
   const view = source(relative);
   assert.match(view, /dismissModpackProgressToast/, `${relative} must dismiss the progress toast on completion`);
   assert.match(

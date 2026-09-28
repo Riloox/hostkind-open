@@ -26,8 +26,6 @@ function ServerListProvider({ children }) {
   const [activeServerId, setActiveServerIdState] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [modules, setModules] = useState([]);
-  const [currentGame, setCurrentGame] = useState(null);
-  const [activeServerByGame, setActiveServerByGame] = useState({});
   const wsRef = useRef(null);
 
   // Live notifications arrive over the WebSocket (a full list on connect, then
@@ -40,32 +38,11 @@ function ServerListProvider({ children }) {
     ));
   }, []);
 
+  // The shell sets this from the URL (`/servers/<id>/...`); nothing else picks
+  // a server on its own.
   const setActiveServerId = useCallback((id) => {
-    setActiveServerIdState(id);
-    const server = servers.find(item => item.id === id);
-    const game = server ? gameForServer(server) : currentGame;
-    if (game && id) setActiveServerByGame(prev => ({ ...prev, [game]: id }));
-  }, [servers, currentGame]);
-
-  useEffect(() => {
-    if (!user?.id) return;
-    try {
-      const stored = JSON.parse(localStorage.getItem(`fleetdeck_active_servers:${user.id}`) || '{}');
-      setActiveServerByGame(stored && typeof stored === 'object' && !Array.isArray(stored) ? stored : {});
-    } catch { setActiveServerByGame({}); }
-  }, [user?.id]);
-
-  useEffect(() => {
-    if (!user?.id) return;
-    try { localStorage.setItem(`fleetdeck_active_servers:${user.id}`, JSON.stringify(activeServerByGame)); } catch {}
-  }, [activeServerByGame, user?.id]);
-
-  useEffect(() => {
-    if (!currentGame) return;
-    const candidates = servers.filter(server => gameForServer(server) === currentGame);
-    const selected = activeServerByGame[currentGame];
-    setActiveServerIdState(candidates.some(server => server.id === selected) ? selected : (candidates[0]?.id || null));
-  }, [currentGame, servers, activeServerByGame]);
+    setActiveServerIdState(id || null);
+  }, []);
 
   // Look up the active server once per render; MapView and any other
   // consumer needs to react whenever the user switches servers or any
@@ -76,11 +53,28 @@ function ServerListProvider({ children }) {
     () => servers.find((s) => s.id === activeServerId) || null,
     [servers, activeServerId]
   );
+  // The game is a property of the server being looked at, not a separate
+  // choice. With no server open (home, the server list, users) there is none,
+  // and no module applies.
+  const currentGame = activeServer ? gameForServer(activeServer) : null;
+
+  // Remembered per game so an old game-scoped link (`/games/<game>/...`) can
+  // still land on the server this user last had open for that game. Written
+  // straight into storage as one key merged into the stored map, so no write
+  // can drop another game's entry.
+  useEffect(() => {
+    if (!activeServer || !user?.id) return;
+    const key = `fleetdeck_active_servers:${user.id}`;
+    try {
+      const stored = JSON.parse(localStorage.getItem(key) || '{}');
+      const map = stored && typeof stored === 'object' && !Array.isArray(stored) ? stored : {};
+      const game = gameForServer(activeServer);
+      if (map[game] !== activeServer.id) localStorage.setItem(key, JSON.stringify({ ...map, [game]: activeServer.id }));
+    } catch { /* storage unavailable: old links fall back to the game's first server */ }
+  }, [activeServer, user?.id]);
+
   const mapUrl = activeServer ? (activeServer.mapUrl || '') : '';
-  // No active server and no game selected means we're on the hub, where no
-  // module applies - resolving to Minecraft there is how a game-less shell used
-  // to quietly present itself as a Minecraft one.
-  const activeModuleType = activeServer?.type || currentGame || null;
+  const activeModuleType = activeServer?.type || null;
   const activeModule = (activeModuleType && modules.find((module) => module.type === activeModuleType)) || null;
   // A server's own capabilities win over its game type's. Terraria's variants
   // do not expose the same features (only tModLoader has mods, only TShock has
@@ -98,14 +92,14 @@ function ServerListProvider({ children }) {
     activeServer,
     notifications, setNotifications, pushNotification,
     modules, setModules, activeModule, moduleCapabilities, supports,
-    currentGame, setCurrentGame, activeServerByGame,
+    currentGame,
     mapUrl,
     wsRef,
   }), [
     servers, activeServerId, setActiveServerId, activeServer,
     notifications, pushNotification,
     modules, activeModule, moduleCapabilities, supports,
-    currentGame, activeServerByGame, mapUrl,
+    currentGame, mapUrl,
   ]);
 
   return (

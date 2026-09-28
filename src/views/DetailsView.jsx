@@ -8,9 +8,11 @@ import { useT } from '@/context/I18nContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ViewHeader } from '@/components/layout/Page';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { HostResources } from '@/components/shared/HostResources';
+import { Loading } from '@/components/shared/Loading';
+import { num, gb, pct, findingTitle, findingAction, findingDetail, categoryLabel, occurrenceLabel } from '@/lib/healthText';
 
 const fmt = (value) => value ? new Date(value).toLocaleString() : '-';
 
@@ -26,39 +28,54 @@ const ruleKey = (t, ruleId, field, i, fallback) => {
   return fallback;
 };
 
-const categoryLabel = (t, category) => {
-  const minecraftCategory = category === 'java' || category === 'plugin_or_mod';
-  const k = `${minecraftCategory ? 'minecraft.' : ''}health.rule.category.${category || 'unknown'}`;
-  const v = t(k);
-  return v === k ? (category || 'unknown') : v;
-};
-
-const occurrenceLabel = (t, count) => Number(count) === 1
-  ? t('health.occurrence')
-  : t('health.occurrences', { count });
-
-export function HealthView({ onNavigate }) {
+/**
+ * Overview -> Details: why the server's numbers are what they are. The
+ * Overview's Needs attention list says what is wrong; this page has each
+ * finding's evidence, the full crash history (acknowledged ones too), then
+ * resource history, the host machine, and the baselines the findings are
+ * measured against.
+ */
+export function DetailsView({ onNavigate, onOpenCrash }) {
   const t = useT();
   return (
     <div className="space-y-6">
-      <ViewHeader title={t('nav.health')} />
-      <Tabs defaultValue="overview" className="space-y-5">
-        <TabsList>
-          <TabsTrigger value="overview">{t('health.overview')}</TabsTrigger>
-          <TabsTrigger value="resources">{t('health.resources')}</TabsTrigger>
-          <TabsTrigger value="crashes">{t('health.crashes')}</TabsTrigger>
-        </TabsList>
-        <TabsContent value="overview"><Overview /></TabsContent>
-        <TabsContent value="resources"><MetricsView /></TabsContent>
-          <TabsContent value="crashes"><Crashes onNavigate={onNavigate} /></TabsContent>
-      </Tabs>
+      <ViewHeader
+        title={t('details.title')}
+        actions={(
+          <Button variant="ghost" size="sm" onClick={() => onNavigate('dashboard')}>
+            <ChevronLeft className="h-4 w-4" />
+            {t('details.back')}
+          </Button>
+        )}
+      />
+      <HealthSummary crashes={<Crashes onOpenCrash={onOpenCrash} />} />
+      <MetricsView />
+      <HostResources />
     </div>
   );
 }
 
-const num = (value, digits = 1) => (value == null || !Number.isFinite(value) ? null : Number(value).toFixed(digits).replace(/\.0+$/, ''));
-const gb = (mb) => (mb == null ? null : mb >= 1024 ? `${num(mb / 1024)} GB` : `${num(mb, 0)} MB`);
-const pct = (ratio) => (ratio == null ? null : `${Math.round(ratio * 100)}%`);
+/** One crash, as its own page: `/servers/<id>/crashes/<groupId>`. */
+export function CrashView({ crashId, onNavigate }) {
+  const api = useApi(); const t = useT();
+  const [data, setData] = useState(null);
+  const [error, setError] = useState('');
+  const load = async () => {
+    setError('');
+    try { setData(await api(`/api/crashes/${encodeURIComponent(crashId)}`)); }
+    catch (e) { setError(e.message); }
+  };
+  useEffect(() => { setData(null); load(); }, [crashId]);
+  const toggle = async () => {
+    const g = data.group;
+    const action = g.acknowledgedAt ? 'unacknowledge' : 'acknowledge';
+    try { await api(`/api/crashes/groups/${g.id}/${action}`, { method: 'POST' }); await load(); }
+    catch (e) { toast.error(e.message); }
+  };
+  if (error && !data) return <ErrorState error={error} onRetry={load} />;
+  if (!data) return <Loading size="lg" className="py-24" />;
+  return <CrashDetail data={data} onBack={() => onNavigate('details')} onToggle={toggle} onNavigate={onNavigate} t={t} />;
+}
 
 // Why a card is missing is more useful than a fabricated card. Every
 // insufficiency reason from the analyzer has a plain-English explanation.
@@ -82,15 +99,7 @@ function Insufficient({ t, detail }) {
 // coverage, spread), whether it is currently suppressed, and what to do next.
 function Finding({ f, t }) {
   const e = f.evidence || {};
-  const detail = {
-    'cpu.sustained': t('health.finding.cpu', { p95: num(e.p95, 0) ?? '-', threshold: num(e.threshold, 0) ?? '-' }),
-    'memory.pressure': t('health.finding.memory', { used: gb(e.p95Mb) ?? '-', heap: gb(e.heapMb) ?? '-', ratio: pct(e.heapRatio) ?? '-' }),
-    'tps.low': t('minecraft.health.finding.tps', { p10: num(e.p10) ?? '-', threshold: num(e.threshold) ?? '-' }),
-    'disk.forecast': t('health.finding.disk', { days: num(e.daysUntilFull, 0) ?? '-', free: gb(e.freeMb) ?? '-', growth: gb(e.growthMbPerDay) ?? '-' }),
-    'backup.stale': e.reason === 'no_backups' ? t('health.finding.backupNone')
-      : e.reason === 'no_verified_backup' ? t('health.finding.backupUnverified')
-        : t('health.finding.backupStale', { days: num(e.ageDays, 0) ?? '-' }),
-  }[f.ruleId] || f.ruleId;
+  const detail = findingDetail(t, f);
 
   const support = [
     e.window ? t('health.support.window', { window: e.window }) : null,
@@ -107,19 +116,19 @@ function Finding({ f, t }) {
     <div className="rounded-lg border bg-card p-4">
       <div className="flex flex-wrap items-center gap-2">
         <AlertTriangle className={f.severity === 'critical' ? 'h-4 w-4 text-status-error' : 'h-4 w-4 text-status-warn'} />
-        <span className="font-medium">{t(`${f.ruleId === 'tps.low' ? 'minecraft.' : ''}health.rules.${f.ruleId}.title`)}</span>
+        <span className="font-medium">{findingTitle(t, f)}</span>
         <Badge variant={f.severity === 'critical' ? 'destructive' : 'secondary'}>{t(`health.severity.${f.severity}`)}</Badge>
         {f.suppressed && <Badge variant="outline">{t('health.suppressed', { until: fmt(f.cooldownUntil) })}</Badge>}
       </div>
       <p className="mt-2 text-sm">{detail}</p>
-      <p className="mt-2 text-xs text-muted-foreground">{t('health.nextAction')}: {t(`${f.ruleId === 'tps.low' ? 'minecraft.' : ''}health.rules.${f.ruleId}.action`)}</p>
+      <p className="mt-2 text-xs text-muted-foreground">{t('health.nextAction')}: {findingAction(t, f)}</p>
       {support.length > 0 && <p className="mt-2 text-xs text-muted-foreground">{support.join(' · ')}</p>}
       <p className="mt-1 text-xs text-muted-foreground">{t('health.seenSince', { first: fmt(f.firstSeenAt), last: fmt(f.lastSeenAt) })}</p>
     </div>
   );
 }
 
-function Overview() {
+function HealthSummary({ crashes }) {
   const api = useApi(); const t = useT(); const { activeServerId, supports } = useServer();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -169,6 +178,8 @@ function Overview() {
           ) : findings.map((f) => <Finding key={f.id} f={f} t={t} />)}
         </CardContent>
       </Card>
+
+      {crashes}
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <Card>
@@ -243,17 +254,34 @@ function Overview() {
   );
 }
 
-function Crashes({ onNavigate }) {
-  const api = useApi(); const t = useT(); const { activeServerId, servers } = useServer();
-  const [items, setItems] = useState([]); const [detail, setDetail] = useState(null); const [loading, setLoading] = useState(true);
+// Every crash group for this server, newest first. Each opens its own page.
+function Crashes({ onOpenCrash }) {
+  const api = useApi(); const t = useT(); const { activeServerId } = useServer();
+  const [items, setItems] = useState([]); const [loading, setLoading] = useState(true);
   const load = async () => { setLoading(true); try { const q = activeServerId ? `?serverId=${encodeURIComponent(activeServerId)}` : ''; setItems((await api(`/api/crashes${q}`)).items || []); } catch (e) { toast.error(e.message); } setLoading(false); };
-  useEffect(() => { setDetail(null); load(); }, [activeServerId]);
-  const open = async (id) => { try { setDetail(await api(`/api/crashes/${encodeURIComponent(id)}`)); } catch (e) { toast.error(e.message); } };
-  const toggle = async () => { const g = detail.group; const action = g.acknowledgedAt ? 'unacknowledge' : 'acknowledge'; try { await api(`/api/crashes/groups/${g.id}/${action}`, { method: 'POST' }); await open(g.id); await load(); } catch (e) { toast.error(e.message); } };
-  if (detail) return <CrashDetail data={detail} onBack={() => setDetail(null)} onToggle={toggle} onNavigate={onNavigate} t={t} />;
-  if (loading) return <div className="py-12 text-center text-sm text-muted-foreground">{t('common.loading')}</div>;
-  if (!items.length) return <Card><CardContent className="py-12 text-center text-sm text-muted-foreground">{t('health.noCrashes')}</CardContent></Card>;
-  return <div className="space-y-3">{items.map((g) => <button type="button" key={g.id} onClick={() => open(g.id)} className="w-full rounded-lg border bg-card p-4 text-left hover:border-primary/50"><div className="flex items-center justify-between gap-3"><div className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-status-warn"/><span className="font-medium">{categoryLabel(t, g.category)}</span><Badge variant="secondary">{occurrenceLabel(t, g.count)}</Badge>{g.acknowledgedAt && <Badge variant="outline"><Check className="mr-1 h-3 w-3"/>{t('health.acknowledged')}</Badge>}</div><span className="text-xs text-muted-foreground">{fmt(g.lastSeenAt)}</span></div><div className="mt-2 text-xs text-muted-foreground">{servers.find((s) => s.id === g.serverId)?.name || g.serverId}</div></button>)}</div>;
+  useEffect(() => { load(); }, [activeServerId]);
+  return (
+    <Card>
+      <CardHeader><CardTitle>{t('details.crashesTitle')}</CardTitle></CardHeader>
+      <CardContent className="space-y-3">
+        {loading ? <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
+          : !items.length ? <p className="text-sm text-muted-foreground">{t('health.noCrashes')}</p>
+            : items.map((g) => (
+              <button type="button" key={g.id} data-crash-group={g.id} onClick={() => onOpenCrash(g.id)} className="w-full rounded-lg border bg-card p-4 text-left hover:border-primary/50">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 text-status-warn" />
+                    <span className="font-medium">{categoryLabel(t, g.category)}</span>
+                    <Badge variant="secondary">{occurrenceLabel(t, g.count)}</Badge>
+                    {g.acknowledgedAt && <Badge variant="outline"><Check className="mr-1 h-3 w-3" />{t('health.acknowledged')}</Badge>}
+                  </div>
+                  <span className="text-xs text-muted-foreground">{fmt(g.lastSeenAt)}</span>
+                </div>
+              </button>
+            ))}
+      </CardContent>
+    </Card>
+  );
 }
 
 function IncidentDatum({ label, children }) {
@@ -329,7 +357,7 @@ function CrashDetail({ data, onBack, onToggle, onNavigate, t }) {
                   {c.suggestions.map((x, i) => <li key={`${c.ruleId}-suggestion-${i}-${String(x).slice(0, 48)}`}>{ruleKey(t, c.ruleId, 'suggestions', i, x)}</li>)}
                 </ul>
                 {actionFor(c.ruleId) && (
-                  <Button className="mt-4" size="sm" variant="outline" onClick={() => onNavigate(actionFor(c.ruleId))}>
+                  <Button className="mt-4" size="sm" variant="outline" onClick={() => onNavigate(...actionFor(c.ruleId))}>
                     {t('health.openAction')}
                     <ArrowRight className="h-3 w-3" />
                   </Button>
@@ -369,10 +397,13 @@ function CrashDetail({ data, onBack, onToggle, onNavigate, t }) {
   );
 }
 const formatAge = (ms) => ms < 3600000 ? `${Math.max(1, Math.round(ms / 60000))}m` : ms < 86400000 ? `${Math.round(ms / 3600000)}h` : `${Math.round(ms / 86400000)}d`;
+// Where a crash rule's fix lives, as [view, tab].
+const GAME_SETTINGS = ['settings', 'game'];
+const INSTALLED_MODS = ['mods', 'installed'];
 const actionFor = (ruleId) => ({
-  'terraria.port.in-use': 'configs', 'terraria.world.missing': 'worlds', 'terraria.world.corrupt': 'backups',
-  'terraria.world.version': 'worlds', 'terraria.awaiting-input': 'worlds', 'tmodloader.mod.missing-dependency': 'addons',
-  'tmodloader.mod.version': 'addons', 'tmodloader.mod.exception': 'addons', 'tshock.config.invalid': 'configs',
+  'terraria.port.in-use': GAME_SETTINGS, 'terraria.world.missing': ['worlds'], 'terraria.world.corrupt': ['backups'],
+  'terraria.world.version': ['worlds'], 'terraria.awaiting-input': ['worlds'], 'tmodloader.mod.missing-dependency': INSTALLED_MODS,
+  'tmodloader.mod.version': INSTALLED_MODS, 'tmodloader.mod.exception': INSTALLED_MODS, 'tshock.config.invalid': GAME_SETTINGS,
 }[ruleId] || null);
 function Evidence({ title, text }) {
   return (

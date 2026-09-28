@@ -40,6 +40,10 @@ export function PalworldModsView() {
   const { hasCapability } = useAuth();
   const uploadRef = useRef(null);
   const [tab, setTab] = useState('browse');
+  // Opens on Browse until the list shows packages are installed; then on
+  // Installed, unless the user already picked a tab.
+  const tabChosen = useRef(false);
+  const chooseTab = (value) => { tabChosen.current = true; setTab(value); };
   const [data, setData] = useState(null);
   const [catalog, setCatalog] = useState(EMPTY_CATALOG);
   const [query, setQuery] = useState('');
@@ -60,6 +64,7 @@ export function PalworldModsView() {
     try {
       const nextData = await api('/api/palworld/mods/official');
       setData(nextData);
+      if (!tabChosen.current && nextData.packages?.length) { tabChosen.current = true; setTab('installed'); }
       setSelectedInstalled((current) => new Set([...current].filter((id) => nextData.packages.some((pkg) => pkg.workshopId === id))));
     }
     catch (error) { toast.error(error.message); }
@@ -233,24 +238,24 @@ export function PalworldModsView() {
   return (
     <div className="space-y-6">
       <ViewHeader
-        title={t('palworldMods.title')}
         actions={<Button variant="glass" size="sm" disabled={busy} onClick={() => { load(); browse(true); }}><RefreshCw className="h-3.5 w-3.5" />{t('common.refresh')}</Button>}
       />
 
       {!eligible && <Alert variant="warn"><ShieldAlert className="h-4 w-4" />{t('palworldMods.official.windowsOnly')}</Alert>}
+      {/* The steps behind a question, not a paragraph to read first. */}
       {eligible && (
-        <Alert variant="info">
-          <Info className="h-4 w-4 shrink-0" />
-          <div className="space-y-1.5">
-            <div className="font-medium">{t('palworldMods.official.howTitle')}</div>
-            <ol className="list-decimal space-y-1 pl-4">
-              <li>{t('palworldMods.official.howStep1')}</li>
-              <li>{t('palworldMods.official.howStep2')}</li>
-              <li>{t('palworldMods.official.howStep3')}</li>
-              <li>{t('palworldMods.official.howStep4')}</li>
-            </ol>
-          </div>
-        </Alert>
+        <details data-mods-howto className="rounded-md border border-border bg-card px-4 py-3 text-sm">
+          <summary className="flex cursor-pointer items-center gap-2 font-medium">
+            <Info className="h-4 w-4 shrink-0 text-primary" />
+            {t('palworldMods.official.howTitle')}
+          </summary>
+          <ol className="mt-2 list-decimal space-y-1 pl-6 text-muted-foreground">
+            <li>{t('palworldMods.official.howStep1')}</li>
+            <li>{t('palworldMods.official.howStep2')}</li>
+            <li>{t('palworldMods.official.howStep3')}</li>
+            <li>{t('palworldMods.official.howStep4')}</li>
+          </ol>
+        </details>
       )}
       {data.legacyPaths.length > 0 && (
         <Alert variant="warn"><ShieldAlert className="h-4 w-4" />{t('palworldMods.official.legacyWarning', { count: data.legacyPaths.length })}</Alert>
@@ -261,7 +266,7 @@ export function PalworldModsView() {
 
       <Card>
         <CardContent>
-          <Tabs value={tab} onValueChange={setTab}>
+          <Tabs value={tab} onValueChange={chooseTab}>
             <div className="flex flex-wrap items-end gap-4">
               <div className="space-y-1.5">
                 <div className="px-1 text-label font-medium uppercase tracking-wider text-muted-foreground">
@@ -521,7 +526,16 @@ export function PalworldModsView() {
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground italic">{t('palworldMods.official.noneInstalled')} · {t('palworldMods.official.noneInstalledHint')}</p>
+                <EmptyState
+                  icon={FolderSearch}
+                  title={t('palworldMods.official.noneInstalled')}
+                  message={t('palworldMods.official.noneInstalledHint')}
+                  action={(
+                    <Button size="sm" onClick={() => chooseTab('browse')}>
+                      <Search className="h-3.5 w-3.5" />{t('palworldMods.official.browse')}
+                    </Button>
+                  )}
+                />
               )}
 
               {data.trash?.length > 0 && (

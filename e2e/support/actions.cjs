@@ -10,13 +10,13 @@
  * an unrelated failure in the login form from failing the whole suite.
  */
 
-const { loginScreen, gamesHub, appShell } = require('./pages.cjs');
+const { loginScreen, appShell } = require('./pages.cjs');
 const { TOKEN_KEY } = require('./fixtures.cjs');
 
 // The built bundle injects package.json's version as __APP_VERSION__
-// (vite.config.js define). The changelog popup reopens for seen users whose
-// stored `fleetdeck_changelog_version` differs from it, so signInFast must
-// plant the same value or a fresh browser profile meets the popup anyway.
+// (vite.config.js define). The profile menu marks "What's new" unread when the
+// stored `fleetdeck_changelog_version` differs from it, so signInFast plants
+// the same value: a spec starts from "seen", and one about the mark changes it.
 const APP_VERSION = require('../../package.json').version;
 
 /** Fill in the login form and submit it. Does not wait for the result. */
@@ -35,37 +35,51 @@ async function signIn(page, { identifier, password, origin = '' } = {}) {
   await page.goto(`${origin}/`);
   await loginScreen(page).heading.waitFor();
   await submitLogin(page, { identifier, password });
-  await page.waitForURL(/\/games$/);
-  await gamesHub(page).carousel.waitFor();
+  await appShell(page).header.waitFor();
 }
 
-/**
- * Sign in over HTTP and plant the token, skipping the form. Also marks the
- * onboarding tour as seen for every game and plants the changelog version, so
- * a later navigation is not met by a modal the test did not come to look at -
- * neither the first-time tour nor the post-update changelog popup (which
- * reopens when the stored version differs from the build's).
+/*
+ * Sessions reused across the tests of one worker. The login route allows 30
+ * requests per 15 minutes per IP, and every spec in a worker signs in to the
+ * same shared panel, so logging in afresh each time runs into that limit on a
+ * long run. A cached token is checked against /api/me before reuse (which is
+ * not rate limited), so a revoked or rotated session still falls back to a real
+ * login. Panels from newApp() have their own URL and never share an entry.
  */
-async function signInFast(page, panel, account = panel.admin) {
+const sessions = new Map();
+
+async function sessionFor(page, panel, account) {
+  const key = `${panel.url}|${account.username}`;
+  const cached = sessions.get(key);
+  if (cached) {
+    const me = await page.request.get(`${panel.url}/api/me`, { headers: { Authorization: `Bearer ${cached.token}` } });
+    if (me.ok()) return cached;
+    sessions.delete(key);
+  }
   const response = await page.request.post(`${panel.url}/api/login`, {
     data: { username: account.username, password: account.password },
   });
   if (!response.ok()) {
     throw new Error(`could not sign ${account.username} in: ${response.status()} ${await response.text()}`);
   }
-  const { token, user } = await response.json();
+  const session = await response.json();
+  sessions.set(key, { token: session.token, user: session.user });
+  return session;
+}
 
-  await page.addInitScript(([key, value, userId, changelogVersion]) => {
+/**
+ * Sign in over HTTP and plant the token, skipping the form. Also plants the
+ * changelog version, so "What's new" starts out read.
+ */
+async function signInFast(page, panel, account = panel.admin) {
+  const { token, user } = await sessionFor(page, panel, account);
+
+  await page.addInitScript(([key, value, changelogVersion]) => {
     try {
       window.localStorage.setItem(key, value);
-      for (const game of ['minecraft', 'terraria', 'valheim', 'palworld', 'custom']) {
-        window.localStorage.setItem(`fleetdeck_tour_seen:${userId}:${game}`, '1');
-      }
-      // Plant the current version so the changelog popup never shows in specs
-      // that just want to get to the UI.
       window.localStorage.setItem('fleetdeck_changelog_version', changelogVersion);
     } catch { /* ignore */ }
-  }, [TOKEN_KEY, token, user.id, APP_VERSION]);
+  }, [TOKEN_KEY, token, APP_VERSION]);
 
   return { token, user };
 }
@@ -78,7 +92,6 @@ async function signInFast(page, panel, account = panel.admin) {
 async function openView(page, game, view, { origin = '' } = {}) {
   await page.goto(`${origin}/games/${game}/${view}`);
   await appShell(page).header.waitFor();
-  await dismissTour(page);
 }
 
 /**
@@ -97,35 +110,62 @@ async function waitForLiveConnection(page) {
   await page.getByText(en('common.reconnecting')).waitFor({ state: 'hidden' }).catch(() => {});
 }
 
-/** Close the onboarding tour if it is up. Safe to call when it is not. */
-async function dismissTour(page) {
-  const tour = appShell(page).tour;
-  if (await tour.isVisible()) {
-    await page.keyboard.press('Escape');
-    await tour.waitFor({ state: 'hidden' });
+/**
+ * Open the overview of a server of one game. Goes through the old game-scoped
+ * link, which the panel rewrites onto that game's server.
+ */
+async function enterGame(page, gameId) {
+  const origin = new URL(page.url()).origin;
+  await page.goto(`${origin}/games/${gameId}/dashboard`);
+  await page.waitForURL(/\/servers\/[^/]+$/);
+  await appShell(page).header.waitFor();
+}
+
+/**
+ * Open one server's Settings -> General, where it is edited, cloned, removed
+ * and (Palworld) its tools are opened. `panel` is the app fixture the server
+ * was seeded into.
+ */
+async function openGeneralSettings(page, panel, name) {
+  await page.goto(`${panel.url}/servers/${panel.server(name).id}/settings/general`);
+  await appShell(page).header.waitFor();
+}
+
+// Mirrors METHODS in src/views/servers/AddServerDialogs.jsx: a game with a
+// single way to add it skips the method step.
+const ADD_METHODS = {
+  minecraft: ['install', 'existing', 'modpack', 'template'],
+  terraria: ['install', 'import'],
+  valheim: ['install'],
+  palworld: ['install', 'existing', 'importProfile'],
+  custom: ['install'],
+};
+
+/**
+ * Start the Add-server flow for one game and pick how, leaving the game's own
+ * wizard or import dialog open. On a panel with no servers the game cards are
+ * already on the page; anywhere else "Add server" opens them.
+ */
+async function startAddServer(page, game, method = 'install') {
+  const { en } = require('./fixtures.cjs');
+  const addButton = page.getByRole('button', { name: en('addServer.button'), exact: true }).first();
+  const inlineChoice = page.locator(`main [data-game-choice="${game}"]`);
+  await addButton.or(inlineChoice).first().waitFor();
+  if (await addButton.isVisible()) await addButton.click();
+  await page.locator(`[role="dialog"] [data-game-choice="${game}"], main [data-game-choice="${game}"]`).first().click();
+  if ((ADD_METHODS[game] || ['install']).length > 1) {
+    await page.locator(`[data-add-method="${method}"]`).click();
   }
 }
 
 /**
- * Leave the games hub for one game's workbench, dismissing the onboarding
- * tour that opens the first time a user enters it.
+ * Expand a create wizard's "More options", where the optional fields live
+ * (seed, parent folder, ...). Leaves it open if it already is.
  */
-async function enterGame(page, gameId) {
-  // The hub is a carousel: clicking a slide that is not the current one only
-  // brings it to the front. It takes a second click to actually enter, which
-  // is why this clicks until the URL moves rather than once.
-  const slide = gamesHub(page).game(gameId);
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    await slide.click();
-    try {
-      await page.waitForURL(new RegExp(`/games/${gameId}/`), { timeout: 2_000 });
-      break;
-    } catch {
-      if (attempt === 2) throw new Error(`could not enter ${gameId} from the hub`);
-    }
-  }
-  await appShell(page).header.waitFor();
-  await dismissTour(page);
+async function openMoreOptions(root) {
+  const { en } = require('./fixtures.cjs');
+  const details = root.locator('details').filter({ has: root.page().locator('summary', { hasText: en('serverRules.moreOptions') }) });
+  if (!(await details.evaluate((el) => el.open))) await details.locator('summary').click();
 }
 
 /** The session token as the browser has it, or null. */
@@ -142,6 +182,6 @@ function seedToken(page, token) {
 
 module.exports = {
   submitLogin, signIn, signInFast,
-  openView, enterGame, dismissTour, waitForLiveConnection,
+  openView, enterGame, openGeneralSettings, startAddServer, openMoreOptions, waitForLiveConnection,
   readToken, seedToken,
 };

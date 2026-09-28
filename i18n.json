@@ -59,18 +59,17 @@
         "unitDays": "d",
         "unitHours": "h",
         "unitMinutes": "m",
-        "maxWord": "max",
         "reconnecting": "Reconnecting…",
         "reconnectingDesc": "Attempting to restore connection to the panel.",
         "connectionLost": "Connection lost",
         "retry": "Retry",
         "failed": "Failed",
-        "loadFailed": "Failed to load data"
+        "loadFailed": "Failed to load data",
+        "apply": "Apply"
       },
       "brand": {
         "name": "Hostkind",
-        "goToDashboard": "{name}: go to Dashboard",
-        "goToGames": "{name}: go to all games"
+        "goHome": "{name}: go home"
       },
       "html": {
         "title": "Hostkind"
@@ -124,7 +123,7 @@
         "alreadyRunning": "The server is already running.",
         "notRunning": "The server is not running.",
         "consoleDetached": "This server is running but its console is detached (it was left alive by a previous panel session). Restart it to regain command access.",
-        "noActiveServer": "No active server.",
+        "noActiveServer": "No server is open.",
         "stopBeforeEdit": "Stop the server before editing it.",
         "stopBeforeRemove": "Stop the server before removing it.",
         "serverNotFound": "Server not found",
@@ -184,34 +183,27 @@
         "termsVersionInvalid": "Invalid Terms of Use version"
       },
       "nav": {
-        "groupOverview": "Overview",
-        "groupOperate": "Operate",
-        "groupContent": "Content",
-        "groupMaintenance": "Maintenance",
-        "groupSettings": "Settings",
-        "dashboard": "Dashboard",
+        "dashboard": "Overview",
         "servers": "Servers",
-        "metrics": "Metrics",
-        "health": "Health",
         "console": "Console",
         "players": "Players",
-        "map": "Map",
-        "addons": "Addons",
-        "modrinth": "Content",
-        "files": "Files",
-        "configs": "Configs",
-        "updates": "Updates",
         "backups": "Backups",
         "schedules": "Schedules",
-        "users": "Users",
-        "audit": "Audit",
+        "users": "Users & access",
+        "audit": "Audit log",
         "requiresServerTip": "Create a server first",
         "requiresServerToast": "Create a server before opening that section.",
-        "worlds": "Worlds"
+        "worlds": "Worlds",
+        "home": "Home",
+        "allServers": "All servers",
+        "mods": "Mods",
+        "settings": "Settings",
+        "details": "Details",
+        "crash": "Crash",
+        "panelSettings": "{name} settings"
       },
       "games": {
         "headline": "Run the worlds you share.",
-        "intro": "Choose a game to enter its servers, dashboard, and tools.",
         "count": "Five game spaces",
         "minecraft": "Minecraft",
         "terraria": "Terraria",
@@ -230,8 +222,6 @@
         "next": "Next game"
       },
       "audit": {
-        "title": "Audit trail",
-        "hint": "Immutable security history for sensitive and mutating actions.",
         "server": "Server ID",
         "actor": "Actor ID",
         "action": "Action",
@@ -248,7 +238,6 @@
         "system": "System",
         "loadMore": "Load more",
         "details": "Event details",
-        "exportFailed": "Could not export the audit trail",
         "retention": "Retention",
         "retentionTitle": "Apply retention policy",
         "retentionHint": "Events before the cutoff will be permanently removed. Preview the exact count first.",
@@ -262,7 +251,8 @@
       "serverSelector": {
         "noServers": "No servers",
         "searchPlaceholder": "Search servers",
-        "noResults": "No matching servers"
+        "noResults": "No matching servers",
+        "choose": "Choose a server"
       },
       "sidebar": {
         "expandTitle": "Expand sidebar (Ctrl+B)",
@@ -270,12 +260,9 @@
         "collapseLabel": "Collapse",
         "supportLabel": "Help",
         "supportTitle": "Open help and support",
-        "logout": "Log out",
-        "settings": "Settings",
-        "settingsTitle": "Settings"
+        "logout": "Log out"
       },
       "settings": {
-        "title": "Settings",
         "language": "Language",
         "languageDesc": "Choose how the panel looks to you.",
         "hotkeys": "Hotkeys",
@@ -285,9 +272,6 @@
         "hotkeyConsoleHistoryHint": "Browse previously sent commands in the Console",
         "hotkeyCloseMenu": "Close menu",
         "hotkeyCloseMenuHint": "Dismiss open dropdowns and overlays",
-        "tour": "Onboarding tour",
-        "tourDesc": "Walk through the panel's main areas again.",
-        "tourRepeat": "Repeat tour",
         "watchdog": "Crash watchdog",
         "watchdogDesc": "Restart a server automatically when it crashes, unless it keeps crashing.",
         "watchdogEnabled": "Restart crashed servers",
@@ -297,7 +281,6 @@
         "watchdogSaved": "Watchdog settings saved",
         "gameColors": "Game colours",
         "gameColorsDesc": "Give each game implementation its own accent colour. Changes apply immediately - each game's colour shows when you enter it.",
-        "applicationUpdate": "Software updates",
         "applicationUpdateDesc": "Keep the installed Hostkind binary current without replacing your server data or configuration.",
         "applicationUpdateCurrent": "Current version",
         "applicationUpdateLatest": "Latest version",
@@ -325,84 +308,16 @@
         "restart": "Restart",
         "stop": "Stop",
         "restartConfirm": "Restart the server?",
-        "restartSuccess": "Active server switched",
         "langSwitch": "Language",
-        "noServer": "No server"
-      },
-      "tour": {
-        "badge": "Step {n} of {total}",
-        "next": "Next",
-        "finish": "Finish",
-        "gameWelcome": {
-          "body": "This short tour covers the Hostkind tools that matter for {game}. Each game space has its own walkthrough, and you can replay this one later from Settings."
-        },
-        "gameConfigure": {
-          "title": "Game setup"
-        },
-        "gameTools": {
-          "title": "Game tools"
-        },
-        "games": {
-          "minecraft": {
-            "create": "Open Servers to download a Vanilla, Paper, Spigot, Fabric, Forge, or NeoForge server, import a Modrinth modpack, or register an existing Minecraft folder.",
-            "configure": "Configs exposes common server.properties settings. Use Files when you need direct access to plugin, mod, or server configuration files.",
-            "tools": "Modrinth finds compatible plugins, mods, and modpacks for the active Minecraft version and loader. Hostkind checks compatibility before installing anything.",
-            "done": "Your Minecraft workspace is ready. Add a server under Servers, then use the control bar to start it. This tour can be replayed from Settings."
-          },
-          "terraria": {
-            "create": "Open Servers to install the official Terraria dedicated server, choose a TShock build, or register an existing Terraria server folder.",
-            "configure": "Worlds lets you inspect, upload, download, and switch Terraria world files without leaving the panel.",
-            "tools": "Mods manages Terraria content for supported servers. TShock servers also unlock player administration and their additional server controls.",
-            "done": "Your Terraria workspace is ready. Add a server under Servers, choose its world, and start it from the control bar. Replay this tour from Settings anytime."
-          },
-          "valheim": {
-            "create": "Open Servers to install the official Valheim dedicated server through SteamCMD or register an existing server folder.",
-            "configure": "Worlds keeps Valheim save sets together so you can inspect and manage the world used by the active server.",
-            "tools": "Updates checks the installed Valheim server against Steam and lets you apply available dedicated-server updates.",
-            "done": "Your Valheim workspace is ready. Add a server under Servers, confirm its world, and start it from the control bar. Replay this tour from Settings anytime."
-          },
-          "palworld": {
-            "create": "Open Servers to install the official Palworld dedicated server through SteamCMD or register an existing installation.",
-            "configure": "Configs exposes Palworld's supported server settings in a structured editor, including gameplay, network, and access options.",
-            "tools": "Map shows the active Palworld world and its live server context. Integrations contains the game-specific connection settings available to administrators.",
-            "done": "Your Palworld workspace is ready. Add a server under Servers, review its settings, and start it from the control bar. Replay this tour from Settings anytime."
-          },
-          "custom": {
-            "create": "Open Servers to register another long-running process and tell Hostkind how it should start, stop, and detect readiness.",
-            "configure": "Console streams the process output and accepts commands when the registered process supports standard input.",
-            "tools": "Files gives you guarded access to the active process folder for everyday inspection and text-file edits.",
-            "done": "Your custom-process workspace is ready. Register a process under Servers, verify its launch command, and start it from the control bar. Replay this tour from Settings anytime."
-          }
-        },
-        "welcome": {
-          "title": "Welcome to Hostkind",
-          "body": "A quick tour of the panel's main areas. Use Next to step through, or close it anytime - you can replay it later from Settings."
-        },
-        "sidebar": {
-          "title": "Navigation",
-          "body": "The sidebar groups every section: overview, operation, content, maintenance, and settings. Collapse it with the chevron at the bottom or Ctrl+B."
-        },
-        "createServer": {
-          "title": "Create or register servers",
-          "body": "Open Servers to add a server. Use Create new when Hostkind should download the server for you, or Register existing when you already have a folder and jar."
-        },
-        "header": {
-          "title": "Server context",
-          "body": "The header shows the active server and the current section. Most views act on the server selected here."
-        },
-        "controlbar": {
-          "title": "Server controls",
-          "body": "Start, restart, and stop the active server from this bar. The status pill shows its current state at a glance."
-        },
-        "done": {
-          "title": "You're all set",
-          "body": "That's the tour. Register a server under Servers, then start it from the control bar. Repeat this walkthrough anytime from Settings."
-        }
+        "noServer": "No server",
+        "controls": "Server controls",
+        "openMenu": "Open menu"
       },
       "whatsNew": {
         "title": "What's new",
         "description": "Hostkind has been updated. Here is the complete changelog for this build.",
-        "version": "Build {version}"
+        "version": "Build {version}",
+        "unread": "New"
       },
       "notifications": {
         "title": "Notifications",
@@ -441,70 +356,31 @@
         "linkTls": "Encrypted",
         "linkPlain": "Unencrypted",
         "linkPlainHint": "This panel is served over plain HTTP, so your password crosses the network in the clear. Put it behind HTTPS before using it outside your own machine.",
-        "privacy": "Self-hosted. No cloud account, no external database, no telemetry.",
         "showPassword": "Show password",
         "hidePassword": "Hide password",
         "capsLock": "Caps Lock is on"
       },
       "dashboard": {
-        "status": "Status",
-        "uptime": "Uptime",
-        "liveResources": "Live resources",
         "last5min": "last ~5 min",
-        "serverRam": "Server RAM",
-        "serverCpu": "Server CPU",
-        "serverFps": "Server FPS",
         "systemRam": "System RAM",
         "systemCpu": "System CPU",
         "disk": "Disk usage",
-        "diskUnit": "GB",
-        "serverInfo": "Server info",
-        "quickActions": "Quick actions",
-        "quickActionsHint": "Jump into the active server workflow.",
-        "quickConsole": "Console",
-        "quickFiles": "Files",
-        "quickBackups": "Backups",
-        "folder": "Folder",
-        "overview": "Overview",
-        "noServerTitle": "No server selected",
-        "noServerBody": "Register or select a server to see its live status and resources here.",
-        "goToServers": "Go to Servers",
-        "connecting": "Connecting to server…",
-        "offlineHint": "Server is offline. Start it to see live resources.",
-        "systemLabel": "Host",
-        "loader": "Loader",
-        "resourcesTitle": "Live resources"
+        "offlineHint": "Server is offline. Start it to see live resources."
       },
       "servers": {
-        "createNew": "Create new",
         "createFromModpack": "Create from modpack",
         "createModpackIntro": "Search Modrinth for a modpack and Hostkind will download the matching server, mods, and configs into a new folder. Fabric, Forge, and NeoForge modpacks are supported.",
         "backToModpacks": "← Back to search",
-        "addExisting": "Add existing",
         "moreActions": "More actions",
-        "registeredTitle": "Registered servers",
-        "activeExplainer": "The {active} server is the one Console, Players, Plugins, Configs and Backups act on.",
-        "activeLabel": "active",
-        "emptyTitle": "No servers yet",
-        "emptyCreateOnly": "No servers registered yet. Create one to get started.",
-        "emptyWithAdopt": "No servers registered yet. Create a new one, or add a server folder you already have.",
         "colServer": "Server",
         "colStatus": "Status",
         "colPlayers": "Players",
-        "colUptime": "Uptime",
-        "colVersion": "Version",
         "colActions": "Actions",
         "btnStart": "Start",
-        "btnRestart": "Restart",
         "btnStop": "Stop",
-        "btnSetActive": "Set active",
-        "btnEdit": "Edit",
         "btnRemove": "Remove",
         "removedToast": "Server removed",
-        "removedWithFilesToast": "Server and its files removed",
-        "editTitle": "Edit server",
         "editGameHint": "{game} settings live in the game's own config files. Here you only change how the panel names and finds this server.",
-        "registerTitle": "Register server",
         "fieldName": "Name",
         "namePlaceholder": "My survival server",
         "fieldFolder": "Server folder",
@@ -520,8 +396,6 @@
         "worldsPlaceholder": "world, world_nether",
         "fieldMapUrl": "Map URL (optional)",
         "mapUrlPlaceholder": "http://localhost:8100",
-        "defaultJavaArgs": "-Xmx4G -Xms4G",
-        "defaultWorlds": "world, world_nether, world_the_end",
         "pickFolderTitle": "Pick the server folder",
         "thisPcDrives": "This PC (drives)",
         "up": "⬆ ..",
@@ -579,13 +453,7 @@
         "progressBytes": "{received} / {total}",
         "progressBytesUnknown": "{received} downloaded",
         "progressPercent": "{pct}%",
-        "updatedToast": "Server updated",
-        "registeredToast": "Server registered",
         "removeTitle": "Remove server",
-        "removeBody": "Remove \"{name}\" from the panel?",
-        "removeFilesLabel": "Also delete the server folder from this computer",
-        "removeFilesWarn": "This permanently deletes all server files, worlds, and backups. This cannot be undone.",
-        "templates": "Templates",
         "templatesTitle": "Server templates",
         "newTemplate": "New template",
         "importTemplate": "Import template",
@@ -605,12 +473,19 @@
         "cloneWithoutWorlds": "Clone without worlds",
         "createFromTemplate": "Create from template",
         "exportTemplate": "Export",
-        "exportFailed": "Template export failed",
         "confirmImport": "Confirm import",
-        "templateVersions": "Immutable versions"
+        "templateVersions": "Immutable versions",
+        "colResources": "CPU · Memory",
+        "colLastBackup": "Last backup",
+        "colAttention": "Needs attention",
+        "noBackupYet": "None yet",
+        "attentionCount": "Needs attention: {count}",
+        "btnOpen": "Open",
+        "btnOpenNamed": "Open {name}",
+        "menuSettings": "Server settings",
+        "parentDefault": "Leave empty to use {path}"
       },
       "metrics": {
-        "title": "Metrics",
         "noData": "No data yet. Sampled every minute.",
         "range1h": "1h",
         "range6h": "6h",
@@ -736,7 +611,6 @@
           "memory": "Memory (24h)"
         },
         "baselineValue": "median {p50} · p95 {p95} · {count} samples",
-        "correlation": {},
         "correlationValue": "r = {r} over {pairs} samples",
         "rules": {
           "cpu": {
@@ -801,11 +675,16 @@
         "clearFilter": "Clear filter",
         "filterEmpty": "No console lines match that filter.",
         "commandPlaceholder": "Type a command (e.g. say hi, list, time set day)",
+        "commandPlaceholderTerraria": "Type a command (e.g. say hi, playing, save)",
+        "commandPlaceholderPalworld": "Type a command (e.g. Broadcast hi, ShowPlayers, Save; help lists them all)",
+        "noCommandsRest": "This server takes console commands through its REST API. Set an admin password and a REST API port in its settings to send commands from here. Logs remain available.",
         "send": "Send",
-        "serverOffline": "The server is offline. Start it before sending commands."
+        "serverOffline": "The server is offline. Start it before sending commands.",
+        "notConnected": "Not connected to the panel. The command was not sent; try again in a moment.",
+        "emptyOffline": "The server is stopped. Its output appears here once it starts.",
+        "emptyWaiting": "Waiting for the server's output…"
       },
       "files": {
-        "title": "File manager",
         "searchPlaceholder": "Filter files…",
         "clearSearch": "Clear file filter",
         "upload": "Upload",
@@ -829,10 +708,8 @@
         "deletedToast": "Deleted"
       },
       "configs": {
-        "title": "Config editor",
-        "hint": "A timestamped .bak is saved before overwriting. Requires a restart.",
         "savedToast": "Saved (.bak created). Restart to apply.",
-        "bannerRestart": "You saved `{file}`. Restart the active server to apply.",
+        "bannerRestart": "You saved `{file}`. Restart the server to apply it.",
         "bannerRestartNow": "Restart now",
         "bannerDismiss": "Dismiss",
         "groupGameplay": "Gameplay",
@@ -948,8 +825,6 @@
           "noCommands": "Stock Valheim has no supported stdin command console. Logs remain available here."
         },
         "updates": {
-          "title": "Valheim updates",
-          "subtitle": "Check Steam's public build and apply a transactional update with binary rollback.",
           "check": "Check Steam now",
           "stale": "Steam metadata is stale. Check again before applying an update.",
           "builds": "Build evidence",
@@ -974,14 +849,10 @@
           }
         },
         "worlds": {
-          "title": "Worlds",
-          "subtitle": "Select, import, rename, export and delete this server's world. A Valheim world is a paired .fwl metadata file and .db data file - together, the only thing here that cannot be re-downloaded.",
           "noServer": "Select a server to manage its worlds.",
           "list": "Worlds",
           "empty": "This server has no worlds yet. Create one or import one you already have.",
-          "summaryWorlds": "Worlds",
           "summaryStorage": "Storage used",
-          "summaryUpdated": "Last changed",
           "modified": "modified {at}",
           "moreActions": "More world actions",
           "active": "Loads on start",
@@ -1079,12 +950,11 @@
             "healthy": "Healthy",
             "incomplete": "Incomplete",
             "unreadable": "Unreadable"
-          }
+          },
+          "emptyTitle": "No worlds yet"
         }
       },
       "palworldUpdates": {
-        "title": "Palworld updates",
-        "subtitle": "Check Steam's public build, protect save data, and update without leaving the panel.",
         "forceCheck": "Check Steam now",
         "stale": "Steam is unavailable. This is the last known build and may be out of date.",
         "recovery": "The update did not validate. The save-data snapshot is available for recovery; it is not a binary rollback.",
@@ -1120,63 +990,8 @@
         }
       },
       "palworldMods": {
-        "title": "Palworld mods",
-        "subtitle": "Import, enable and remove Palworld packages safely. Every change is previewed, staged, snapshotted and reversible.",
-        "checkUpdates": "Check for updates",
-        "platform": "Platform compatibility",
-        "host": "Host",
-        "target": "Server target",
-        "runtime": "Launch runtime",
-        "frameworks": "Extension frameworks",
-        "frameworksNote": "Hostkind detects extension frameworks and can install UE4SS from an extracted folder on this machine.",
-        "detected": "Detected",
-        "notDetected": "Not installed",
-        "ue4ssInstall": "Install from folder",
-        "ue4ssUpgrade": "Replace from folder",
-        "ue4ssUnavailable": "Unavailable on Linux",
-        "ue4ssPickerTitle": "Select the extracted UE4SS download folder",
-        "ue4ssFolderNote": "Select the extracted UE4SS release folder containing UE4SS.dll and dwmapi.dll. Hostkind safely stops a running server, snapshots the runtime, verifies the copy and restarts it.",
-        "ue4ssWindowsOnly": "Unavailable for this server: it uses the native Linux Palworld runtime, while UE4SS provides Windows binaries. To use UE4SS on a Linux host, run a Windows-target Palworld server through Wine.",
-        "ue4ssInstallTitle": "Install UE4SS",
-        "ue4ssUpgradeTitle": "Replace UE4SS",
-        "ue4ssConfirmBody": "Copy {files} files ({size}) from {folder} into the Palworld runtime? {overwrite} existing file(s) will be replaced after a verified snapshot. A running server will be stopped and restarted automatically.",
-        "ue4ssInstalled": "UE4SS was installed and verified.",
-        "wine": "Wine runtime (advanced)",
-        "wineNote": "Only needed to run a Windows-target server on a Linux host. Hostkind spawns the executable directly, never through a shell.",
-        "wineEnable": "Launch this server through Wine",
-        "wineExecutable": "Wine executable",
-        "winePrefix": "Wine prefix",
-        "wineArgs": "Extra launch arguments",
-        "wineEnvKeys": "Environment variables: {keys}. Values are stored on the host and never shown here.",
-        "wineSave": "Save runtime",
-        "wineSaved": "Wine runtime saved.",
-        "import": "Import a package",
-        "file": "Package archive (.zip)",
-        "fileNote": "The archive is validated, staged and hash-verified. Archives containing executables or installers are rejected.",
-        "name": "Package name (optional)",
-        "provider": "Source",
-        "providerLocal": "Local archive",
-        "providerWorkshop": "Steam Workshop download",
-        "workshopId": "Workshop item ID",
-        "workshopNote": "Used to check the item's published-file metadata for newer releases. No Steam account or key is required.",
-        "preview": "Preview import",
         "chooseFile": "Choose a .zip package first.",
-        "confirmTitle": "Import package",
-        "confirmBody": "Install \"{name}\" into {path}? {files} files, {size}, replacing {overwrite} existing file(s). The server is stopped for the commit and restarted afterwards.",
-        "confirm": "Import",
-        "imported": "The package was imported.",
         "importFailed": "The import did not complete.",
-        "recovery": "The import did not validate. The snapshot and the previous version in the mod trash are available for recovery.",
-        "installed": "Installed packages",
-        "emptyTitle": "No managed packages",
-        "emptyBody": "Import a package to have Hostkind track, update and remove it safely.",
-        "colName": "Package",
-        "colKind": "Type",
-        "colSource": "Source",
-        "colUpdate": "Updates",
-        "colSize": "Size",
-        "colActions": "Actions",
-        "parked": "Disabled (parked)",
         "enable": "Enable",
         "disable": "Disable",
         "enabled": "The package was enabled.",
@@ -1191,22 +1006,13 @@
         "removeTitle": "Remove package",
         "removeBody": "Remove \"{name}\"? It is moved to the mod trash with a verified snapshot and can be restored.",
         "removed": "The package was moved to the mod trash.",
-        "unmanaged": "Unmanaged mods",
-        "unmanagedNote": "Installed outside Hostkind. They are listed for visibility and are never changed or removed until you adopt them.",
-        "adopt": "Adopt",
-        "adopted": "The mod is now managed by Hostkind.",
         "trash": "Mod trash",
-        "trashNote": "Removed and replaced packages are kept here so a change can be undone.",
         "restore": "Restore",
         "restored": "The package was restored.",
-        "stale": "Last known result",
         "offlineRequired": "Stop the server to enable, disable, remove or restore mods.",
-        "inventoryBroken": "The mod inventory file could not be read. Repair it before changing mods; nothing is treated as unmanaged in the meantime.",
-        "safety": "Imports validate the archive, stage under the server folder, verify hashes, snapshot, commit with renames, and keep the previous version recoverable.",
         "operation": "Mod operation",
         "selectItem": "Select {name}",
         "official": {
-          "subtitle": "Discover and manage official Palworld Workshop packages without giving Hostkind a Steam account.",
           "browseGroup": "Browse",
           "manageGroup": "Manage",
           "browse": "Browse",
@@ -1243,7 +1049,7 @@
           "dependencies": "Dependencies",
           "noneInstalled": "No official packages installed",
           "noneInstalledHint": "Subscribe in Steam or download with SteamCMD, then review the install here. Content already in this server's folder is found automatically.",
-          "howTitle": "How official mods work",
+          "howTitle": "How do I add a mod?",
           "howStep1": "Subscribe to a Palworld Workshop item in Steam, or download it with SteamCMD on this machine: workshop_download_item 1623730 <id>.",
           "howStep2": "Hostkind finds the downloaded content in your Steam libraries and in this server's own folder. If a library is missed, add its path under Sources.",
           "howStep3": "Review the install - Hostkind validates Info.json and mirrors the package into Mods/Workshop. Nothing is written until you confirm.",
@@ -1277,44 +1083,17 @@
             "waiting-for-steam": "Waiting for Steam",
             "unavailable": "Unavailable"
           }
-        },
-        "update": {
-          "unchecked": "Not checked",
-          "manual": "Local archive",
-          "current": "Current",
-          "update-ready": "Update ready",
-          "unavailable": "Unavailable",
-          "unknown": "Unknown"
-        },
-        "integrity": {
-          "missing": "The installed files are missing.",
-          "drifted": "The installed files differ from the recorded manifest."
-        },
-        "reason": {
-          "unknown_target": "The server target platform could not be determined from its executable.",
-          "unsupported_host": "Palworld mod management is supported on Windows and Linux hosts.",
-          "wine_not_configured": "This server targets Windows on a Linux host. Configure a Wine runtime below before installing mods.",
-          "wine_not_detected": "The configured Wine executable could not be run. Install or correct it; Hostkind does not install Wine.",
-          "no_runtime": "A Linux-target Palworld server cannot run on a Windows host.",
-          "native": "Supported.",
-          "wine": "Supported through Wine."
         }
       },
       "updates": {
-        "title": "Safe update center",
         "scan": "Scan for updates",
-        "hint": "Only Hostkind-managed artifacts with authoritative, compatible metadata can be updated.",
         "lastScan": "Last scan",
-        "fresh": "Source metadata is fresh",
         "stale": "Source metadata is stale",
-        "scanPrompt": "Scan to inventory managed and unmanaged content.",
         "noManaged": "No managed plugins or mods yet.",
-        "current": "Up to date",
         "unmanaged": "Unmanaged files",
         "unmanagedHint": "These files cannot be selected because their identity is not verified.",
         "createPlan": "Review plan",
         "plan": "Update plan",
-        "status": "Status",
         "diskNeed": "Download size",
         "offlineSnapshot": "Offline commit · verified snapshot",
         "apply": "Apply updates",
@@ -1334,11 +1113,10 @@
         "upToDate": "Up to date",
         "attention": "Needs attention",
         "attentionHint": "These files cannot be updated automatically until the issue below is resolved.",
-        "selectServer": "Select a server to scan its plugins and mods.",
         "selectAll": "Select all",
         "selectedCount": "{count} selected",
         "snapshotNote": "A verified snapshot is taken before anything is written, so you can roll back.",
-        "noManagedHint": "Install plugins or mods from the Modrinth tab and they will show up here.",
+        "noManagedHint": "Plugins and mods you install from Browse appear here when a newer compatible version is out.",
         "allCurrent": "Everything is up to date",
         "allCurrentHint": "Every managed plugin and mod is on its latest compatible version.",
         "mustBeOffline": "The server must be stopped before updates can be applied.",
@@ -1356,10 +1134,8 @@
         }
       },
       "backups": {
-        "title": "Local backups",
-        "hint": "Compresses the worlds into a .zip. If the server is online it runs save-off/save-all during the copy.",
-        "empty": "No backups yet. Click + Backup now.",
-        "backupNow": "Backup now",
+        "empty": "No backups yet",
+        "backupNow": "Back up now",
         "creating": "Creating…",
         "creatingStatus": "Creating backup… (may take a while depending on world size)",
         "doneStatus": "Done: {name} ({size})",
@@ -1389,11 +1165,13 @@
         "diskRequired": "Required staging space",
         "rollbackAvailable": "Rollback will be available after commit.",
         "confirmRestore": "Stage and restore",
-        "restoreQueued": "Restore queued ({id})"
+        "restoreQueued": "Restore queued ({id})",
+        "emptyHint": "Copies of this server's worlds appear here, newest first. Back up now, or add a backup to Schedules.",
+        "colBackup": "Backup"
       },
       "bugReport": {
-        "launcher": "Report a bug",
         "title": "Report a bug",
+        "menu": "Report a problem",
         "summary": "Summary",
         "description": "Description",
         "repro": "Steps to reproduce",
@@ -1404,24 +1182,19 @@
         "success": "Report submitted - thank you!",
         "pending": "GitHub is unreachable right now. Your report is saved locally and will be retried automatically.",
         "notConfigured": "Issue reporting is not configured on this server. Your report is saved locally.",
-        "openTracker": "Open the Hostkind issue tracker directly",
-        "hide": "Hide report button",
-        "show": "Show report button"
+        "openTracker": "Open the Hostkind issue tracker directly"
       },
       "tasks": {
-        "title": "Scheduled tasks",
-        "hint": "Run an action on a schedule, or when a condition happens: a player joins, the server empties, or an update lands. Times use the panel machine’s local time.",
-        "newTask": "New task",
-        "empty": "No scheduled tasks. Click + New task.",
+        "newTask": "New schedule",
+        "empty": "Nothing scheduled yet",
         "presetHourly": "Hourly",
         "presetDaily4am": "Daily 4am",
         "presetEvery6h": "Every 6h",
         "presetWeekly": "Weekly",
-        "editTitle": "Edit task",
-        "newTitle": "New task",
+        "editTitle": "Edit schedule",
+        "newTitle": "New schedule",
         "fieldName": "Name",
         "namePlaceholder": "Nightly restart",
-        "fieldServer": "Server",
         "fieldAction": "Action",
         "actionRestart": "Restart",
         "actionBackup": "Backup",
@@ -1433,16 +1206,15 @@
         "fieldCron": "Schedule (cron)",
         "cronPlaceholder": "0 4 * * *",
         "enabled": "Enabled",
-        "createdToast": "Task created",
-        "updatedToast": "Task updated",
-        "ranToast": "Task ran",
-        "deletedToast": "Task deleted",
+        "createdToast": "Schedule created",
+        "updatedToast": "Schedule updated",
+        "ranToast": "Ran now",
+        "deletedToast": "Schedule deleted",
         "paused": "paused",
         "commandPrefix": "command: ",
-        "run": "Run",
-        "deleteTitle": "Delete task",
-        "deleteBody": "Delete task \"{name}\"?",
-        "commandLabel": "Command",
+        "run": "Run now",
+        "deleteTitle": "Delete schedule",
+        "deleteBody": "Delete the schedule \"{name}\"?",
         "fieldTrigger": "Trigger",
         "triggerCron": "Cron schedule",
         "triggerInterval": "Every N minutes",
@@ -1484,15 +1256,14 @@
         "lastRun": "Last run",
         "never": "Never",
         "cancelledReason": "Last cancellation: {reason}",
-        "emptyCounting": "Counting empty time",
-        "emptyPaused": "Paused: the player count is unconfirmed",
-        "hintPalworld": "Palworld tasks use the official server actions, so announcements and restarts stay safe."
+        "hintPalworld": "Palworld tasks use the official server actions, so announcements and restarts stay safe.",
+        "emptyHint": "Restarts, backups and commands you schedule for this server appear here, next one first.",
+        "localTime": "Times use the panel machine's local time."
       },
       "users": {
         "title": "Users",
-        "hint": "Anyone listed here can sign in with their username (or email) and password. Admins manage servers, users, and settings; operators can only operate the servers.",
         "addUser": "Add user",
-        "empty": "No users. Click + Add user.",
+        "empty": "No users yet.",
         "youBadge": "you",
         "editTitle": "Edit user",
         "addTitle": "Add user",
@@ -1566,8 +1337,7 @@
         "weak": "Weak",
         "fair": "Fair",
         "good": "Good",
-        "strong": "Strong",
-        "hint": "Use at least 8 characters and mix in uppercase, numbers, or symbols."
+        "strong": "Strong"
       },
       "profile": {
         "title": "Profile",
@@ -1590,17 +1360,14 @@
         "stopping": "stopping"
       },
       "firstStart": {
-        "title": "Start the server first",
-        "description": "\"{name}\" has never been started. Start it once so the server can auto-generate its world, structure, and config files. Installing plugins or mods before the first start can leave them without the folders and files they need.",
-        "startNow": "Start now",
-        "continueAnyway": "Continue anyway",
+        "title": "This server has not been started yet",
+        "description": "Start it once so it can generate its world, folders and config files. Mods and plugins installed before that may be missing the files they need.",
+        "startNow": "Start",
         "startingToast": "Starting server… content will appear once it's online",
         "onlineToast": "Server is online, refreshing"
       },
       "palworld": {
         "map": {
-          "title": "Live map",
-          "subtitle": "Current player locations from Palworld's official administration API.",
           "calibration": "Map calibration",
           "calibrationHint": "This server already uses Hostkind's built-in map. Replace it with your own image or fine-tune the alignment. Raw player coordinates are never changed.",
           "source": "Source",
@@ -1644,22 +1411,18 @@
           "worldCoords": "World X {x} · Y {y} · Z {z}",
           "outOfBounds": "Outside the calibrated map bounds"
         },
-        "playersTitle": "Players",
-        "playersSubtitle": "Live observations from Palworld's official administration API.",
         "restHealth": "REST API",
-        "healthy": "Healthy",
         "health_disabled": "Not configured",
         "health_unauthorized": "Unauthorized",
         "health_timeout": "Timed out",
         "health_malformed": "Invalid response",
         "health_unavailable": "Unavailable",
-        "playerCount": "Players",
         "lastRefresh": "Last refresh",
         "onlinePlayers": "Online players",
         "searchPlayers": "Search by name or stable ID…",
         "refresh": "Refresh players",
         "noPlayers": "No players online",
-        "noPlayersHint": "This list is a current observation, not a permanent player directory.",
+        "noPlayersHint": "Players appear here while they are connected.",
         "noMatches": "No matching players",
         "tryAnotherSearch": "Try a different name or identifier.",
         "observedSecondsAgo": "{seconds}s ago",
@@ -1752,10 +1515,10 @@
           "deopped": "De-opped {name}",
           "kicked": "Kicked {name}",
           "banned": "Banned {name}",
-          "pardoned": "Pardoned {name}"
+          "pardoned": "Pardoned {name}",
+          "onlineEmptyOffline": "The server is stopped. Start it to see who is online."
         },
         "modrinth": {
-          "title": "Browse content",
           "browseGroup": "Browse",
           "manageGroup": "Manage",
           "tabPlugins": "Plugins",
@@ -1770,7 +1533,6 @@
           "sortNewest": "Newest",
           "allCategories": "All categories",
           "search": "Search",
-          "loading": "Loading…",
           "empty": "No compatible results.",
           "noCompatibleVersion": "No compatible version for this server.",
           "installed": "Installed",
@@ -1783,14 +1545,11 @@
           "selectAll": "Select all visible",
           "selectedCount": "{count} selected",
           "installSelected": "Install selected",
-          "installSelectedProgress": "Installing selected…",
           "compatPlugin": "plugins",
           "compatMod": "mods",
           "compatNone": "No compatible loader",
           "tabModpacks": "Modpacks",
-          "tabModpacksDisabled": "Modpacks (not available for this server)",
           "modpacksTitle": "Browse modpacks",
-          "modpackTarget": "Targets {label} {version}",
           "modpackExisting": "Install into this server",
           "modpackCreate": "Create new server",
           "modpackNotEligible": "This server is not compatible with this modpack.",
@@ -1799,7 +1558,6 @@
           "modpackProgressBackground": "You can close this window. Installation will continue in the background.",
           "modpackCreated": "Created server {name} from modpack",
           "modpackUnsupportedToast": "This modpack targets an unsupported loader ({loader}). Only Fabric, Forge, and NeoForge modpacks can be installed.",
-          "modpackIncompatibleToast": "This modpack doesn't match this server. Create a new server to match.",
           "modpackCreateName": "New server name",
           "modpackCreateFolder": "Parent folder",
           "tabInstalledPack": "Installed Pack",
@@ -1807,7 +1565,6 @@
           "noInstalledPack": "No managed modpack is installed on this server.",
           "packFiles": "{count} managed files",
           "packInstalledAt": "Installed {date}",
-          "packVersion": "Version {version}",
           "browseModrinth": "Browse Modrinth",
           "browseHintPack": "Find a modpack below, or import one you already have.",
           "browseHintMod": "Find mods below, or import a JAR from your computer.",
@@ -1817,13 +1574,9 @@
           "ftbOfficial": "FTB official"
         },
         "worlds": {
-          "title": "Worlds",
-          "subtitle": "Manage world storage, create safe copies, and prepare terrain before players explore.",
           "registered": "Registered worlds",
-          "empty": "No worlds are registered on this server yet.",
-          "summaryWorlds": "Available worlds",
+          "empty": "No worlds yet",
           "summaryStorage": "Storage used",
-          "summaryUpdated": "Last updated",
           "summaryFiles": "Files",
           "moreActions": "More world actions",
           "noServer": "Select a server to manage its worlds.",
@@ -1942,16 +1695,15 @@
             "replaceOffline": "The server must be offline before the world is replaced.",
             "cloneOnline": "Cloning a running world copies it while it is being written to. Stop the server for a consistent copy.",
             "archiveOnline": "The server is online: saving is paused and flushed first, but the archive is still a best-effort copy."
-          }
+          },
+          "emptyHint": "The server creates its world the first time it starts. To use a world you already have, import it."
         },
         "addons": {
-          "title": "Addons",
           "tabPlugins": "Plugins",
           "tabMods": "Mods",
           "uploadJar": "Upload .jar",
-          "hint": "Uploads and deletions go to the {folder}/ folder. After uploading or deleting, restart the server to apply.",
-          "emptyPlugins": "No plugins installed. Upload a .jar or browse Modrinth.",
-          "emptyMods": "No mods installed. Upload a .jar or browse Modrinth.",
+          "emptyPlugins": "No plugins installed",
+          "emptyMods": "No mods installed",
           "deleteTitlePlugin": "Delete plugin",
           "deleteTitleMod": "Delete mod",
           "deleteBody": "Delete \"{name}\"? Restart the server afterwards to apply.",
@@ -1962,41 +1714,65 @@
           "selectItem": "Select {name}",
           "enableSelected": "Enable selected",
           "disableSelected": "Disable selected",
-          "enabledSelected": "Enabled {count} selected addons. Restart to apply.",
-          "disabledSelected": "Disabled {count} selected addons. Restart to apply.",
+          "enabledSelected": "Enabled {count}. Restart to apply.",
+          "disabledSelected": "Disabled {count}. Restart to apply.",
           "status": "Status",
           "enabled": "Enabled",
           "disabled": "Disabled",
-          "offline": "Stop the server before changing addon state."
+          "offline": "Stop the server to enable or disable.",
+          "emptyPluginsHint": "Plugins in this server's plugins folder appear here. Find one in Browse, or upload a .jar.",
+          "emptyModsHint": "Mods in this server's mods folder appear here. Find one in Browse, or upload a .jar.",
+          "browse": "Browse mods",
+          "enableOne": "Enable {name}",
+          "disableOne": "Disable {name}",
+          "deleteOne": "Delete {name}"
         },
         "mapView": {
-          "configureFirst": "Configure the map (BlueMap/Dynmap) first.",
           "title": "World map",
           "openInNewTab": "Open in new tab",
-          "notConfiguredTitle": "No map URL configured",
-          "notConfiguredBody": "Set the URL of your BlueMap, Dynmap, Squaremap or Pl3xMap web panel for this server. The map is loaded directly from there inside an iframe.",
-          "configure": "Configure map",
           "settings": "Map settings",
           "urlLabel": "Map URL",
           "urlPlaceholder": "http://localhost:8100",
           "urlHint": "Use http(s) only. Leave empty to disable the map.",
           "saved": "Map URL saved",
-          "loadFailed": "The map server could not be reached at that URL.",
           "presetHeading": "Presets",
           "presetBlueMap": "BlueMap (8100)",
           "presetDynmap": "Dynmap (8123)",
           "presetSquaremap": "Squaremap (8080)",
           "presetPl3xMap": "Pl3xMap (8080)",
-          "presetCustom": "Custom"
+          "presetCustom": "Custom",
+          "setupTitle": "Add a live map of your world",
+          "setupBody": "Pick a map and Hostkind installs it on this server. It shows up here after the next restart.",
+          "recommended": "Recommended",
+          "descBlueMap": "3D map you can fly around",
+          "descDynmap": "Classic 2D map with lots of add-ons",
+          "descSquaremap": "Fast, lightweight 2D map",
+          "descPl3xMap": "Modern 2D map, light on resources",
+          "install": "Install",
+          "installing": "Installing…",
+          "installed": "{name} installed",
+          "unavailable": "No build for {target} yet",
+          "manualLink": "Already running a map somewhere else? Enter its address",
+          "enterAddress": "Enter map address",
+          "vanillaTitle": "Vanilla servers can't run map plugins",
+          "vanillaBody": "Switch this server to Paper or Fabric to add a map. If a map already runs somewhere else, you can still enter its address.",
+          "detectedTitle": "{name} is installed",
+          "detectedBody": "Show its map here. Hostkind will load it from {url}.",
+          "showMap": "Show map",
+          "restartTitle": "{name} is ready. Restart the server to start the map",
+          "startTitle": "{name} is ready. Start the server to build the map",
+          "restartBody": "The map loads when the server starts. The first render can take a few minutes.",
+          "restartNow": "Restart now",
+          "restarted": "Restarting. The map appears once the server is up.",
+          "reload": "Reload",
+          "loadError": "Couldn't check which map plugins are installed",
+          "blueMapConsentTitle": "BlueMap is waiting for your permission",
+          "blueMapConsentBody": "BlueMap needs to download Minecraft's textures from Mojang to draw the map. Allow it, then restart the server.",
+          "blueMapConsentAction": "Allow download",
+          "blueMapConsentDone": "Download allowed. Restart the server to draw the map."
         },
         "dashboard": {
-          "playersOnline": "Players online",
-          "playersOnlineSub": "/ {max} {maxWord}",
-          "tps": "Performance (TPS)",
-          "quickPlayers": "Players",
-          "version": "Version",
-          "jar": "Jar",
-          "worlds": "Worlds"
+          "tps": "Performance (TPS)"
         },
         "metrics": {
           "chartPlayers": "Players online",
@@ -2016,7 +1792,6 @@
           "versionsUnavailable": "unavailable",
           "versionsFailed": "Could not load the version list.",
           "eula": "I accept the Minecraft EULA",
-          "eulaLink": "Minecraft EULA",
           "downloadAndCreate": "Download & create",
           "phaseResolving": "Resolving download URL…",
           "phaseDownloading": "Downloading server jar",
@@ -2218,7 +1993,6 @@
         "name": "Panel name",
         "adopt": "Adopt server",
         "adoptDone": "\"{name}\" has been adopted.",
-        "importProfile": "Import profile",
         "importTitle": "Import a Palworld profile",
         "importIntro": "The archive is scanned, checksum-verified, and previewed before anything is written. Nothing is created until you confirm.",
         "chooseProfile": "Choose a profile archive",
@@ -2279,30 +2053,18 @@
       },
       "terraria": {
         "players": {
-          "title": "Terraria players",
-          "description": "Players currently connected to this Terraria server.",
-          "connected": "Connected",
-          "server": "Server",
-          "noServer": "No server selected",
-          "rosterTitle": "Connected roster",
-          "rosterDescription": "Names reported by the Terraria server console.",
-          "online": "Online",
           "emptyTitle": "No players connected",
-          "emptyOffline": "Start the server to see its connected players.",
-          "emptyOnline": "The server has not reported any connected players.",
-          "characterUnavailable": "Character preview unavailable for this server.",
-          "actionsUnavailable": "Player actions are available while the server is online.",
+          "emptyOnline": "Players appear here while they are connected.",
           "kick": "Kick",
           "ban": "Ban",
           "kickSuccess": "Kicked {name}.",
           "banSuccess": "Banned {name}.",
           "actionFailed": "The player action could not be completed.",
-          "status": {
-            "online": "Online",
-            "offline": "Offline",
-            "starting": "Starting",
-            "stopping": "Stopping"
-          }
+          "onlineNow": "Online now",
+          "kickNamed": "Kick {name}",
+          "banNamed": "Ban {name}",
+          "banTitle": "Ban {name}?",
+          "banBody": "They are disconnected and cannot rejoin this server until the ban is lifted in its ban list."
         },
         "import": {
           "title": "Adopt an existing Terraria server",
@@ -2324,7 +2086,7 @@
           "untouched": "Nothing in this folder changes during inspection. Adoption only applies the fixes you select.",
           "adopt": "Adopt server",
           "success": "Terraria server adopted.",
-          "followUp": "The server was adopted with follow-up items. Review its dashboard and worlds before starting it.",
+          "followUp": "The server was added with follow-up items. Check its Overview and Worlds before starting it.",
           "issue": {
             "variant_ambiguous": "Runtime choice required",
             "executable_missing": "Entry point missing",
@@ -2458,8 +2220,6 @@
           "tmodloader": "Mod loader. Needs the .NET runtime."
         },
         "tshock": {
-          "title": "TShock administration",
-          "description": "Manage live players, accounts, groups, permissions, and bans.",
           "transportTitle": "Using {transport}",
           "transportReady": "This transport is ready.",
           "transportFallback": "The preferred transport is unavailable ({reason}); Hostkind is using the safest available fallback.",
@@ -2519,10 +2279,12 @@
           "identifier": "Identifier",
           "reason": "Reason",
           "bannedBy": "Banned by",
-          "unbanned": "Ban removed."
+          "unbanned": "Ban removed.",
+          "noAccounts": "No accounts yet",
+          "noAccountsHint": "Players who register in game, and accounts you create here, appear in this list.",
+          "noBans": "Nobody is banned"
         },
         "mods": {
-          "title": "tModLoader mods",
           "description": "Inspect compatibility, control the enabled set, and quarantine broken mods without deleting them.",
           "browseGroup": "Browse",
           "manageGroup": "Manage",
@@ -2800,14 +2562,10 @@
           }
         },
         "worlds": {
-          "title": "Worlds",
-          "subtitle": "Create, import and choose the world this server loads. A Terraria world is a single file, and it is the only thing here that cannot be downloaded again.",
           "noServer": "Select a server to manage its worlds.",
           "list": "Worlds",
           "empty": "This server has no worlds yet. Generate one, or import a world you already have.",
-          "summaryWorlds": "Worlds",
           "summaryStorage": "Storage used",
-          "summaryUpdated": "Last changed",
           "format": "World format",
           "modified": "changed {at}",
           "moreActions": "More world actions",
@@ -2927,7 +2685,8 @@
             "unreadable": "Unreadable",
             "symlink": "Link"
           },
-          "embeddedName": "Named \"{name}\" inside the file"
+          "embeddedName": "Named \"{name}\" inside the file",
+          "emptyTitle": "No worlds yet"
         }
       },
       "terms": {
@@ -2939,6 +2698,332 @@
         "decline": "Sign out",
         "accepting": "Saving…",
         "close": "Close"
+      },
+      "home": {
+        "firstTitle": "Add your first server",
+        "firstBody": "Pick the game. Hostkind installs the server for you, or adds one you already have.",
+        "firstBodyViewer": "There are no servers yet. An admin can add one."
+      },
+      "addServer": {
+        "button": "Add server",
+        "title": "Add a server",
+        "chooseGame": "Which game is it for?",
+        "chooseMethod": "How do you want to add your {game} server?",
+        "otherGame": "Choose another game",
+        "gameHint": {
+          "minecraft": "Vanilla, Paper, Spigot, Fabric, Forge or NeoForge",
+          "terraria": "Vanilla, TShock or tModLoader",
+          "valheim": "Dedicated server, installed through SteamCMD",
+          "palworld": "Dedicated server, installed through SteamCMD",
+          "custom": "Any long-running command you want to start, stop and watch"
+        },
+        "method": {
+          "install": "Install a new server",
+          "existing": "Use a server folder I already have",
+          "modpack": "Start from a modpack",
+          "import": "Import an existing server",
+          "importProfile": "Import a Hostkind profile",
+          "template": "From a template"
+        },
+        "methodHint": {
+          "minecraft": {
+            "install": "Hostkind downloads the version you pick and sets up Java for it.",
+            "existing": "Point Hostkind at a folder with a server jar. Nothing in it is moved.",
+            "modpack": "Search Modrinth. Hostkind downloads the server, its mods and config files.",
+            "template": "Make a server from a saved template, or save one from a server you already have."
+          },
+          "terraria": {
+            "install": "Hostkind downloads the variant and version you pick.",
+            "import": "Bring in a Terraria server folder or world you already have."
+          },
+          "valheim": {
+            "install": "Install through SteamCMD, or register a server you already have."
+          },
+          "palworld": {
+            "install": "Hostkind installs the dedicated server through SteamCMD.",
+            "existing": "Point Hostkind at a Palworld server folder you already have.",
+            "importProfile": "Restore a profile exported from another Hostkind panel."
+          },
+          "custom": {
+            "install": "Tell Hostkind which command to run and how to stop it."
+          }
+        }
+      },
+      "sections": {
+        "worlds": "Worlds",
+        "map": "Map",
+        "installed": "Installed",
+        "browse": "Browse",
+        "updates": "Updates",
+        "game": "Game settings",
+        "general": "General",
+        "version": "Version",
+        "files": "Files"
+      },
+      "details": {
+        "title": "Details",
+        "back": "Overview",
+        "hostTitle": "Host resources",
+        "crashesTitle": "Crashes",
+        "link": "Details"
+      },
+      "serverSettings": {
+        "profileTitle": "Server profile",
+        "profileHint": "Where the server lives and how the panel launches it.",
+        "readOnlyHint": "Only an admin can change these.",
+        "name": "Name",
+        "game": "Game",
+        "folder": "Folder",
+        "version": "Version",
+        "saved": "Server saved.",
+        "cloneTitle": "Clone",
+        "cloneHint": "Make a new server from this one, without its worlds.",
+        "removeTitle": "Remove",
+        "removeHint": "Take this server out of the panel. Its files stay unless you choose to move them to the trash.",
+        "toolsHint": "Check how players reach this server, and export its profile.",
+        "openTools": "Open server tools"
+      },
+      "overview": {
+        "status": "Status",
+        "state": {
+          "online": "Online",
+          "offline": "Offline",
+          "starting": "Starting",
+          "stopping": "Stopping"
+        },
+        "upFor": "up {uptime}",
+        "notRunning": "Not running",
+        "players": "Players",
+        "playersOf": "{count} of {max}",
+        "playersNow": "online now",
+        "cpu": "CPU",
+        "cpuNormal": "normal for this server (usually up to {p95}%)",
+        "cpuHigh": "higher than usual (usually up to {p95}%)",
+        "cpuHighNoBaseline": "little headroom left",
+        "cpuLearning": "still learning what's normal",
+        "memory": "Memory",
+        "memoryOf": "{used} of {heap}",
+        "memoryPct": "{pct}% of its limit",
+        "memoryUsed": "used by the server",
+        "memoryPressure": "close to its limit",
+        "tpsLagging": "lagging (20 is smooth)",
+        "attention": "Needs attention",
+        "attentionCount": "Needs attention ({count})",
+        "allClear": "All clear",
+        "checkedAgo": "checked {ago}",
+        "item": {
+          "firstStart": "Start once so the server can generate its files",
+          "watchdogDetail": "It crashed repeatedly, so it was not restarted again.",
+          "crash": "Crashed {count} times · last {ago}",
+          "crashOnce": "Crashed {ago}",
+          "contentUpdate": "1 plugin or mod update available",
+          "contentUpdates": "{count} plugin or mod updates available",
+          "gameUpdate": "Server update available"
+        },
+        "action": {
+          "backup": "Back up now",
+          "backups": "Manage backups",
+          "details": "View details",
+          "crash": "View crash",
+          "dismiss": "Dismiss",
+          "console": "View console",
+          "review": "Review"
+        },
+        "factVersion": "Version {version}",
+        "factLastBackup": "Last backup {ago}",
+        "factNoBackup": "No backups yet",
+        "factNext": "Next: {task} {when}",
+        "today": "today {time}",
+        "tomorrow": "tomorrow {time}"
+      },
+      "panelSettings": {
+        "preferences": "Preferences",
+        "updates": "App updates"
+      },
+      "players": {
+        "countOf": "{count} of {max}",
+        "offlineHint": "Start the server to see who is online."
+      },
+      "serverPresets": {
+        "label": "Start from",
+        "name": "{game} {preset}",
+        "valheimWorld": "World difficulty",
+        "valheimWorldPreset": {
+          "casual": "Casual",
+          "easy": "Easy",
+          "normal": "Normal",
+          "hard": "Hard",
+          "hardcore": "Hardcore",
+          "immersive": "Immersive",
+          "hammer": "Hammer (build only)"
+        },
+        "minecraft": {
+          "survival": {
+            "title": "Survival",
+            "hint": "Paper, normal difficulty: plays like vanilla, runs faster"
+          },
+          "vanilla": {
+            "title": "Pure vanilla",
+            "hint": "Mojang's own server, nothing added"
+          },
+          "fabric": {
+            "title": "Fabric mods",
+            "hint": "Lightweight mods and performance mods, 6 GB"
+          },
+          "neoforge": {
+            "title": "NeoForge mods",
+            "hint": "Big content mods and modpacks, 6 GB"
+          },
+          "creative": {
+            "title": "Creative",
+            "hint": "Unlimited blocks and flying, no hostile mobs"
+          },
+          "hardcore": {
+            "title": "Hardcore",
+            "hint": "Hard difficulty, one life: death is final"
+          }
+        },
+        "terraria": {
+          "classic": {
+            "title": "Classic",
+            "hint": "Medium world, normal difficulty, 8 players"
+          },
+          "expert": {
+            "title": "Expert",
+            "hint": "Large world, tougher bosses, 8 players"
+          },
+          "journey": {
+            "title": "Journey",
+            "hint": "Medium world with creative powers"
+          },
+          "community": {
+            "title": "Community",
+            "hint": "TShock, large world, 32 players"
+          },
+          "master": {
+            "title": "Master",
+            "hint": "Large world, the hardest bosses, 8 players"
+          },
+          "modded": {
+            "title": "Modded",
+            "hint": "tModLoader, medium world, 8 players"
+          }
+        },
+        "valheim": {
+          "friends": {
+            "title": "With friends",
+            "hint": "Private, normal difficulty"
+          },
+          "relaxed": {
+            "title": "Relaxed",
+            "hint": "Private, casual: fewer raids, no death penalty"
+          },
+          "challenge": {
+            "title": "Challenge",
+            "hint": "Private, hard: stronger enemies"
+          },
+          "public": {
+            "title": "Public",
+            "hint": "Listed in the community server browser"
+          },
+          "hardcore": {
+            "title": "Hardcore",
+            "hint": "Private, lose everything on death, no map"
+          },
+          "builder": {
+            "title": "Builder",
+            "hint": "Private, free building, passive enemies"
+          }
+        },
+        "palworld": {
+          "friends": {
+            "title": "With friends",
+            "hint": "Up to 8 players, drop items on death"
+          },
+          "community": {
+            "title": "Community",
+            "hint": "Up to 32 players"
+          },
+          "relaxed": {
+            "title": "Relaxed",
+            "hint": "Keep everything on death, double XP and capture"
+          },
+          "hardcore": {
+            "title": "Hardcore",
+            "hint": "Lose everything on death, and death is permanent"
+          },
+          "pvp": {
+            "title": "PvP",
+            "hint": "Up to 16 players who can fight each other"
+          }
+        }
+      },
+      "serverRules": {
+        "moreOptions": "More options",
+        "gamemode": "Game mode",
+        "minecraftGamemode": {
+          "survival": "Survival",
+          "creative": "Creative",
+          "adventure": "Adventure",
+          "spectator": "Spectator"
+        },
+        "minecraftDifficulty": {
+          "peaceful": "Peaceful",
+          "easy": "Easy",
+          "normal": "Normal",
+          "hard": "Hard"
+        },
+        "hardcore": "Hardcore (one life)",
+        "pvp": "Players can fight each other",
+        "levelType": "World type",
+        "minecraftLevelType": {
+          "default": "Normal",
+          "flat": "Superflat",
+          "largebiomes": "Large biomes",
+          "amplified": "Amplified"
+        },
+        "motd": "Message of the day",
+        "motdPlaceholder": "Shown in the server list",
+        "crossplay": "Crossplay (Xbox and Game Pass players can join)",
+        "valheimModifiersHint": "Fine-tune the world difficulty above. Anything left on \"As the difficulty\" keeps its setting.",
+        "fromPreset": "As the difficulty",
+        "valheimModifier": {
+          "combat": "Combat",
+          "deathpenalty": "Death penalty",
+          "resources": "Resources",
+          "raids": "Raids",
+          "portals": "Portals"
+        },
+        "valheimLevel": {
+          "veryeasy": "Very easy",
+          "easy": "Easy",
+          "hard": "Hard",
+          "veryhard": "Very hard",
+          "casual": "Casual",
+          "hardcore": "Hardcore",
+          "muchless": "Much less",
+          "less": "Less",
+          "more": "More",
+          "muchmore": "Much more",
+          "most": "Most",
+          "none": "None"
+        },
+        "valheimKey": {
+          "nobuildcost": "Build without materials",
+          "playerevents": "Raids depend on each player’s progress",
+          "passivemobs": "Enemies only fight back",
+          "nomap": "No map"
+        },
+        "deathPenalty": "On death",
+        "palworldDeathPenalty": {
+          "None": "Keep everything",
+          "Item": "Drop items",
+          "ItemAndEquipment": "Drop items and gear",
+          "All": "Drop everything, Pals too"
+        },
+        "expRate": "XP rate",
+        "captureRate": "Capture rate",
+        "palworldHardcore": "Hardcore (death is permanent)"
       }
     },
     "es": {
@@ -2972,18 +3057,17 @@
         "unitDays": "d",
         "unitHours": "h",
         "unitMinutes": "m",
-        "maxWord": "máx.",
         "reconnecting": "Reconectando…",
         "reconnectingDesc": "Intentando restaurar la conexión con el panel.",
         "connectionLost": "Conexión perdida",
         "retry": "Reintentar",
         "failed": "Falló",
-        "loadFailed": "No se pudieron cargar los datos"
+        "loadFailed": "No se pudieron cargar los datos",
+        "apply": "Aplicar"
       },
       "brand": {
         "name": "Hostkind",
-        "goToDashboard": "{name}: ir al Panel",
-        "goToGames": "{name}: ir a todos los juegos"
+        "goHome": "{name}: ir al inicio"
       },
       "html": {
         "title": "Hostkind"
@@ -3037,7 +3121,7 @@
         "alreadyRunning": "El servidor ya está en ejecución.",
         "notRunning": "El servidor no está en ejecución.",
         "consoleDetached": "Este servidor está en ejecución pero su consola está desconectada (quedó activo de una sesión anterior del panel). Reinícialo para recuperar el acceso a los comandos.",
-        "noActiveServer": "No hay servidor activo.",
+        "noActiveServer": "No hay ningún servidor abierto.",
         "stopBeforeEdit": "Detén el servidor antes de editarlo.",
         "stopBeforeRemove": "Detén el servidor antes de eliminarlo.",
         "serverNotFound": "Servidor no encontrado",
@@ -3097,34 +3181,27 @@
         "termsVersionInvalid": "Versión de los Términos de uso no válida"
       },
       "nav": {
-        "groupOverview": "General",
-        "groupOperate": "Operar",
-        "groupContent": "Contenido",
-        "groupMaintenance": "Mantenimiento",
-        "groupSettings": "Ajustes",
-        "dashboard": "Panel",
+        "dashboard": "Resumen",
         "servers": "Servidores",
-        "metrics": "Métricas",
-        "health": "Salud",
         "console": "Consola",
         "players": "Jugadores",
-        "map": "Mapa",
-        "addons": "Addons",
-        "modrinth": "Contenido",
-        "files": "Archivos",
-        "configs": "Configs",
-        "updates": "Actualizaciones",
-        "backups": "Copias",
-        "schedules": "Tareas",
-        "users": "Usuarios",
-        "audit": "Auditoría",
+        "backups": "Copias de seguridad",
+        "schedules": "Programación",
+        "users": "Usuarios y acceso",
+        "audit": "Registro de auditoría",
         "requiresServerTip": "Crea un servidor primero",
         "requiresServerToast": "Crea un servidor antes de abrir esa sección.",
-        "worlds": "Mundos"
+        "worlds": "Mundos",
+        "home": "Inicio",
+        "allServers": "Todos los servidores",
+        "mods": "Mods",
+        "settings": "Ajustes",
+        "details": "Detalles",
+        "crash": "Fallo",
+        "panelSettings": "Ajustes de {name}"
       },
       "games": {
         "headline": "Administrá los mundos que compartís.",
-        "intro": "Elegí un juego para entrar a sus servidores, panel y herramientas.",
         "count": "Cinco espacios de juego",
         "minecraft": "Minecraft",
         "terraria": "Terraria",
@@ -3143,8 +3220,6 @@
         "next": "Juego siguiente"
       },
       "audit": {
-        "title": "Registro de auditoría",
-        "hint": "Historial de seguridad inmutable para acciones sensibles y cambios.",
         "server": "ID del servidor",
         "actor": "ID del actor",
         "action": "Acción",
@@ -3161,7 +3236,6 @@
         "system": "Sistema",
         "loadMore": "Cargar más",
         "details": "Detalles del evento",
-        "exportFailed": "No se pudo exportar el registro de auditoría",
         "retention": "Retención",
         "retentionTitle": "Aplicar política de retención",
         "retentionHint": "Los eventos anteriores a la fecha límite se eliminarán permanentemente. Primero revisa la cantidad exacta.",
@@ -3175,7 +3249,8 @@
       "serverSelector": {
         "noServers": "Sin servidores",
         "searchPlaceholder": "Buscar servidores",
-        "noResults": "No hay servidores coincidentes"
+        "noResults": "No hay servidores coincidentes",
+        "choose": "Elige un servidor"
       },
       "sidebar": {
         "expandTitle": "Expandir barra (Ctrl+B)",
@@ -3183,12 +3258,9 @@
         "collapseLabel": "Plegar",
         "supportLabel": "Ayuda",
         "supportTitle": "Abrir ayuda y soporte",
-        "logout": "Cerrar sesión",
-        "settings": "Ajustes",
-        "settingsTitle": "Ajustes"
+        "logout": "Cerrar sesión"
       },
       "settings": {
-        "title": "Ajustes",
         "language": "Idioma",
         "languageDesc": "Elegí cómo querés ver el panel.",
         "hotkeys": "Atajos de teclado",
@@ -3198,9 +3270,6 @@
         "hotkeyConsoleHistoryHint": "Recorrer comandos enviados en la Consola",
         "hotkeyCloseMenu": "Cerrar menú",
         "hotkeyCloseMenuHint": "Cerrar menús y overlays abiertos",
-        "tour": "Tour de bienvenida",
-        "tourDesc": "Vuelve a recorrer las áreas principales del panel.",
-        "tourRepeat": "Repetir tour",
         "watchdog": "Monitor de reinicios",
         "watchdogDesc": "Reinicia automáticamente un servidor cuando falla, salvo que falle en cadena.",
         "watchdogEnabled": "Reiniciar servidores caídos",
@@ -3210,7 +3279,6 @@
         "watchdogSaved": "Ajustes del monitor guardados",
         "gameColors": "Colores de juegos",
         "gameColorsDesc": "Dale a cada juego su propio color de acento. Los cambios se aplican al instante: el color de cada juego se ve al entrar.",
-        "applicationUpdate": "Actualizaciones del software",
         "applicationUpdateDesc": "Mantené actualizado el binario instalado de Hostkind sin reemplazar tus datos ni tu configuración.",
         "applicationUpdateCurrent": "Versión actual",
         "applicationUpdateLatest": "Última versión",
@@ -3238,84 +3306,16 @@
         "restart": "Reiniciar",
         "stop": "Detener",
         "restartConfirm": "¿Reiniciar el servidor?",
-        "restartSuccess": "Servidor activo cambiado",
         "langSwitch": "Idioma",
-        "noServer": "Sin servidor"
-      },
-      "tour": {
-        "badge": "Paso {n} de {total}",
-        "next": "Siguiente",
-        "finish": "Finalizar",
-        "gameWelcome": {
-          "body": "Este recorrido breve muestra las herramientas de Hostkind más importantes para {game}. Cada espacio de juego tiene su propio tour, y puedes repetir este más tarde desde Ajustes."
-        },
-        "gameConfigure": {
-          "title": "Configuración del juego"
-        },
-        "gameTools": {
-          "title": "Herramientas del juego"
-        },
-        "games": {
-          "minecraft": {
-            "create": "Abre Servidores para descargar un servidor Vanilla, Paper, Spigot, Fabric, Forge o NeoForge, importar un modpack de Modrinth o registrar una carpeta de Minecraft existente.",
-            "configure": "Configuraciones muestra los ajustes comunes de server.properties. Usa Archivos cuando necesites acceso directo a configuraciones del servidor, plugins o mods.",
-            "tools": "Modrinth encuentra plugins, mods y modpacks compatibles con la versión y el loader de Minecraft activos. Hostkind comprueba la compatibilidad antes de instalar.",
-            "done": "Tu espacio de Minecraft está listo. Agrega un servidor en Servidores y usa la barra de control para iniciarlo. Puedes repetir este tour desde Ajustes."
-          },
-          "terraria": {
-            "create": "Abre Servidores para instalar el servidor dedicado oficial de Terraria, elegir una versión de TShock o registrar una carpeta de Terraria existente.",
-            "configure": "Mundos te permite inspeccionar, subir, descargar y cambiar archivos de mundos de Terraria sin salir del panel.",
-            "tools": "Mods administra contenido de Terraria en servidores compatibles. Los servidores TShock también habilitan la administración de jugadores y controles adicionales.",
-            "done": "Tu espacio de Terraria está listo. Agrega un servidor en Servidores, elige su mundo e inícialo desde la barra de control. Repite este tour desde Ajustes cuando quieras."
-          },
-          "valheim": {
-            "create": "Abre Servidores para instalar el servidor dedicado oficial de Valheim mediante SteamCMD o registrar una carpeta existente.",
-            "configure": "Mundos mantiene juntos los archivos de guardado de Valheim para que puedas inspeccionar y administrar el mundo del servidor activo.",
-            "tools": "Actualizaciones compara el servidor de Valheim instalado con Steam y te permite aplicar las actualizaciones disponibles.",
-            "done": "Tu espacio de Valheim está listo. Agrega un servidor en Servidores, confirma su mundo e inícialo desde la barra de control. Repite este tour desde Ajustes cuando quieras."
-          },
-          "palworld": {
-            "create": "Abre Servidores para instalar el servidor dedicado oficial de Palworld mediante SteamCMD o registrar una instalación existente.",
-            "configure": "Configuraciones muestra los ajustes compatibles de Palworld en un editor estructurado, incluidas opciones de juego, red y acceso.",
-            "tools": "Mapa muestra el mundo activo de Palworld y el contexto del servidor en vivo. Integraciones contiene los ajustes de conexión específicos del juego disponibles para administradores.",
-            "done": "Tu espacio de Palworld está listo. Agrega un servidor en Servidores, revisa sus ajustes e inícialo desde la barra de control. Repite este tour desde Ajustes cuando quieras."
-          },
-          "custom": {
-            "create": "Abre Servidores para registrar otro proceso de larga duración e indicar a Hostkind cómo iniciarlo, detenerlo y detectar cuándo está listo.",
-            "configure": "Consola transmite la salida del proceso y acepta comandos cuando el proceso registrado admite entrada estándar.",
-            "tools": "Archivos ofrece acceso protegido a la carpeta del proceso activo para inspección cotidiana y edición de archivos de texto.",
-            "done": "Tu espacio de procesos personalizados está listo. Registra un proceso en Servidores, verifica su comando de inicio e inícialo desde la barra de control. Repite este tour desde Ajustes cuando quieras."
-          }
-        },
-        "welcome": {
-          "title": "Te damos la bienvenida a Hostkind",
-          "body": "Un recorrido rápido por las áreas principales del panel. Usa Siguiente para avanzar o ciérralo cuando quieras: puedes repetirlo más tarde desde Ajustes."
-        },
-        "sidebar": {
-          "title": "Navegación",
-          "body": "La barra lateral agrupa todas las secciones: resumen, operación, contenido, mantenimiento y ajustes. Contráela con la flecha inferior o con Ctrl+B."
-        },
-        "createServer": {
-          "title": "Crear o registrar servidores",
-          "body": "Abre Servidores para agregar un servidor. Usa Crear nuevo cuando Hostkind deba descargar el servidor por ti, o Registrar existente si ya tienes una carpeta y un jar."
-        },
-        "header": {
-          "title": "Contexto del servidor",
-          "body": "La cabecera muestra el servidor activo y la sección actual. La mayoría de las vistas actúan sobre el servidor seleccionado aquí."
-        },
-        "controlbar": {
-          "title": "Controles del servidor",
-          "body": "Inicia, reinicia y detén el servidor activo desde esta barra. La píldora de estado muestra su estado actual de un vistazo."
-        },
-        "done": {
-          "title": "Todo listo",
-          "body": "Eso es todo. Registra un servidor en Servidores y arráncalo desde la barra de control. Repite este walkthrough cuando quieras desde Ajustes."
-        }
+        "noServer": "Sin servidor",
+        "controls": "Controles del servidor",
+        "openMenu": "Abrir menú"
       },
       "whatsNew": {
         "title": "Novedades",
         "description": "Hostkind se actualizó. Aquí tienes el changelog completo de esta versión.",
-        "version": "Build {version}"
+        "version": "Build {version}",
+        "unread": "Nuevo"
       },
       "notifications": {
         "title": "Notificaciones",
@@ -3354,70 +3354,31 @@
         "linkTls": "Cifrado",
         "linkPlain": "Sin cifrar",
         "linkPlainHint": "Este panel se sirve por HTTP sin cifrar, así que tu contraseña viaja en texto plano. Ponlo detrás de HTTPS antes de usarlo fuera de tu propia máquina.",
-        "privacy": "Autoalojado. Sin cuenta en la nube, sin base de datos externa, sin telemetría.",
         "showPassword": "Mostrar contraseña",
         "hidePassword": "Ocultar contraseña",
         "capsLock": "Bloq Mayús está activado"
       },
       "dashboard": {
-        "status": "Estado",
-        "uptime": "Tiempo activo",
-        "liveResources": "Recursos en vivo",
         "last5min": "últimos ~5 min",
-        "serverRam": "RAM del servidor",
-        "serverCpu": "CPU del servidor",
-        "serverFps": "FPS del servidor",
         "systemRam": "RAM del sistema",
         "systemCpu": "CPU del sistema",
         "disk": "Uso de disco",
-        "diskUnit": "GB",
-        "serverInfo": "Info del servidor",
-        "quickActions": "Acciones rápidas",
-        "quickActionsHint": "Ir directo al flujo del servidor activo.",
-        "quickConsole": "Consola",
-        "quickFiles": "Archivos",
-        "quickBackups": "Copias",
-        "folder": "Carpeta",
-        "overview": "Resumen",
-        "noServerTitle": "Ningún servidor seleccionado",
-        "noServerBody": "Registra o selecciona un servidor para ver aquí su estado y recursos en vivo.",
-        "goToServers": "Ir a Servidores",
-        "connecting": "Conectando con el servidor…",
-        "offlineHint": "El servidor está apagado. Inícialo para ver los recursos en vivo.",
-        "systemLabel": "Anfitrión",
-        "loader": "Loader",
-        "resourcesTitle": "Recursos en vivo"
+        "offlineHint": "El servidor está apagado. Inícialo para ver los recursos en vivo."
       },
       "servers": {
-        "createNew": "Crear nuevo",
         "createFromModpack": "Crear desde modpack",
         "createModpackIntro": "Busca un modpack en Modrinth y Hostkind descargará el servidor, los mods y las configuraciones correspondientes en una carpeta nueva. Se admiten modpacks de Fabric, Forge y NeoForge.",
         "backToModpacks": "← Volver a la búsqueda",
-        "addExisting": "Añadir existente",
         "moreActions": "Más acciones",
-        "registeredTitle": "Servidores registrados",
-        "activeExplainer": "El servidor {active} es sobre el que actúan Consola, Jugadores, Plugins, Configs y Copias.",
-        "activeLabel": "activo",
-        "emptyTitle": "Aún no hay servidores",
-        "emptyCreateOnly": "Aún no hay servidores registrados. Crea uno para empezar.",
-        "emptyWithAdopt": "Aún no hay servidores registrados. Crea uno nuevo o añade una carpeta de servidor que ya tengas.",
         "colServer": "Servidor",
         "colStatus": "Estado",
         "colPlayers": "Jugadores",
-        "colUptime": "Tiempo activo",
-        "colVersion": "Versión",
         "colActions": "Acciones",
         "btnStart": "Iniciar",
-        "btnRestart": "Reiniciar",
         "btnStop": "Detener",
-        "btnSetActive": "Marcar activo",
-        "btnEdit": "Editar",
         "btnRemove": "Quitar",
         "removedToast": "Servidor eliminado",
-        "removedWithFilesToast": "Servidor y sus archivos eliminados",
-        "editTitle": "Editar servidor",
         "editGameHint": "Los ajustes de {game} viven en los archivos de configuración del juego. Acá solo cambiás cómo el panel nombra y encuentra este servidor.",
-        "registerTitle": "Registrar servidor",
         "fieldName": "Nombre",
         "namePlaceholder": "Mi servidor de survival",
         "fieldFolder": "Carpeta del servidor",
@@ -3433,8 +3394,6 @@
         "worldsPlaceholder": "world, world_nether",
         "fieldMapUrl": "URL del mapa (opcional)",
         "mapUrlPlaceholder": "http://localhost:8100",
-        "defaultJavaArgs": "-Xmx4G -Xms4G",
-        "defaultWorlds": "world, world_nether, world_the_end",
         "pickFolderTitle": "Elige la carpeta del servidor",
         "thisPcDrives": "Este PC (unidades)",
         "up": "⬆ ..",
@@ -3492,13 +3451,7 @@
         "progressBytes": "{received} / {total}",
         "progressBytesUnknown": "{received} descargados",
         "progressPercent": "{pct}%",
-        "updatedToast": "Servidor actualizado",
-        "registeredToast": "Servidor registrado",
         "removeTitle": "Quitar servidor",
-        "removeBody": "¿Quitar \"{name}\" del panel?",
-        "removeFilesLabel": "Eliminar también la carpeta del servidor de este equipo",
-        "removeFilesWarn": "Esto elimina permanentemente todos los archivos, mundos y copias de seguridad del servidor. No se puede deshacer.",
-        "templates": "Plantillas",
         "templatesTitle": "Plantillas de servidor",
         "newTemplate": "Nueva plantilla",
         "importTemplate": "Importar plantilla",
@@ -3518,12 +3471,19 @@
         "cloneWithoutWorlds": "Clonar sin mundos",
         "createFromTemplate": "Crear desde plantilla",
         "exportTemplate": "Exportar",
-        "exportFailed": "No se pudo exportar la plantilla",
         "confirmImport": "Confirmar importación",
-        "templateVersions": "Versiones inmutables"
+        "templateVersions": "Versiones inmutables",
+        "colResources": "CPU · Memoria",
+        "colLastBackup": "Última copia",
+        "colAttention": "Requiere atención",
+        "noBackupYet": "Ninguna aún",
+        "attentionCount": "Requiere atención: {count}",
+        "btnOpen": "Abrir",
+        "btnOpenNamed": "Abrir {name}",
+        "menuSettings": "Ajustes del servidor",
+        "parentDefault": "Déjalo vacío para usar {path}"
       },
       "metrics": {
-        "title": "Métricas",
         "noData": "Aún no hay datos. Se muestrea cada minuto.",
         "range1h": "1h",
         "range6h": "6h",
@@ -3649,7 +3609,6 @@
           "memory": "Memoria (24 h)"
         },
         "baselineValue": "mediana {p50} · p95 {p95} · {count} muestras",
-        "correlation": {},
         "correlationValue": "r = {r} sobre {pairs} muestras",
         "rules": {
           "cpu": {
@@ -3714,11 +3673,16 @@
         "clearFilter": "Limpiar filtro",
         "filterEmpty": "Ninguna línea coincide con ese filtro.",
         "commandPlaceholder": "Escribe un comando (ej. say hola, list, time set day)",
+        "commandPlaceholderTerraria": "Escribe un comando (ej. say hola, playing, save)",
+        "commandPlaceholderPalworld": "Escribe un comando (ej. Broadcast hola, ShowPlayers, Save; help los lista todos)",
+        "noCommandsRest": "Este servidor recibe comandos a través de su API REST. Configura una contraseña de administrador y un puerto de API REST en sus ajustes para enviar comandos desde aquí. Los registros siguen disponibles.",
         "send": "Enviar",
-        "serverOffline": "El servidor está apagado. Inícialo antes de enviar comandos."
+        "serverOffline": "El servidor está apagado. Inícialo antes de enviar comandos.",
+        "notConnected": "Sin conexión con el panel. El comando no se envió; inténtalo de nuevo en un momento.",
+        "emptyOffline": "El servidor está detenido. Su salida aparece aquí cuando arranca.",
+        "emptyWaiting": "Esperando la salida del servidor…"
       },
       "files": {
-        "title": "Administrador de archivos",
         "searchPlaceholder": "Filtrar archivos…",
         "clearSearch": "Limpiar filtro de archivos",
         "upload": "Subir",
@@ -3742,10 +3706,8 @@
         "deletedToast": "Eliminado"
       },
       "configs": {
-        "title": "Editor de configs",
-        "hint": "Se guarda un .bak con marca de tiempo antes de sobrescribir. Requiere reiniciar.",
         "savedToast": "Guardado (.bak creado). Reinicia para aplicar.",
-        "bannerRestart": "Has guardado `{file}`. Reinicia el servidor activo para aplicar los cambios.",
+        "bannerRestart": "Has guardado `{file}`. Reinicia el servidor para aplicarlo.",
         "bannerRestartNow": "Reiniciar ahora",
         "bannerDismiss": "Descartar",
         "groupGameplay": "Jugabilidad",
@@ -3861,8 +3823,6 @@
           "noCommands": "Valheim estándar no tiene una consola de comandos stdin compatible. Los registros siguen disponibles aquí."
         },
         "updates": {
-          "title": "Actualizaciones de Valheim",
-          "subtitle": "Comprueba la compilación pública de Steam y aplica una actualización transaccional con reversión de binarios.",
           "check": "Comprobar Steam ahora",
           "stale": "Los metadatos de Steam están desactualizados. Comprueba de nuevo antes de actualizar.",
           "builds": "Evidencia de compilación",
@@ -3887,14 +3847,10 @@
           }
         },
         "worlds": {
-          "title": "Mundos",
-          "subtitle": "Elige, importa, renombra, exporta y borra el mundo de este servidor. Un mundo de Valheim es un par: el archivo de metadatos .fwl y el archivo de datos .db - juntos, lo único aquí que no se puede volver a descargar.",
           "noServer": "Selecciona un servidor para gestionar sus mundos.",
           "list": "Mundos",
           "empty": "Este servidor todavía no tiene mundos. Crea uno o importa uno que ya tengas.",
-          "summaryWorlds": "Mundos",
           "summaryStorage": "Espacio usado",
-          "summaryUpdated": "Último cambio",
           "modified": "modificado {at}",
           "moreActions": "Más acciones de mundo",
           "active": "Se carga al iniciar",
@@ -3992,12 +3948,11 @@
             "healthy": "Correcto",
             "incomplete": "Incompleto",
             "unreadable": "Ilegible"
-          }
+          },
+          "emptyTitle": "Aún no hay mundos"
         }
       },
       "palworldUpdates": {
-        "title": "Actualizaciones de Palworld",
-        "subtitle": "Comprueba la compilación pública de Steam, protege los datos guardados y actualiza sin salir del panel.",
         "forceCheck": "Comprobar Steam ahora",
         "stale": "Steam no está disponible. Esta es la última compilación conocida y puede estar desactualizada.",
         "recovery": "La actualización no se validó. La instantánea de datos guardados está disponible para recuperación; no revierte los binarios.",
@@ -4033,63 +3988,8 @@
         }
       },
       "palworldMods": {
-        "title": "Mods de Palworld",
-        "subtitle": "Importa, activa y elimina paquetes de Palworld con seguridad. Cada cambio se previsualiza, se prepara, se respalda y es reversible.",
-        "checkUpdates": "Buscar actualizaciones",
-        "platform": "Compatibilidad de plataforma",
-        "host": "Anfitrión",
-        "target": "Destino del servidor",
-        "runtime": "Entorno de arranque",
-        "frameworks": "Frameworks de extensión",
-        "frameworksNote": "Hostkind detecta frameworks de extensión y puede instalar UE4SS desde una carpeta extraída en esta máquina.",
-        "detected": "Detectado",
-        "notDetected": "No instalado",
-        "ue4ssInstall": "Instalar desde carpeta",
-        "ue4ssUpgrade": "Reemplazar desde carpeta",
-        "ue4ssUnavailable": "No disponible en Linux",
-        "ue4ssPickerTitle": "Selecciona la carpeta extraída de la descarga de UE4SS",
-        "ue4ssFolderNote": "Selecciona la carpeta extraída de UE4SS que contiene UE4SS.dll y dwmapi.dll. Hostkind detiene el servidor de forma segura, crea una instantánea del entorno, verifica la copia y lo reinicia.",
-        "ue4ssWindowsOnly": "No disponible para este servidor: usa el entorno nativo de Palworld para Linux, mientras que UE4SS ofrece binarios para Windows. Para usar UE4SS en un anfitrión Linux, ejecuta un servidor de Palworld con destino Windows mediante Wine.",
-        "ue4ssInstallTitle": "Instalar UE4SS",
-        "ue4ssUpgradeTitle": "Reemplazar UE4SS",
-        "ue4ssConfirmBody": "¿Copiar {files} archivos ({size}) desde {folder} al entorno de Palworld? Se reemplazarán {overwrite} archivos existentes después de crear una instantánea verificada. Si el servidor está activo, se detendrá y reiniciará automáticamente.",
-        "ue4ssInstalled": "UE4SS se instaló y verificó.",
-        "wine": "Entorno Wine (avanzado)",
-        "wineNote": "Solo necesario para ejecutar un servidor con destino Windows en un anfitrión Linux. Hostkind lanza el ejecutable directamente, nunca a través de un shell.",
-        "wineEnable": "Iniciar este servidor mediante Wine",
-        "wineExecutable": "Ejecutable de Wine",
-        "winePrefix": "Prefijo de Wine",
-        "wineArgs": "Argumentos de arranque adicionales",
-        "wineEnvKeys": "Variables de entorno: {keys}. Los valores se guardan en el anfitrión y nunca se muestran aquí.",
-        "wineSave": "Guardar entorno",
-        "wineSaved": "Entorno Wine guardado.",
-        "import": "Importar un paquete",
-        "file": "Archivo del paquete (.zip)",
-        "fileNote": "El archivo se valida, se prepara y se verifica por hash. Se rechazan los archivos que contienen ejecutables o instaladores.",
-        "name": "Nombre del paquete (opcional)",
-        "provider": "Origen",
-        "providerLocal": "Archivo local",
-        "providerWorkshop": "Descarga de Steam Workshop",
-        "workshopId": "ID del elemento de Workshop",
-        "workshopNote": "Se usa para consultar los metadatos publicados del elemento y detectar versiones nuevas. No requiere cuenta ni clave de Steam.",
-        "preview": "Previsualizar importación",
         "chooseFile": "Elige primero un paquete .zip.",
-        "confirmTitle": "Importar paquete",
-        "confirmBody": "¿Instalar «{name}» en {path}? {files} archivos, {size}, reemplazando {overwrite} archivo(s) existentes. El servidor se detiene para confirmar el cambio y se reinicia después.",
-        "confirm": "Importar",
-        "imported": "El paquete se importó.",
         "importFailed": "La importación no se completó.",
-        "recovery": "La importación no se validó. La instantánea y la versión anterior en la papelera de mods están disponibles para recuperación.",
-        "installed": "Paquetes instalados",
-        "emptyTitle": "Sin paquetes gestionados",
-        "emptyBody": "Importa un paquete para que Hostkind lo controle, actualice y elimine con seguridad.",
-        "colName": "Paquete",
-        "colKind": "Tipo",
-        "colSource": "Origen",
-        "colUpdate": "Actualizaciones",
-        "colSize": "Tamaño",
-        "colActions": "Acciones",
-        "parked": "Desactivado (apartado)",
         "enable": "Activar",
         "disable": "Desactivar",
         "enabled": "El paquete se activó.",
@@ -4104,22 +4004,13 @@
         "removeTitle": "Eliminar paquete",
         "removeBody": "¿Eliminar «{name}»? Se mueve a la papelera de mods con una instantánea verificada y se puede restaurar.",
         "removed": "El paquete se movió a la papelera de mods.",
-        "unmanaged": "Mods no gestionados",
-        "unmanagedNote": "Instalados fuera de Hostkind. Se listan para que los veas y nunca se modifican ni se eliminan hasta que los adoptes.",
-        "adopt": "Adoptar",
-        "adopted": "Hostkind ya gestiona este mod.",
         "trash": "Papelera de mods",
-        "trashNote": "Los paquetes eliminados y reemplazados se conservan aquí para poder deshacer un cambio.",
         "restore": "Restaurar",
         "restored": "El paquete se restauró.",
-        "stale": "Último resultado conocido",
         "offlineRequired": "Detén el servidor para activar, desactivar, eliminar o restaurar mods.",
-        "inventoryBroken": "No se pudo leer el archivo de inventario de mods. Repáralo antes de cambiar mods; mientras tanto nada se trata como no gestionado.",
-        "safety": "Las importaciones validan el archivo, lo preparan dentro de la carpeta del servidor, verifican hashes, crean una instantánea, confirman con renombrados y mantienen recuperable la versión anterior.",
         "operation": "Operación de mods",
         "selectItem": "Seleccionar {name}",
         "official": {
-          "subtitle": "Descubre y gestiona paquetes oficiales de Palworld Workshop sin darle una cuenta de Steam a Hostkind.",
           "browseGroup": "Explorar",
           "manageGroup": "Administrar",
           "browse": "Explorar",
@@ -4156,7 +4047,7 @@
           "dependencies": "Dependencias",
           "noneInstalled": "No hay paquetes oficiales instalados",
           "noneInstalledHint": "Suscríbete en Steam o descarga con SteamCMD y luego revisa la instalación aquí. El contenido que ya está en la carpeta del servidor se encuentra automáticamente.",
-          "howTitle": "Cómo funcionan los mods oficiales",
+          "howTitle": "¿Cómo añado un mod?",
           "howStep1": "Suscríbete a un elemento de Palworld Workshop en Steam o descárgalo con SteamCMD en esta máquina: workshop_download_item 1623730 <id>.",
           "howStep2": "Hostkind encuentra el contenido descargado en tus bibliotecas de Steam y en la propia carpeta del servidor. Si no detecta alguna biblioteca, añade su ruta en Orígenes.",
           "howStep3": "Revisa la instalación: Hostkind valida Info.json y copia el paquete a Mods/Workshop. No se escribe nada hasta que confirmes.",
@@ -4190,44 +4081,17 @@
             "waiting-for-steam": "Esperando a Steam",
             "unavailable": "No disponible"
           }
-        },
-        "update": {
-          "unchecked": "Sin comprobar",
-          "manual": "Archivo local",
-          "current": "Al día",
-          "update-ready": "Actualización disponible",
-          "unavailable": "No disponible",
-          "unknown": "Desconocido"
-        },
-        "integrity": {
-          "missing": "Faltan los archivos instalados.",
-          "drifted": "Los archivos instalados difieren del manifiesto registrado."
-        },
-        "reason": {
-          "unknown_target": "No se pudo determinar la plataforma de destino del servidor a partir de su ejecutable.",
-          "unsupported_host": "La gestión de mods de Palworld es compatible con anfitriones Windows y Linux.",
-          "wine_not_configured": "Este servidor tiene destino Windows en un anfitrión Linux. Configura un entorno Wine más abajo antes de instalar mods.",
-          "wine_not_detected": "No se pudo ejecutar el ejecutable de Wine configurado. Instálalo o corrígelo; Hostkind no instala Wine.",
-          "no_runtime": "Un servidor de Palworld con destino Linux no puede ejecutarse en un anfitrión Windows.",
-          "native": "Compatible.",
-          "wine": "Compatible mediante Wine."
         }
       },
       "updates": {
-        "title": "Centro de actualizaciones seguras",
         "scan": "Buscar actualizaciones",
-        "hint": "Solo se pueden actualizar elementos gestionados por Hostkind con metadatos compatibles y verificados.",
         "lastScan": "Último análisis",
-        "fresh": "Los metadatos están actualizados",
         "stale": "Los metadatos están desactualizados",
-        "scanPrompt": "Analiza para inventariar contenido gestionado y no gestionado.",
         "noManaged": "Aún no hay plugins o mods gestionados.",
-        "current": "Actualizado",
         "unmanaged": "Archivos no gestionados",
         "unmanagedHint": "No se pueden seleccionar porque su identidad no está verificada.",
         "createPlan": "Revisar plan",
         "plan": "Plan de actualización",
-        "status": "Estado",
         "diskNeed": "Tamaño de descarga",
         "offlineSnapshot": "Aplicación sin conexión · copia verificada",
         "apply": "Aplicar actualizaciones",
@@ -4247,11 +4111,10 @@
         "upToDate": "Al día",
         "attention": "Requieren atención",
         "attentionHint": "Estos archivos no se pueden actualizar automáticamente hasta resolver el problema indicado.",
-        "selectServer": "Selecciona un servidor para analizar sus plugins y mods.",
         "selectAll": "Seleccionar todo",
         "selectedCount": "{count} seleccionados",
         "snapshotNote": "Se toma una instantánea verificada antes de escribir nada, para poder revertir.",
-        "noManagedHint": "Instala plugins o mods desde la pestaña Modrinth y aparecerán aquí.",
+        "noManagedHint": "Los plugins y mods que instales desde Explorar aparecen aquí cuando sale una versión compatible más nueva.",
         "allCurrent": "Todo está al día",
         "allCurrentHint": "Todos los plugins y mods gestionados están en su última versión compatible.",
         "mustBeOffline": "El servidor debe estar detenido para aplicar actualizaciones.",
@@ -4269,10 +4132,8 @@
         }
       },
       "backups": {
-        "title": "Copias locales",
-        "hint": "Comprime los mundos en un .zip. Si el servidor está en línea ejecuta save-off/save-all durante la copia.",
-        "empty": "No hay copias aún. Pulsa + Crear copia.",
-        "backupNow": "Crear copia",
+        "empty": "Aún no hay copias",
+        "backupNow": "Hacer copia ahora",
         "creating": "Creando…",
         "creatingStatus": "Creando copia… (puede tardar según el tamaño del mundo)",
         "doneStatus": "Listo: {name} ({size})",
@@ -4302,11 +4163,13 @@
         "diskRequired": "Espacio necesario",
         "rollbackAvailable": "La reversión estará disponible después de confirmar.",
         "confirmRestore": "Preparar y restaurar",
-        "restoreQueued": "Restauración en cola ({id})"
+        "restoreQueued": "Restauración en cola ({id})",
+        "emptyHint": "Aquí aparecen las copias de los mundos del servidor, de la más reciente a la más antigua. Haz una ahora o añade una copia en Programación.",
+        "colBackup": "Copia"
       },
       "bugReport": {
-        "launcher": "Informar de un error",
         "title": "Informar de un error",
+        "menu": "Informar de un problema",
         "summary": "Resumen",
         "description": "Descripción",
         "repro": "Pasos para reproducir",
@@ -4317,24 +4180,19 @@
         "success": "Informe enviado: ¡gracias!",
         "pending": "GitHub no está disponible ahora mismo. Tu informe está guardado localmente y se reintentará automáticamente.",
         "notConfigured": "El envío de incidencias no está configurado en este servidor. Tu informe se guarda localmente.",
-        "openTracker": "Abrí directamente el rastreador de incidencias de Hostkind",
-        "hide": "Ocultar el botón de informe",
-        "show": "Mostrar el botón de informe"
+        "openTracker": "Abrí directamente el rastreador de incidencias de Hostkind"
       },
       "tasks": {
-        "title": "Tareas programadas",
-        "hint": "Ejecuta una acción de forma programada, o cuando ocurre una condición: entra un jugador, el servidor queda vacío o llega una actualización. Los horarios usan la hora local de la máquina del panel.",
-        "newTask": "Nueva tarea",
-        "empty": "No hay tareas programadas. Pulsa + Nueva tarea.",
+        "newTask": "Nueva programación",
+        "empty": "Aún no hay nada programado",
         "presetHourly": "Cada hora",
         "presetDaily4am": "Diario 4am",
         "presetEvery6h": "Cada 6h",
         "presetWeekly": "Semanal",
-        "editTitle": "Editar tarea",
-        "newTitle": "Nueva tarea",
+        "editTitle": "Editar programación",
+        "newTitle": "Nueva programación",
         "fieldName": "Nombre",
         "namePlaceholder": "Reinicio nocturno",
-        "fieldServer": "Servidor",
         "fieldAction": "Acción",
         "actionRestart": "Reiniciar",
         "actionBackup": "Copia",
@@ -4346,16 +4204,15 @@
         "fieldCron": "Programación (cron)",
         "cronPlaceholder": "0 4 * * *",
         "enabled": "Activada",
-        "createdToast": "Tarea creada",
-        "updatedToast": "Tarea actualizada",
-        "ranToast": "Tarea ejecutada",
-        "deletedToast": "Tarea eliminada",
+        "createdToast": "Programación creada",
+        "updatedToast": "Programación actualizada",
+        "ranToast": "Ejecutada ahora",
+        "deletedToast": "Programación eliminada",
         "paused": "pausada",
         "commandPrefix": "comando: ",
-        "run": "Ejecutar",
-        "deleteTitle": "Eliminar tarea",
-        "deleteBody": "¿Eliminar la tarea \"{name}\"?",
-        "commandLabel": "Comando",
+        "run": "Ejecutar ahora",
+        "deleteTitle": "Eliminar programación",
+        "deleteBody": "¿Eliminar la programación \"{name}\"?",
         "fieldTrigger": "Disparador",
         "triggerCron": "Programación cron",
         "triggerInterval": "Cada N minutos",
@@ -4397,15 +4254,14 @@
         "lastRun": "Última ejecución",
         "never": "Nunca",
         "cancelledReason": "Última cancelación: {reason}",
-        "emptyCounting": "Contando el tiempo vacío",
-        "emptyPaused": "En pausa: la cantidad de jugadores no está confirmada",
-        "hintPalworld": "Las tareas de Palworld usan las acciones oficiales del servidor, así que los anuncios y reinicios son seguros."
+        "hintPalworld": "Las tareas de Palworld usan las acciones oficiales del servidor, así que los anuncios y reinicios son seguros.",
+        "emptyHint": "Aquí aparecen los reinicios, copias y comandos que programes para este servidor, empezando por el próximo.",
+        "localTime": "Los horarios usan la hora local de la máquina del panel."
       },
       "users": {
         "title": "Usuarios",
-        "hint": "Cualquiera de esta lista puede iniciar sesión con su usuario (o email) y contraseña. Los administradores gestionan servidores, usuarios y ajustes; los operadores solo pueden operar los servidores.",
         "addUser": "Añadir usuario",
-        "empty": "No hay usuarios. Pulsa + Añadir usuario.",
+        "empty": "Aún no hay usuarios.",
         "youBadge": "tú",
         "editTitle": "Editar usuario",
         "addTitle": "Añadir usuario",
@@ -4479,8 +4335,7 @@
         "weak": "Débil",
         "fair": "Aceptable",
         "good": "Buena",
-        "strong": "Fuerte",
-        "hint": "Usa al menos 8 caracteres y combina mayúsculas, números o símbolos."
+        "strong": "Fuerte"
       },
       "profile": {
         "title": "Perfil",
@@ -4503,17 +4358,14 @@
         "stopping": "deteniendo"
       },
       "firstStart": {
-        "title": "Inicia el servidor primero",
-        "description": "\"{name}\" nunca se inició. Inícialo una vez para que el servidor pueda autogenerar su mundo, su estructura y sus archivos de configuración. Instalar plugins o mods antes del primer arranque puede dejarlos sin las carpetas y archivos que necesitan.",
-        "startNow": "Iniciar ahora",
-        "continueAnyway": "Continuar de todos modos",
+        "title": "Este servidor aún no se ha iniciado",
+        "description": "Inícialo una vez para que genere su mundo, sus carpetas y sus archivos de configuración. Los mods y plugins que instales antes pueden quedarse sin los archivos que necesitan.",
+        "startNow": "Iniciar",
         "startingToast": "Iniciando el servidor… el contenido aparecerá cuando esté en línea",
         "onlineToast": "El servidor está en línea, actualizando"
       },
       "palworld": {
         "map": {
-          "title": "Mapa en vivo",
-          "subtitle": "Ubicaciones actuales de jugadores desde la API oficial de administración de Palworld.",
           "calibration": "Calibración del mapa",
           "calibrationHint": "Este servidor ya usa el mapa integrado de Hostkind. Reemplázalo por tu propia imagen o ajusta la alineación. Las coordenadas originales nunca cambian.",
           "source": "Fuente",
@@ -4557,22 +4409,18 @@
           "worldCoords": "Mundo X {x} · Y {y} · Z {z}",
           "outOfBounds": "Fuera de los límites calibrados del mapa"
         },
-        "playersTitle": "Jugadores",
-        "playersSubtitle": "Observaciones en vivo desde la API oficial de administración de Palworld.",
         "restHealth": "API REST",
-        "healthy": "Saludable",
         "health_disabled": "Sin configurar",
         "health_unauthorized": "No autorizada",
         "health_timeout": "Tiempo agotado",
         "health_malformed": "Respuesta inválida",
         "health_unavailable": "No disponible",
-        "playerCount": "Jugadores",
         "lastRefresh": "Última actualización",
         "onlinePlayers": "Jugadores en línea",
         "searchPlayers": "Buscar por nombre o ID estable…",
         "refresh": "Actualizar jugadores",
         "noPlayers": "No hay jugadores en línea",
-        "noPlayersHint": "Esta lista es una observación actual, no un directorio permanente.",
+        "noPlayersHint": "Los jugadores aparecen aquí mientras están conectados.",
         "noMatches": "No hay jugadores coincidentes",
         "tryAnotherSearch": "Prueba con otro nombre o identificador.",
         "observedSecondsAgo": "hace {seconds}s",
@@ -4665,10 +4513,10 @@
           "deopped": "{name} ya no es operador",
           "kicked": "{name} expulsado",
           "banned": "{name} baneado",
-          "pardoned": "{name} perdonado"
+          "pardoned": "{name} perdonado",
+          "onlineEmptyOffline": "El servidor está detenido. Inícialo para ver quién está en línea."
         },
         "modrinth": {
-          "title": "Explorar contenido",
           "browseGroup": "Explorar",
           "manageGroup": "Administrar",
           "tabPlugins": "Plugins",
@@ -4683,7 +4531,6 @@
           "sortNewest": "Más nuevos",
           "allCategories": "Todas las categorías",
           "search": "Buscar",
-          "loading": "Cargando…",
           "empty": "No hay resultados compatibles.",
           "noCompatibleVersion": "No hay versión compatible para este servidor.",
           "installed": "Instalado",
@@ -4696,14 +4543,11 @@
           "selectAll": "Seleccionar los visibles",
           "selectedCount": "{count} seleccionados",
           "installSelected": "Instalar seleccionados",
-          "installSelectedProgress": "Instalando seleccionados…",
           "compatPlugin": "plugins",
           "compatMod": "mods",
           "compatNone": "Sin loader compatible",
           "tabModpacks": "Modpacks",
-          "tabModpacksDisabled": "Modpacks (no disponible para este servidor)",
           "modpacksTitle": "Explorar modpacks",
-          "modpackTarget": "Requiere {label} {version}",
           "modpackExisting": "Instalar en este servidor",
           "modpackCreate": "Crear servidor nuevo",
           "modpackNotEligible": "Este servidor no es compatible con este modpack.",
@@ -4712,7 +4556,6 @@
           "modpackProgressBackground": "Puedes cerrar esta ventana. La instalación continuará en segundo plano.",
           "modpackCreated": "Servidor {name} creado desde modpack",
           "modpackUnsupportedToast": "Este modpack usa un loader no soportado ({loader}). Solo se pueden instalar modpacks de Fabric, Forge y NeoForge.",
-          "modpackIncompatibleToast": "Este modpack no coincide con este servidor. Crea uno nuevo para este modpack.",
           "modpackCreateName": "Nombre del nuevo servidor",
           "modpackCreateFolder": "Carpeta contenedora",
           "tabInstalledPack": "Pack instalado",
@@ -4720,7 +4563,6 @@
           "noInstalledPack": "No hay ningún modpack administrado instalado en este servidor.",
           "packFiles": "{count} archivos administrados",
           "packInstalledAt": "Instalado el {date}",
-          "packVersion": "Versión {version}",
           "browseModrinth": "Explorar Modrinth",
           "browseHintPack": "Busca un modpack abajo o importa uno que ya tengas.",
           "browseHintMod": "Busca mods abajo o importa un JAR desde tu equipo.",
@@ -4730,13 +4572,9 @@
           "ftbOfficial": "FTB oficial"
         },
         "worlds": {
-          "title": "Mundos",
-          "subtitle": "Gestiona el almacenamiento, crea copias seguras y prepara el terreno antes de que los jugadores exploren.",
           "registered": "Mundos registrados",
-          "empty": "Este servidor aún no tiene mundos registrados.",
-          "summaryWorlds": "Mundos disponibles",
+          "empty": "Aún no hay mundos",
           "summaryStorage": "Espacio usado",
-          "summaryUpdated": "Última actualización",
           "summaryFiles": "Archivos",
           "moreActions": "Más acciones del mundo",
           "noServer": "Selecciona un servidor para gestionar sus mundos.",
@@ -4855,16 +4693,15 @@
             "replaceOffline": "El servidor debe estar apagado antes de reemplazar el mundo.",
             "cloneOnline": "Clonar un mundo en marcha lo copia mientras se está escribiendo. Detén el servidor para obtener una copia consistente.",
             "archiveOnline": "El servidor está encendido: primero se pausa y se vuelca el guardado, pero el archivo sigue siendo una copia aproximada."
-          }
+          },
+          "emptyHint": "El servidor crea su mundo la primera vez que arranca. Para usar un mundo que ya tienes, impórtalo."
         },
         "addons": {
-          "title": "Addons",
           "tabPlugins": "Plugins",
           "tabMods": "Mods",
           "uploadJar": "Subir .jar",
-          "hint": "Las subidas y eliminaciones van a la carpeta {folder}/. Después de subir o eliminar, reinicia el servidor para aplicar.",
-          "emptyPlugins": "No hay plugins instalados. Sube un .jar o explora Modrinth.",
-          "emptyMods": "No hay mods instalados. Sube un .jar o explora Modrinth.",
+          "emptyPlugins": "No hay plugins instalados",
+          "emptyMods": "No hay mods instalados",
           "deleteTitlePlugin": "Eliminar plugin",
           "deleteTitleMod": "Eliminar mod",
           "deleteBody": "¿Eliminar \"{name}\"? Reinicia el servidor después para aplicar.",
@@ -4875,41 +4712,65 @@
           "selectItem": "Seleccionar {name}",
           "enableSelected": "Activar seleccionados",
           "disableSelected": "Desactivar seleccionados",
-          "enabledSelected": "Se activaron {count} addons seleccionados. Reinicia para aplicar.",
-          "disabledSelected": "Se desactivaron {count} addons seleccionados. Reinicia para aplicar.",
+          "enabledSelected": "Se activaron {count}. Reinicia para aplicar.",
+          "disabledSelected": "Se desactivaron {count}. Reinicia para aplicar.",
           "status": "Estado",
           "enabled": "Activado",
           "disabled": "Desactivado",
-          "offline": "Detén el servidor antes de cambiar el estado de los addons."
+          "offline": "Detén el servidor para activar o desactivar.",
+          "emptyPluginsHint": "Aquí aparecen los plugins de la carpeta plugins del servidor. Busca uno en Explorar o sube un .jar.",
+          "emptyModsHint": "Aquí aparecen los mods de la carpeta mods del servidor. Busca uno en Explorar o sube un .jar.",
+          "browse": "Explorar mods",
+          "enableOne": "Activar {name}",
+          "disableOne": "Desactivar {name}",
+          "deleteOne": "Eliminar {name}"
         },
         "mapView": {
-          "configureFirst": "Configura primero el mapa (BlueMap/Dynmap).",
           "title": "Mapa del mundo",
           "openInNewTab": "Abrir en nueva pestaña",
-          "notConfiguredTitle": "No hay URL de mapa configurada",
-          "notConfiguredBody": "Define la URL del panel web de BlueMap, Dynmap, Squaremap o Pl3xMap para este servidor. El mapa se carga directamente desde ahí dentro de un iframe.",
-          "configure": "Configurar mapa",
           "settings": "Ajustes del mapa",
           "urlLabel": "URL del mapa",
           "urlPlaceholder": "http://localhost:8100",
           "urlHint": "Solo http(s). Déjalo vacío para desactivar el mapa.",
           "saved": "URL del mapa guardada",
-          "loadFailed": "No se pudo contactar el servidor de mapas en esa URL.",
           "presetHeading": "Preajustes",
           "presetBlueMap": "BlueMap (8100)",
           "presetDynmap": "Dynmap (8123)",
           "presetSquaremap": "Squaremap (8080)",
           "presetPl3xMap": "Pl3xMap (8080)",
-          "presetCustom": "Personalizado"
+          "presetCustom": "Personalizado",
+          "setupTitle": "Añade un mapa en vivo de tu mundo",
+          "setupBody": "Elige un mapa y Hostkind lo instala en este servidor. Aparecerá aquí tras el próximo reinicio.",
+          "recommended": "Recomendado",
+          "descBlueMap": "Mapa 3D que puedes recorrer volando",
+          "descDynmap": "Mapa 2D clásico con muchos complementos",
+          "descSquaremap": "Mapa 2D rápido y ligero",
+          "descPl3xMap": "Mapa 2D moderno y con pocos recursos",
+          "install": "Instalar",
+          "installing": "Instalando…",
+          "installed": "{name} instalado",
+          "unavailable": "Aún no hay versión para {target}",
+          "manualLink": "¿Ya tienes un mapa funcionando en otro sitio? Introduce su dirección",
+          "enterAddress": "Introducir dirección del mapa",
+          "vanillaTitle": "Los servidores vanilla no admiten plugins de mapa",
+          "vanillaBody": "Cambia este servidor a Paper o Fabric para añadir un mapa. Si ya tienes un mapa en otro sitio, puedes introducir su dirección.",
+          "detectedTitle": "{name} está instalado",
+          "detectedBody": "Muestra su mapa aquí. Hostkind lo cargará desde {url}.",
+          "showMap": "Mostrar mapa",
+          "restartTitle": "{name} está listo. Reinicia el servidor para iniciar el mapa",
+          "startTitle": "{name} está listo. Inicia el servidor para generar el mapa",
+          "restartBody": "El mapa se carga al iniciar el servidor. El primer renderizado puede tardar unos minutos.",
+          "restartNow": "Reiniciar ahora",
+          "restarted": "Reiniciando. El mapa aparecerá cuando el servidor esté listo.",
+          "reload": "Recargar",
+          "loadError": "No se pudo comprobar qué plugins de mapa están instalados",
+          "blueMapConsentTitle": "BlueMap espera tu permiso",
+          "blueMapConsentBody": "BlueMap necesita descargar las texturas de Minecraft desde Mojang para dibujar el mapa. Permítelo y reinicia el servidor.",
+          "blueMapConsentAction": "Permitir descarga",
+          "blueMapConsentDone": "Descarga permitida. Reinicia el servidor para dibujar el mapa."
         },
         "dashboard": {
-          "playersOnline": "Jugadores en línea",
-          "playersOnlineSub": "/ {max} {maxWord}",
-          "tps": "Rendimiento (TPS)",
-          "quickPlayers": "Jugadores",
-          "version": "Versión",
-          "jar": "Jar",
-          "worlds": "Mundos"
+          "tps": "Rendimiento (TPS)"
         },
         "metrics": {
           "chartPlayers": "Jugadores en línea",
@@ -4929,7 +4790,6 @@
           "versionsUnavailable": "no disponible",
           "versionsFailed": "No se pudo cargar la lista de versiones.",
           "eula": "Acepto la EULA de Minecraft",
-          "eulaLink": "EULA de Minecraft",
           "downloadAndCreate": "Descargar y crear",
           "phaseResolving": "Resolviendo URL de descarga…",
           "phaseDownloading": "Descargando el jar del servidor",
@@ -5131,7 +4991,6 @@
         "name": "Nombre en el panel",
         "adopt": "Adoptar servidor",
         "adoptDone": "\"{name}\" fue adoptado.",
-        "importProfile": "Importar perfil",
         "importTitle": "Importar un perfil de Palworld",
         "importIntro": "El archivo se analiza, se verifica por suma de comprobación y se previsualiza antes de escribir nada. No se crea nada hasta que confirmes.",
         "chooseProfile": "Elegir archivo de perfil",
@@ -5192,30 +5051,18 @@
       },
       "terraria": {
         "players": {
-          "title": "Jugadores de Terraria",
-          "description": "Jugadores conectados actualmente a este servidor de Terraria.",
-          "connected": "Conectados",
-          "server": "Servidor",
-          "noServer": "No hay servidor seleccionado",
-          "rosterTitle": "Jugadores conectados",
-          "rosterDescription": "Nombres informados por la consola del servidor de Terraria.",
-          "online": "En línea",
           "emptyTitle": "No hay jugadores conectados",
-          "emptyOffline": "Inicia el servidor para ver sus jugadores conectados.",
-          "emptyOnline": "El servidor todavía no informó jugadores conectados.",
-          "characterUnavailable": "La vista del personaje no está disponible para este servidor.",
-          "actionsUnavailable": "Las acciones de jugador están disponibles mientras el servidor está en línea.",
+          "emptyOnline": "Los jugadores aparecen aquí mientras están conectados.",
           "kick": "Expulsar",
           "ban": "Banear",
           "kickSuccess": "{name} fue expulsado.",
           "banSuccess": "{name} fue baneado.",
           "actionFailed": "No se pudo completar la acción sobre el jugador.",
-          "status": {
-            "online": "En línea",
-            "offline": "Desconectado",
-            "starting": "Iniciando",
-            "stopping": "Deteniendo"
-          }
+          "onlineNow": "En línea ahora",
+          "kickNamed": "Expulsar a {name}",
+          "banNamed": "Banear a {name}",
+          "banTitle": "¿Banear a {name}?",
+          "banBody": "Se le desconecta y no podrá volver a entrar en este servidor hasta que se levante el baneo en su lista de baneos."
         },
         "import": {
           "title": "Adoptar un servidor de Terraria existente",
@@ -5237,7 +5084,7 @@
           "untouched": "Nada en esta carpeta cambia durante la inspección. La adopción solo aplica las correcciones que selecciones.",
           "adopt": "Adoptar servidor",
           "success": "Servidor de Terraria adoptado.",
-          "followUp": "El servidor se adoptó con tareas pendientes. Revisa su panel y sus mundos antes de iniciarlo.",
+          "followUp": "El servidor se añadió con tareas pendientes. Revisa su Resumen y sus Mundos antes de iniciarlo.",
           "issue": {
             "variant_ambiguous": "Debes elegir un runtime",
             "executable_missing": "Falta el punto de entrada",
@@ -5371,8 +5218,6 @@
           "tmodloader": "Cargador de mods. Necesita el runtime de .NET."
         },
         "tshock": {
-          "title": "Administración de TShock",
-          "description": "Gestiona jugadores conectados, cuentas, grupos, permisos y baneos.",
           "transportTitle": "Usando {transport}",
           "transportReady": "Este transporte está listo.",
           "transportFallback": "El transporte preferido no está disponible ({reason}); Hostkind usa la alternativa disponible más segura.",
@@ -5432,10 +5277,12 @@
           "identifier": "Identificador",
           "reason": "Motivo",
           "bannedBy": "Baneado por",
-          "unbanned": "Baneo eliminado."
+          "unbanned": "Baneo eliminado.",
+          "noAccounts": "Aún no hay cuentas",
+          "noAccountsHint": "Aquí aparecen los jugadores que se registran en el juego y las cuentas que crees desde aquí.",
+          "noBans": "No hay nadie baneado"
         },
         "mods": {
-          "title": "Mods de tModLoader",
           "description": "Revisa la compatibilidad, controla los mods habilitados y pon en cuarentena los mods dañados sin borrarlos.",
           "browseGroup": "Explorar",
           "manageGroup": "Administrar",
@@ -5713,14 +5560,10 @@
           }
         },
         "worlds": {
-          "title": "Mundos",
-          "subtitle": "Crea, importa y elige el mundo que carga este servidor. Un mundo de Terraria es un único archivo, y es lo único aquí que no se puede volver a descargar.",
           "noServer": "Selecciona un servidor para gestionar sus mundos.",
           "list": "Mundos",
           "empty": "Este servidor todavía no tiene mundos. Genera uno o importa uno que ya tengas.",
-          "summaryWorlds": "Mundos",
           "summaryStorage": "Espacio usado",
-          "summaryUpdated": "Último cambio",
           "format": "Formato del mundo",
           "modified": "modificado {at}",
           "moreActions": "Más acciones de mundo",
@@ -5840,7 +5683,8 @@
             "unreadable": "Ilegible",
             "symlink": "Enlace"
           },
-          "embeddedName": "Se llama «{name}» dentro del archivo"
+          "embeddedName": "Se llama «{name}» dentro del archivo",
+          "emptyTitle": "Aún no hay mundos"
         }
       },
       "terms": {
@@ -5852,6 +5696,332 @@
         "decline": "Cerrar sesión",
         "accepting": "Guardando…",
         "close": "Cerrar"
+      },
+      "home": {
+        "firstTitle": "Añade tu primer servidor",
+        "firstBody": "Elige el juego. Hostkind instala el servidor por ti o añade uno que ya tengas.",
+        "firstBodyViewer": "Todavía no hay servidores. Un administrador puede añadir uno."
+      },
+      "addServer": {
+        "button": "Añadir servidor",
+        "title": "Añadir un servidor",
+        "chooseGame": "¿Para qué juego es?",
+        "chooseMethod": "¿Cómo quieres añadir tu servidor de {game}?",
+        "otherGame": "Elegir otro juego",
+        "gameHint": {
+          "minecraft": "Vanilla, Paper, Spigot, Fabric, Forge o NeoForge",
+          "terraria": "Vanilla, TShock o tModLoader",
+          "valheim": "Servidor dedicado, instalado con SteamCMD",
+          "palworld": "Servidor dedicado, instalado con SteamCMD",
+          "custom": "Cualquier comando de larga duración que quieras iniciar, detener y vigilar"
+        },
+        "method": {
+          "install": "Instalar un servidor nuevo",
+          "existing": "Usar una carpeta de servidor que ya tengo",
+          "modpack": "Empezar desde un modpack",
+          "import": "Importar un servidor existente",
+          "importProfile": "Importar un perfil de Hostkind",
+          "template": "Desde una plantilla"
+        },
+        "methodHint": {
+          "minecraft": {
+            "install": "Hostkind descarga la versión que elijas y prepara Java para ella.",
+            "existing": "Indica a Hostkind una carpeta con el jar del servidor. No se mueve nada.",
+            "modpack": "Busca en Modrinth. Hostkind descarga el servidor, sus mods y sus archivos de configuración.",
+            "template": "Crea un servidor desde una plantilla guardada, o guarda una a partir de un servidor que ya tienes."
+          },
+          "terraria": {
+            "install": "Hostkind descarga la variante y la versión que elijas.",
+            "import": "Trae una carpeta de servidor o un mundo de Terraria que ya tengas."
+          },
+          "valheim": {
+            "install": "Instala con SteamCMD o registra un servidor que ya tengas."
+          },
+          "palworld": {
+            "install": "Hostkind instala el servidor dedicado con SteamCMD.",
+            "existing": "Indica a Hostkind una carpeta de servidor de Palworld que ya tengas.",
+            "importProfile": "Restaura un perfil exportado desde otro panel de Hostkind."
+          },
+          "custom": {
+            "install": "Indica a Hostkind qué comando ejecutar y cómo detenerlo."
+          }
+        }
+      },
+      "sections": {
+        "worlds": "Mundos",
+        "map": "Mapa",
+        "installed": "Instalados",
+        "browse": "Explorar",
+        "updates": "Actualizaciones",
+        "game": "Ajustes del juego",
+        "general": "General",
+        "version": "Versión",
+        "files": "Archivos"
+      },
+      "details": {
+        "title": "Detalles",
+        "back": "Resumen",
+        "hostTitle": "Recursos del equipo",
+        "crashesTitle": "Fallos",
+        "link": "Detalles"
+      },
+      "serverSettings": {
+        "profileTitle": "Perfil del servidor",
+        "profileHint": "Dónde está el servidor y cómo lo inicia el panel.",
+        "readOnlyHint": "Solo un administrador puede cambiar esto.",
+        "name": "Nombre",
+        "game": "Juego",
+        "folder": "Carpeta",
+        "version": "Versión",
+        "saved": "Servidor guardado.",
+        "cloneTitle": "Clonar",
+        "cloneHint": "Crea un servidor nuevo a partir de este, sin sus mundos.",
+        "removeTitle": "Quitar",
+        "removeHint": "Saca este servidor del panel. Sus archivos se quedan salvo que elijas moverlos a la papelera.",
+        "toolsHint": "Comprueba cómo llegan los jugadores a este servidor y exporta su perfil.",
+        "openTools": "Abrir herramientas del servidor"
+      },
+      "overview": {
+        "status": "Estado",
+        "state": {
+          "online": "En línea",
+          "offline": "Apagado",
+          "starting": "Iniciando",
+          "stopping": "Deteniendo"
+        },
+        "upFor": "activo {uptime}",
+        "notRunning": "No está en marcha",
+        "players": "Jugadores",
+        "playersOf": "{count} de {max}",
+        "playersNow": "conectados ahora",
+        "cpu": "CPU",
+        "cpuNormal": "normal para este servidor (suele llegar a {p95} %)",
+        "cpuHigh": "más alto de lo habitual (suele llegar a {p95} %)",
+        "cpuHighNoBaseline": "queda poco margen",
+        "cpuLearning": "aún aprendiendo qué es normal",
+        "memory": "Memoria",
+        "memoryOf": "{used} de {heap}",
+        "memoryPct": "{pct} % de su límite",
+        "memoryUsed": "usada por el servidor",
+        "memoryPressure": "cerca de su límite",
+        "tpsLagging": "con retraso (20 es fluido)",
+        "attention": "Requiere atención",
+        "attentionCount": "Requiere atención ({count})",
+        "allClear": "Todo en orden",
+        "checkedAgo": "comprobado {ago}",
+        "item": {
+          "firstStart": "Inícialo una vez para que el servidor genere sus archivos",
+          "watchdogDetail": "Se cayó varias veces seguidas, así que no se volvió a reiniciar.",
+          "crash": "Se cayó {count} veces · la última {ago}",
+          "crashOnce": "Se cayó {ago}",
+          "contentUpdate": "Hay 1 actualización de plugin o mod",
+          "contentUpdates": "Hay {count} actualizaciones de plugins o mods",
+          "gameUpdate": "Hay una actualización del servidor"
+        },
+        "action": {
+          "backup": "Hacer copia ahora",
+          "backups": "Gestionar copias",
+          "details": "Ver detalles",
+          "crash": "Ver fallo",
+          "dismiss": "Descartar",
+          "console": "Ver consola",
+          "review": "Revisar"
+        },
+        "factVersion": "Versión {version}",
+        "factLastBackup": "Última copia {ago}",
+        "factNoBackup": "Aún no hay copias",
+        "factNext": "Próxima: {task} {when}",
+        "today": "hoy a las {time}",
+        "tomorrow": "mañana a las {time}"
+      },
+      "panelSettings": {
+        "preferences": "Preferencias",
+        "updates": "Actualizaciones de la aplicación"
+      },
+      "players": {
+        "countOf": "{count} de {max}",
+        "offlineHint": "Inicia el servidor para ver quién está en línea."
+      },
+      "serverPresets": {
+        "label": "Empezar con",
+        "name": "{game} {preset}",
+        "valheimWorld": "Dificultad del mundo",
+        "valheimWorldPreset": {
+          "casual": "Casual",
+          "easy": "Fácil",
+          "normal": "Normal",
+          "hard": "Difícil",
+          "hardcore": "Extremo",
+          "immersive": "Inmersivo",
+          "hammer": "Martillo (solo construir)"
+        },
+        "minecraft": {
+          "survival": {
+            "title": "Supervivencia",
+            "hint": "Paper, dificultad normal: se juega como vanilla, más rápido"
+          },
+          "vanilla": {
+            "title": "Vanilla puro",
+            "hint": "El servidor oficial de Mojang, sin añadidos"
+          },
+          "fabric": {
+            "title": "Mods de Fabric",
+            "hint": "Mods ligeros y de rendimiento, 6 GB"
+          },
+          "neoforge": {
+            "title": "Mods de NeoForge",
+            "hint": "Mods grandes de contenido y modpacks, 6 GB"
+          },
+          "creative": {
+            "title": "Creativo",
+            "hint": "Bloques ilimitados y vuelo, sin monstruos hostiles"
+          },
+          "hardcore": {
+            "title": "Extremo",
+            "hint": "Dificultad difícil, una sola vida: morir es definitivo"
+          }
+        },
+        "terraria": {
+          "classic": {
+            "title": "Clásico",
+            "hint": "Mundo mediano, dificultad normal, 8 jugadores"
+          },
+          "expert": {
+            "title": "Experto",
+            "hint": "Mundo grande, jefes más duros, 8 jugadores"
+          },
+          "journey": {
+            "title": "Viaje",
+            "hint": "Mundo mediano con poderes creativos"
+          },
+          "community": {
+            "title": "Comunidad",
+            "hint": "TShock, mundo grande, 32 jugadores"
+          },
+          "master": {
+            "title": "Maestro",
+            "hint": "Mundo grande, los jefes más difíciles, 8 jugadores"
+          },
+          "modded": {
+            "title": "Con mods",
+            "hint": "tModLoader, mundo mediano, 8 jugadores"
+          }
+        },
+        "valheim": {
+          "friends": {
+            "title": "Con amigos",
+            "hint": "Privado, dificultad normal"
+          },
+          "relaxed": {
+            "title": "Tranquilo",
+            "hint": "Privado, casual: menos asaltos, sin castigo al morir"
+          },
+          "challenge": {
+            "title": "Desafío",
+            "hint": "Privado, difícil: enemigos más fuertes"
+          },
+          "public": {
+            "title": "Público",
+            "hint": "Aparece en el buscador de servidores de la comunidad"
+          },
+          "hardcore": {
+            "title": "Extremo",
+            "hint": "Privado, lo pierdes todo al morir, sin mapa"
+          },
+          "builder": {
+            "title": "Constructor",
+            "hint": "Privado, construir gratis, enemigos pasivos"
+          }
+        },
+        "palworld": {
+          "friends": {
+            "title": "Con amigos",
+            "hint": "Hasta 8 jugadores, sueltas objetos al morir"
+          },
+          "community": {
+            "title": "Comunidad",
+            "hint": "Hasta 32 jugadores"
+          },
+          "relaxed": {
+            "title": "Tranquilo",
+            "hint": "Conservas todo al morir, doble XP y captura"
+          },
+          "hardcore": {
+            "title": "Extremo",
+            "hint": "Lo pierdes todo al morir, y la muerte es permanente"
+          },
+          "pvp": {
+            "title": "JcJ",
+            "hint": "Hasta 16 jugadores que pueden luchar entre sí"
+          }
+        }
+      },
+      "serverRules": {
+        "moreOptions": "Más opciones",
+        "gamemode": "Modo de juego",
+        "minecraftGamemode": {
+          "survival": "Supervivencia",
+          "creative": "Creativo",
+          "adventure": "Aventura",
+          "spectator": "Espectador"
+        },
+        "minecraftDifficulty": {
+          "peaceful": "Pacífico",
+          "easy": "Fácil",
+          "normal": "Normal",
+          "hard": "Difícil"
+        },
+        "hardcore": "Extremo (una vida)",
+        "pvp": "Los jugadores pueden luchar entre sí",
+        "levelType": "Tipo de mundo",
+        "minecraftLevelType": {
+          "default": "Normal",
+          "flat": "Superplano",
+          "largebiomes": "Biomas grandes",
+          "amplified": "Amplificado"
+        },
+        "motd": "Mensaje del día",
+        "motdPlaceholder": "Se muestra en la lista de servidores",
+        "crossplay": "Juego cruzado (pueden entrar jugadores de Xbox y Game Pass)",
+        "valheimModifiersHint": "Ajusta la dificultad del mundo de arriba. Lo que quede en \"Según la dificultad\" mantiene su valor.",
+        "fromPreset": "Según la dificultad",
+        "valheimModifier": {
+          "combat": "Combate",
+          "deathpenalty": "Penalización por muerte",
+          "resources": "Recursos",
+          "raids": "Asaltos",
+          "portals": "Portales"
+        },
+        "valheimLevel": {
+          "veryeasy": "Muy fácil",
+          "easy": "Fácil",
+          "hard": "Difícil",
+          "veryhard": "Muy difícil",
+          "casual": "Casual",
+          "hardcore": "Extremo",
+          "muchless": "Mucho menos",
+          "less": "Menos",
+          "more": "Más",
+          "muchmore": "Mucho más",
+          "most": "Máximo",
+          "none": "Ninguno"
+        },
+        "valheimKey": {
+          "nobuildcost": "Construir sin materiales",
+          "playerevents": "Los asaltos dependen del progreso de cada jugador",
+          "passivemobs": "Los enemigos solo se defienden",
+          "nomap": "Sin mapa"
+        },
+        "deathPenalty": "Al morir",
+        "palworldDeathPenalty": {
+          "None": "Conservar todo",
+          "Item": "Soltar objetos",
+          "ItemAndEquipment": "Soltar objetos y equipo",
+          "All": "Soltar todo, Pals incluidos"
+        },
+        "expRate": "Ritmo de XP",
+        "captureRate": "Ritmo de captura",
+        "palworldHardcore": "Extremo (la muerte es permanente)"
       }
     }
   }

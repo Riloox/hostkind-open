@@ -52,8 +52,15 @@ async function main() {
     assert.ok(stdout.includes('no config at'),
       'boot must announce the missing config and its creation\n' + stdout + stderr);
 
-    // 2. the config file now exists, copied from the template.
-    assert.ok(fs.existsSync(configPath), `config.json should have been created at ${configPath}`);
+    // 2. the config file now exists, copied from the template. The same race
+    // as step 3: the 'no config at' line is logged just before the write, so
+    // wait for the file to exist and parse rather than checking once.
+    const writeDeadline = Date.now() + 10_000;
+    const written = () => {
+      try { JSON.parse(fs.readFileSync(configPath, 'utf8')); return true; } catch { return false; }
+    };
+    while (!written() && Date.now() < writeDeadline) await sleep(50);
+    assert.ok(written(), `config.json should have been created at ${configPath}`);
 
     // 3. the placeholder secret was rotated before anything could be signed.
     // The child writes the template, then rotates the secret, in two separate

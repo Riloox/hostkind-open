@@ -168,26 +168,18 @@ export function BackupsView() {
     catch (e) { toast.error(e.message); } finally { setAction(''); }
   }
 
-  const hint = (() => {
-    const h = t('backups.hint');
-    const tag = 'save-off/save-all';
-    const i = h.indexOf(tag);
-    if (i < 0) return h;
-    return <>{h.slice(0, i)}<code className="rounded bg-muted px-1 py-0.5 text-xs">{tag}</code>{h.slice(i + tag.length)}</>;
-  })();
+  const listEmpty = !listLoading && !listError && backups.length === 0;
+  const backupButton = (
+    <Button variant="default" size="sm" onClick={backupNow} disabled={loading}>
+      <Plus className="h-3.5 w-3.5" />
+      {loading ? t('backups.creating') : t('backups.backupNow')}
+    </Button>
+  );
 
   return (
     <div className="space-y-6">
-      <ViewHeader
-        title={t('backups.title')}
-        description={hint}
-        actions={
-          <Button variant="default" size="sm" onClick={backupNow} disabled={loading}>
-            <Plus className="h-3.5 w-3.5" />
-            {loading ? t('backups.creating') : t('backups.backupNow')}
-          </Button>
-        }
-      />
+      {/* An empty list carries the button itself; one is enough. */}
+      <ViewHeader title={t('nav.backups')} actions={listEmpty ? null : backupButton} />
       {options.terraria && (
         <Card>
           <CardContent className="grid gap-4 py-4 sm:grid-cols-2">
@@ -221,13 +213,13 @@ export function BackupsView() {
       ) : listError ? (
         <ErrorState error={listError} onRetry={load} />
       ) : backups.length === 0 ? (
-        <Card><CardContent className="py-4"><EmptyState icon={Archive} title={t('backups.title')} message={t('backups.empty')} /></CardContent></Card>
+        <Card><CardContent className="py-4"><EmptyState icon={Archive} title={t('backups.empty')} message={t('backups.emptyHint')} action={backupButton} /></CardContent></Card>
       ) : (
         <Card className="overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
-                <TableHead className="pl-5">{t('backups.title')}</TableHead>
+                <TableHead className="pl-5">{t('backups.colBackup')}</TableHead>
                 <TableHead className="text-right">{t('common.size')}</TableHead>
                 <TableHead>{t('backups.retentionTitle')}</TableHead>
                 <TableHead className="pr-5 text-right">{t('common.actions')}</TableHead>
@@ -259,15 +251,15 @@ export function BackupsView() {
                   </TableCell>
                   <TableCell className="pr-5">
                     <div className="flex items-center justify-end gap-1">
-                      <Button variant="ghost" size="icon-xs" title={t('backups.contents')} onClick={() => showContents(b.name)} disabled={action === b.name}><ListTree className="h-3.5 w-3.5" /></Button>
-                      <Button variant="ghost" size="icon-xs" title={t('backups.verify')} onClick={() => verify(b.name)} disabled={action === b.name}><ShieldCheck className="h-3.5 w-3.5" /></Button>
-                      <Button variant="ghost" size="icon-xs" title={t('backups.restore')} onClick={() => previewRestore(b.name)} disabled={action === b.name}><RotateCcw className="h-3.5 w-3.5" /></Button>
-                      <Button variant="glass" size="icon-xs" asChild title={t('common.download')}>
+                      <Button variant="ghost" size="icon-xs" title={t('backups.contents')} aria-label={t('backups.contents')} onClick={() => showContents(b.name)} disabled={action === b.name}><ListTree className="h-3.5 w-3.5" /></Button>
+                      <Button variant="ghost" size="icon-xs" title={t('backups.verify')} aria-label={t('backups.verify')} onClick={() => verify(b.name)} disabled={action === b.name}><ShieldCheck className="h-3.5 w-3.5" /></Button>
+                      <Button variant="ghost" size="icon-xs" title={t('backups.restore')} aria-label={t('backups.restore')} onClick={() => previewRestore(b.name)} disabled={action === b.name}><RotateCcw className="h-3.5 w-3.5" /></Button>
+                      <Button variant="glass" size="icon-xs" asChild title={t('common.download')} aria-label={t('common.download')}>
                         <a href={`/api/backups/${encodeURIComponent(b.name)}/download?token=${encodeURIComponent(token)}`} download>
                           <Download className="h-3.5 w-3.5" />
                         </a>
                       </Button>
-                      <Button variant="ghost" size="icon-xs" onClick={() => setPendingDelete(b.name)}>
+                      <Button variant="ghost" size="icon-xs" title={t('common.delete')} aria-label={t('common.delete')} onClick={() => setPendingDelete(b.name)}>
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>

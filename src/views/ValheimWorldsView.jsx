@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import {
-  CalendarClock, CheckCircle2, Database, Download, Ellipsis, FileArchive, FileBox,
-  Globe2, HardDrive, Info, Loader2, Pencil, Power, Sparkles, Square, Trash2, TriangleAlert, Upload,
+  CheckCircle2, Download, Ellipsis, FileArchive, FileBox, Globe2, Info, Loader2, Pencil, Power,
+  Sparkles, Square, Trash2, TriangleAlert, Upload,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,7 @@ import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, Dia
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { Loading } from '@/components/shared/Loading';
-import { PageIntro, SummaryGrid, SummaryItem } from '@/components/layout/Page';
+import { ViewHeader } from '@/components/layout/Page';
 import { useApi } from '@/hooks/useApi';
 import { useWorldOperation } from '@/hooks/useWorldOperation';
 import { useAuth } from '@/context/AuthContext';
@@ -453,30 +453,26 @@ export function ValheimWorldsView() {
   const live = activeServerId ? getServerStatus(activeServerId) : null;
   const offline = !live || live.status === 'offline';
   const busy = !!op && ['queued', 'running'].includes(op.state);
-  const totalSize = data.worlds.reduce((sum, world) => sum + (world.sizeBytes || 0), 0);
-  const latestChange = data.worlds.reduce((latest, world) => Math.max(latest, world.modifiedAt || 0), 0);
   // A selection or rename takes effect at the next start, and the operation
   // says so in its own result rather than the view guessing from what it did.
   const restartRequired = offline && op?.state === 'succeeded' && op.summary?.restartRequired === true;
   const runningAction = String(op?.kind || '').split('.').pop().replace(/^valheim-/, '');
   const lastEvent = events.length ? events[events.length - 1] : null;
+  const worldButtons = (
+    <>
+      <Button variant="glass" onClick={() => setDialog({ action: 'import' })} disabled={busy || !offline}>
+        <Upload className="h-4 w-4" />{t('valheim.worlds.import')}
+      </Button>
+      <Button onClick={() => setDialog({ action: 'new' })} disabled={busy || !offline}>
+        <Sparkles className="h-4 w-4" />{t('valheim.worlds.newWorld')}
+      </Button>
+    </>
+  );
 
   return (
     <div className="space-y-5">
-      <PageIntro
-        title={t('valheim.worlds.title')}
-        description={t('valheim.worlds.subtitle')}
-        actions={
-          <>
-            <Button variant="glass" onClick={() => setDialog({ action: 'import' })} disabled={busy || !offline}>
-              <Upload className="h-4 w-4" />{t('valheim.worlds.import')}
-            </Button>
-            <Button onClick={() => setDialog({ action: 'new' })} disabled={busy || !offline}>
-              <Sparkles className="h-4 w-4" />{t('valheim.worlds.newWorld')}
-            </Button>
-          </>
-        }
-      />
+      {/* An empty list carries these buttons itself. */}
+      <ViewHeader actions={data.worlds.length ? worldButtons : null} />
 
       {/* Every world mutation needs the server stopped, so the notice carries
           the button that gets it there instead of sending the operator
@@ -530,14 +526,6 @@ export function ValheimWorldsView() {
         </Card>
       )}
 
-      <SummaryGrid className="sm:grid-cols-3 xl:grid-cols-3">
-        {[
-          { icon: Database, label: t('valheim.worlds.summaryWorlds'), value: data.worlds.length },
-          { icon: HardDrive, label: t('valheim.worlds.summaryStorage'), value: fmtBytes(totalSize) },
-          { icon: CalendarClock, label: t('valheim.worlds.summaryUpdated'), value: latestChange ? fmtDate(latestChange) : '-' },
-        ].map(({ icon, label, value }) => <SummaryItem key={label} icon={icon} label={label} value={value} />)}
-      </SummaryGrid>
-
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><FileBox className="h-4 w-4" />{t('valheim.worlds.list')}</CardTitle>
@@ -545,9 +533,13 @@ export function ValheimWorldsView() {
         </CardHeader>
         <CardContent className="grid gap-3 lg:grid-cols-2">
           {data.worlds.length === 0 && (
-            <div className="col-span-full rounded-lg border border-dashed px-4 py-10 text-center text-sm text-muted-foreground">
-              {t('valheim.worlds.empty')}
-            </div>
+            <EmptyState
+              className="col-span-full"
+              icon={Globe2}
+              title={t('valheim.worlds.emptyTitle')}
+              message={t('valheim.worlds.empty')}
+              action={<div className="flex flex-wrap justify-center gap-2">{worldButtons}</div>}
+            />
           )}
           {data.worlds.map((world) => (
             <div key={world.name} className="group flex min-h-40 flex-col rounded-xl border bg-background/35 p-4 transition-colors hover:border-primary/30 hover:bg-background/60">

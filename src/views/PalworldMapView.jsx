@@ -333,7 +333,7 @@ export function PalworldMapView() {
 
   return (
     <div className="space-y-4">
-      <ViewHeader title={t('palworld.map.title')} subtitle={t('palworld.map.subtitle')} actions={canManage && (
+      <ViewHeader actions={canManage && (
         <Button variant="glass" size="sm" onClick={() => setCalibrationOpen(true)}><Settings className="h-4 w-4" />{t('palworld.map.calibration')}</Button>
       )} />
       <div className="grid min-h-[70vh] gap-3 lg:grid-cols-[minmax(0,1fr)_18rem]">

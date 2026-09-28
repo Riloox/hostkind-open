@@ -71,10 +71,7 @@ export function ApplicationUpdateSection() {
 
   return (
     <section data-testid="application-update-section">
-      <div className="mb-2 flex items-center gap-2">
-        <Download className="h-3.5 w-3.5 text-muted-foreground" />
-        <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{t('settings.applicationUpdate')}</h3>
-      </div>
+      {/* Only ever shown as the App updates tab, which names it. */}
       <p className="mb-3 text-xs text-muted-foreground">{t('settings.applicationUpdateDesc')}</p>
 
       {status == null ? (
@@ -166,7 +163,6 @@ export function ApplicationUpdateIndicator({ onOpenSettings }) {
   if (!available) return null;
   return (
     <Button
-      data-tour="application-update"
       variant="ghost"
       size="icon-sm"
       title={t('settings.applicationUpdateAvailable')}

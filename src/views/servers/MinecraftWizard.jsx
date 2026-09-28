@@ -10,14 +10,27 @@ import { useFolderPicker } from '@/hooks/useFolderPicker';
 import { useT } from '@/context/I18nContext';
 import { cn, fmtBytesRaw, osExamplePath } from '@/lib/utils';
 import { SERVER_NAME_MAX_LENGTH } from '@/lib/limits';
+import { MINECRAFT_DIFFICULTIES, MINECRAFT_GAMEMODES, MINECRAFT_LEVEL_TYPES, presetsFor } from '@/lib/serverPresets';
 import { FolderBrowserModal } from './FolderBrowserModal';
+import { MoreOptions, PresetPicker, presetName } from './PresetPicker';
+
+const SELECT = 'flex h-9 w-full rounded-md border border-input bg-background/60 px-3 py-2 text-sm disabled:opacity-50';
 
 export function MinecraftWizard({ onBack, onCreated }) {
   const api = useApi();
   const stream = useApiStream();
   const t = useT();
   const { picking, pick } = useFolderPicker(api);
-  const [form, setForm] = useState({ name: '', type: 'paper', mcVersion: '', parentDir: '', javaArgs: '-Xmx4G -Xms4G', eula: false });
+  const firstPreset = presetsFor('minecraft')[0];
+  // The name the current preset suggested. Choosing another preset replaces
+  // it, but never a name the user typed.
+  const suggestedName = useRef(presetName(t, 'minecraft', firstPreset));
+  const [form, setForm] = useState(() => ({
+    name: suggestedName.current, mcVersion: '', parentDir: '', eula: false,
+    maxPlayers: 20, pvp: true, seed: '', levelType: 'default', motd: '',
+    ...firstPreset.values,
+  }));
+  const [defaultParent, setDefaultParent] = useState('');
   const [versions, setVersions] = useState([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -29,7 +42,18 @@ export function MinecraftWizard({ onBack, onCreated }) {
   const abortRef = useRef(null);
   const versionsRef = useRef(0);
 
-  useEffect(() => { loadVersions('paper'); }, []);
+  useEffect(() => {
+    loadVersions(firstPreset.values.type);
+    api('/api/create/defaults').then((data) => setDefaultParent(data.parentDir || '')).catch(() => {});
+  }, []);
+
+  function choosePreset(preset) {
+    const keepName = form.name && form.name !== suggestedName.current;
+    const name = keepName ? form.name : presetName(t, 'minecraft', preset);
+    if (!keepName) suggestedName.current = name;
+    setForm((current) => ({ ...current, ...preset.values, name }));
+    if (preset.values.type !== form.type) loadVersions(preset.values.type);
+  }
 
   /*
    * The list is resolved upstream on every type change, and that call is slow
@@ -105,6 +129,7 @@ export function MinecraftWizard({ onBack, onCreated }) {
     <>
       <div className="px-5 py-4 space-y-4">
         <p className="text-xs text-muted-foreground">{t('minecraft.servers.createIntro')}</p>
+        <PresetPicker game="minecraft" form={form} onChoose={choosePreset} disabled={loading} />
         <div className="space-y-1.5">
           <Label>{t('servers.fieldName')}</Label>
           <Input value={form.name} onChange={field('name')} maxLength={SERVER_NAME_MAX_LENGTH} disabled={loading} placeholder={t('servers.namePlaceholderCreate')} />
@@ -134,22 +159,68 @@ export function MinecraftWizard({ onBack, onCreated }) {
             </Button>
           </div>
         )}
-        <div className="space-y-1.5">
-          <Label>{t('servers.fieldParent')}</Label>
-          <div className="flex gap-2">
-            <Input value={form.parentDir} onChange={field('parentDir')} disabled={loading} placeholder={t('servers.parentPlaceholder', { path: osExamplePath('parent') })} />
-            <Button variant="glass" size="sm" type="button" disabled={loading || picking} className="h-11 shrink-0" onClick={async () => {
-              try {
-                const picked = await pick(form.parentDir);
-                if (picked) setForm((current) => ({ ...current, parentDir: picked }));
-              } catch { setFsOpen(true); }
-            }}><FolderOpen className="h-3.5 w-3.5" />{t('servers.browse')}</Button>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="mc-gamemode">{t('serverRules.gamemode')}</Label>
+            <select id="mc-gamemode" disabled={loading || form.hardcore} className={SELECT} value={form.hardcore ? 'survival' : form.gamemode} onChange={field('gamemode')}>
+              {MINECRAFT_GAMEMODES.map((mode) => <option key={mode} value={mode}>{t(`serverRules.minecraftGamemode.${mode}`)}</option>)}
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="mc-difficulty">{t('servers.fieldDifficulty')}</Label>
+            <select id="mc-difficulty" disabled={loading || form.hardcore} className={SELECT} value={form.hardcore ? 'hard' : form.difficulty} onChange={field('difficulty')}>
+              {MINECRAFT_DIFFICULTIES.map((level) => <option key={level} value={level}>{t(`serverRules.minecraftDifficulty.${level}`)}</option>)}
+            </select>
           </div>
         </div>
-        <div className="space-y-1.5">
-          <Label>{t('servers.fieldJavaArgs')}</Label>
-          <Input value={form.javaArgs} onChange={field('javaArgs')} disabled={loading} placeholder={t('servers.javaArgsPlaceholder')} />
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="mc-players">{t('servers.fieldMaxPlayers')}</Label>
+            <Input id="mc-players" type="number" min="1" max="500" value={form.maxPlayers} onChange={field('maxPlayers')} disabled={loading} />
+          </div>
+          <label className={cn('flex items-center gap-2 self-end pb-2.5 text-sm cursor-pointer', loading && 'opacity-60 pointer-events-none')}>
+            <input type="checkbox" checked={form.hardcore} onChange={field('hardcore')} className="accent-primary" />
+            <span>{t('serverRules.hardcore')}</span>
+          </label>
+          <label className={cn('flex items-center gap-2 self-end pb-2.5 text-sm cursor-pointer', loading && 'opacity-60 pointer-events-none')}>
+            <input type="checkbox" checked={form.pvp} onChange={field('pvp')} className="accent-primary" />
+            <span>{t('serverRules.pvp')}</span>
+          </label>
         </div>
+        <MoreOptions>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="mc-seed">{t('terraria.create.seed')}</Label>
+              <Input id="mc-seed" value={form.seed} onChange={field('seed')} maxLength={64} disabled={loading} placeholder={t('terraria.create.seedPlaceholder')} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="mc-level-type">{t('serverRules.levelType')}</Label>
+              <select id="mc-level-type" disabled={loading} className={SELECT} value={form.levelType} onChange={field('levelType')}>
+                {MINECRAFT_LEVEL_TYPES.map((type) => <option key={type} value={type}>{t(`serverRules.minecraftLevelType.${type}`)}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="mc-motd">{t('serverRules.motd')}</Label>
+            <Input id="mc-motd" value={form.motd} onChange={field('motd')} maxLength={150} disabled={loading} placeholder={t('serverRules.motdPlaceholder')} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>{t('servers.fieldParent')}</Label>
+            <div className="flex gap-2">
+              <Input value={form.parentDir} onChange={field('parentDir')} disabled={loading} placeholder={defaultParent ? t('servers.parentDefault', { path: defaultParent }) : t('servers.parentPlaceholder', { path: osExamplePath('parent') })} />
+              <Button variant="glass" size="sm" type="button" disabled={loading || picking} className="h-11 shrink-0" onClick={async () => {
+                try {
+                  const picked = await pick(form.parentDir);
+                  if (picked) setForm((current) => ({ ...current, parentDir: picked }));
+                } catch { setFsOpen(true); }
+              }}><FolderOpen className="h-3.5 w-3.5" />{t('servers.browse')}</Button>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>{t('servers.fieldJavaArgs')}</Label>
+            <Input value={form.javaArgs} onChange={field('javaArgs')} disabled={loading} placeholder={t('servers.javaArgsPlaceholder')} />
+          </div>
+        </MoreOptions>
         <label className={cn('flex items-center gap-2 text-sm cursor-pointer', loading && 'opacity-60 pointer-events-none')}>
           <input type="checkbox" checked={form.eula} onChange={field('eula')} className="accent-primary" />
           <span className="text-muted-foreground">{t('minecraft.servers.eula')}</span>

@@ -7,7 +7,7 @@
  * Text-based locators read their strings from i18n.cjs (the same dictionary
  * the UI renders), so reworded copy does not break a test that was never
  * about the wording. Where the markup gives something better than text - a
- * form control's autocomplete role, the tour's data attributes - that wins.
+ * form control's autocomplete role, the shell's data attributes - that wins.
  *
  * Note: Field (src/components/ui/field.jsx) renders its <Label> without a
  * `for`, so the login inputs are not reachable via getByLabel and are matched
@@ -32,40 +32,66 @@ function loginScreen(page) {
   };
 }
 
-function gamesHub(page) {
+/* What `/` shows: the game picker when there are no servers yet, the list of
+ * every server when there are several. (With exactly one, `/` opens it;
+ * `/servers` always shows the list.) */
+function homeScreen(page) {
   return {
-    carousel: page.getByRole('region', { name: en('games.count') }),
-    game: (id) => page.locator(`.game-carousel-slide[data-game="${id}"]`),
+    firstServer: page.getByRole('heading', { name: en('home.firstTitle') }),
+    gameChoice: (id) => page.locator(`[data-game-choice="${id}"]`),
+    serverList: page.locator('[data-server-list]'),
+    addServer: page.getByRole('button', { name: en('addServer.button'), exact: true }),
+    // Trash sits under the list (and under the picker) for admins, and only
+    // when something is in it.
+    trash: page.getByText(en('portability.trashTitle'), { exact: true }),
+    restore: page.getByRole('button', { name: en('portability.restore') }),
   };
+}
+
+/* A server-scoped URL: `/servers/<id>` for the overview, or
+ * `/servers/<id>/<segment>` for a section. The id defaults to any. */
+function serverUrl(segment = '', id = '[^/]+') {
+  return new RegExp(`/servers/${id}${segment ? `/${segment}` : ''}$`);
 }
 
 function appShell(page) {
   return {
-    header: page.locator('header[data-tour="header"]'),
-    profileButton: page.locator('[data-tour="profile"]'),
-    sidebar: page.locator('[data-tour="sidebar"]'),
+    header: page.locator('header[data-app-header]'),
+    profileButton: page.locator('[data-profile-menu]'),
+    sidebar: page.locator('[data-app-sidebar]'),
     navItem: (view) => page.locator(`[data-nav-item="${view}"]`),
-    menuSettings: page.getByRole('menuitem', { name: en('sidebar.settings') }),
+    /* A tab of the open section (Mods, Worlds, Settings). */
+    sectionTab: (tab) => page.locator(`[data-section-tab="${tab}"]`),
+    // Profile menu. "Hostkind settings" carries the panel's name, so it never
+    // reads like the open server's own Settings.
+    menuSettings: page.getByRole('menuitem', { name: en('nav.panelSettings', { name: en('brand.name') }) }),
+    menuWhatsNew: page.getByRole('menuitem', { name: en('whatsNew.title') }),
+    menuReportProblem: page.getByRole('menuitem', { name: en('bugReport.menu') }),
+    /* The unread mark on the profile button after an update. */
+    whatsNewDot: page.locator('[data-whats-new-dot]'),
+    menuLanguage: page.getByRole('menuitem', { name: en('settings.language') }),
     menuLogout: page.getByRole('menuitem', { name: en('sidebar.logout') }),
-    tour: page.getByRole('dialog', { name: en('tour.welcome.title') }),
     changelog: page.getByRole('dialog', { name: en('whatsNew.title') }),
+    /* Above Mods, Worlds and Settings -> Game/Files of a never-started server. */
+    firstStartNotice: page.locator('[data-first-start-notice]'),
   };
 }
 
-/* The bar pinned to the bottom of every in-game screen: server picker, status,
- * and start / stop / restart for the server that is selected. Start and
- * stop/restart are never mounted at the same time - the dock swaps them as the
- * lifecycle moves - so a spec waits for the one it expects.
+/* The open server's controls: its status and start / stop / restart in the
+ * header, and the server switcher at the top of the sidebar. Start and
+ * stop/restart are never mounted at the same time - the header swaps them as
+ * the lifecycle moves - so a spec waits for the one it expects.
  *
  * `exact` everywhere below is load-bearing: accessible-name matching is a
  * substring match by default, and "Restart" contains "start". */
-function controlBar(page) {
-  const root = page.locator('[data-tour="controlbar"]');
+function serverControls(page) {
+  const root = page.locator('[data-server-controls]');
   return {
     root,
     // The pill reports the status in words; the dot beside it is decorative.
-    status: root.locator('.status-pill'),
-    picker: root.locator('button[aria-haspopup="listbox"]'),
+    // Two pills: one beside the name, one on the second line on phones.
+    status: page.locator('header[data-app-header] .status-pill:visible'),
+    picker: page.locator('[data-server-switcher]'),
     pickerOption: (name) => page.getByRole('option', { name }),
     start: root.getByRole('button', { name: en('header.start'), exact: true }),
     stop: root.getByRole('button', { name: en('header.stop'), exact: true }),
@@ -80,21 +106,56 @@ function tableRow(page, name) {
   return page.getByRole('row').filter({ has: page.getByText(name, { exact: true }) });
 }
 
-/* One row of the registered-servers table. The action buttons are labelled by
- * their `title`, and again: exact, or "Start" also finds "Restart". */
+/* One row of the all-servers list. Clicking the row opens the server; Start
+ * and Stop act in place (never both at once, like the header). Editing,
+ * cloning and removing live on the server's Settings -> General and in the
+ * header's menu, not here. */
 function serverRow(page, name) {
   const root = tableRow(page, name);
-  const action = (key) => root.getByTitle(en(key), { exact: true });
+  const action = (label) => root.getByRole('button', { name: label, exact: true });
   return {
     root,
     status: root.locator('.status-pill'),
-    start: action('servers.btnStart'),
-    stop: action('servers.btnStop'),
-    restart: action('servers.btnRestart'),
-    setActive: action('servers.btnSetActive'),
-    edit: action('servers.btnEdit'),
-    tools: action('portability.serverTools'),
-    remove: action('servers.btnRemove'),
+    start: action(en('servers.btnStart')),
+    stop: action(en('servers.btnStop')),
+    open: action(en('servers.btnOpenNamed', { name })),
+    attention: root.locator('[data-attention-count]'),
+    staleBackup: root.locator('[data-backup-stale]'),
+  };
+}
+
+/* The open server's Settings -> General page: its profile form and the
+ * buttons that clone it, remove it, or (Palworld) open its tools. */
+function generalSettings(page) {
+  const button = (key) => page.locator('main').getByRole('button', { name: en(key), exact: true });
+  return {
+    save: button('common.save'),
+    clone: button('servers.cloneWithoutWorlds'),
+    remove: button('servers.btnRemove'),
+    tools: button('serverSettings.openTools'),
+  };
+}
+
+/* Hostkind settings (`/settings[/<tab>]`): the panel's own page, tabbed.
+ * `group` is one settings group of the Preferences tab (profile, password,
+ * language, watchdog, game-colors, hotkeys, legal). */
+function panelSettings(page) {
+  return {
+    root: page.locator('main'),
+    tab: (name) => page.locator(`[data-section-tab="${name}"]`),
+    tabs: page.locator('[data-section-tab]'),
+    group: (name) => page.locator(`[data-settings-group="${name}"]`),
+  };
+}
+
+/* The header's `⋯` menu for the open server (admins only). */
+function serverMenu(page) {
+  const item = (key) => page.getByRole('menuitem', { name: en(key), exact: true });
+  return {
+    trigger: page.locator('[data-server-menu]'),
+    settings: item('servers.menuSettings'),
+    clone: item('servers.cloneWithoutWorlds'),
+    remove: item('servers.btnRemove'),
   };
 }
 
@@ -189,6 +250,32 @@ function minecraftWizard(page) {
 }
 
 /*
+ * The presets at the top of every create wizard (views/servers/PresetPicker.jsx).
+ * A preset button is aria-pressed while the form still matches it, so editing
+ * a field it set clears the highlight.
+ */
+function presetButton(root, id) {
+  return root.locator(`[data-server-preset="${id}"]`);
+}
+
+/*
+ * Worlds -> Map while no map is showing (components/shared/MapSetup.jsx): the
+ * map plugins to install, the "already installed" card, the restart prompt,
+ * and BlueMap's download consent banner above the card.
+ */
+function mapSetup(page) {
+  return {
+    plugin(key) {
+      const root = page.locator(`[data-map-plugin="${key}"]`);
+      return { root, install: root.getByRole('button') };
+    },
+    showMap: page.getByRole('button', { name: en('minecraft.mapView.showMap'), exact: true }),
+    consent: page.getByRole('button', { name: en('minecraft.mapView.blueMapConsentAction'), exact: true }),
+    frame: page.locator(`iframe[title="${en('minecraft.mapView.title')}"]`),
+  };
+}
+
+/*
  * The panel's own folder browser: the fallback a wizard opens when the host's
  * native dialog cannot be used.
  *
@@ -215,10 +302,22 @@ function folderBrowser(page) {
  * number of plots mounted and got real width, and reads the headline value out
  * of the card beside each one.
  */
-function healthView(page) {
-  const tab = (key) => page.getByRole('tab', { name: en(key), exact: true });
+/** A server's Overview: KPI cards, Needs attention, the facts line. */
+function overviewView(page) {
+  const attention = page.locator('[data-attention]');
   return {
-    tabs: { overview: tab('health.overview'), resources: tab('health.resources'), crashes: tab('health.crashes') },
+    kpi: (key) => page.locator(`[data-kpi="${key}"]`),
+    attention,
+    heading: attention.getByRole('heading'),
+    item: (kind) => attention.locator(`[data-attention-item="${kind}"]`),
+    items: attention.locator('[data-attention-item]'),
+    allClear: attention.locator('[data-attention-clear]'),
+    facts: page.locator('[data-overview-facts]'),
+  };
+}
+
+function detailsView(page) {
+  return {
     plots: page.locator('.uplot'),
     noData: page.getByText(en('metrics.noData')),
     range: (key) => page.getByRole('button', { name: en(key), exact: true }),
@@ -266,8 +365,8 @@ function serverTools(page) {
 }
 
 module.exports = {
-  loginScreen, gamesHub, appShell, controlBar,
-  serverRow, tableRow, userRow, apiKeyRow, brandMark, healthView,
-  toasts, dialog, fieldByLabel, minecraftWizard, folderBrowser, loadingSpinner,
+  loginScreen, homeScreen, serverUrl, appShell, serverControls,
+  serverRow, generalSettings, serverMenu, panelSettings, tableRow, userRow, apiKeyRow, brandMark, overviewView, detailsView,
+  toasts, dialog, fieldByLabel, minecraftWizard, presetButton, mapSetup, folderBrowser, loadingSpinner,
   serverTools,
 };

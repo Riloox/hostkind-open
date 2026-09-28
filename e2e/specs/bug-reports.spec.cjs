@@ -1,30 +1,21 @@
 'use strict';
 
 /*
- * The floating bug reporter (plan: report-bug-github, Task 5).
- *
- * Wave 1 of a test-first swarm: the feature does not exist in the bundle yet,
- * so every test here is expected to fail until Task 5 lands. These tests ARE
- * the contract - the implementer must make them pass without changing them.
- * Deliberately no test.fail() markers: this is not a known bug, it is a
- * not-yet-built feature.
+ * The bug reporter: "Report a problem" in the profile menu opens
+ * BugReportDialog. (It used to be a floating launcher in the bottom-right
+ * corner; nothing floats over the page any more.)
  *
  * Contract the tests pin:
  *
- * Launcher (BugReportButton, mounted in App.jsx):
- *   - a <button> fixed in the bottom-right of every authenticated in-game
- *     screen, with aria-label and title = en('bugReport.launcher'), in the
- *     tab order, >= 44x44px hit target.
- *   - NOT rendered on the login screen or the games hub (/games).
- *   - never covering the bottom ControlBar on short viewports (its bottom
- *     edge stays above the dock's top edge).
- *   - hide/show control: a themed chevron button next to the launcher. Hiding
- *     slides the launcher off-screen and sets localStorage
- *     'fleetdeck_bug_report_hidden:<userId>' to '1'; a reload keeps it hidden.
+ * Entry (Header's profile menu, dialog mounted in App.jsx):
+ *   - a menu item named en('bugReport.menu') for any signed-in user, usable
+ *     from the keyboard.
+ *   - no fixed launcher ([data-bug-report-dock]); the old per-user
+ *     'fleetdeck_bug_report_hidden:<userId>' flag means nothing.
  *
  * Dialog (BugReportDialog):
  *   - Radix dialog whose accessible name is en('bugReport.title'), opened by
- *     clicking the launcher, closed by Escape or its X (en('common.close')).
+ *     choosing the menu item, closed by Escape or its X (en('common.close')).
  *   - form controls carry name attributes: name="summary", name="description"
  *     (both required), name="repro", name="expected" (both optional).
  *   - current-screen context, captured when the dialog opens, rendered as
@@ -39,96 +30,58 @@
  *     dialog shows the GitHub url and en('bugReport.success'); on
  *     { sync: { state: 'pending', ... } } it shows en('bugReport.pending').
  *
- * i18n keys required in BOTH dictionaries: bugReport.launcher,
+ * i18n keys required in BOTH dictionaries: bugReport.menu,
  * bugReport.title, bugReport.summary, bugReport.description, bugReport.repro,
  * bugReport.expected, bugReport.context, bugReport.privacy,
- * bugReport.submit, bugReport.success, bugReport.pending, bugReport.hide,
- * settings.bugReport, settings.bugReportDesc, settings.bugReportRestore.
+ * bugReport.submit, bugReport.success, bugReport.pending.
  */
 
 const { test, expect, en, es } = require('../support/fixtures.cjs');
-const { appShell, loginScreen, gamesHub, controlBar, dialog } = require('../support/pages.cjs');
+const { appShell } = require('../support/pages.cjs');
 const { signInFast, openView } = require('../support/actions.cjs');
 
 const GITHUB_URL = 'https://github.com/Riloox/hostkind-open/issues/123';
 const HIDDEN_KEY = 'fleetdeck_bug_report_hidden';
 
-function launcher(page) {
-  return page.getByRole('button', { name: en('bugReport.launcher'), exact: true });
+/** Open the reporter the way a user does: profile menu -> Report a problem. */
+async function openReporter(page) {
+  await appShell(page).profileButton.click();
+  await appShell(page).menuReportProblem.click();
 }
 
 function reporterDialog(page) {
   return page.getByRole('dialog', { name: en('bugReport.title'), exact: true });
 }
 
-test.describe('bug reporter launcher', () => {
-  test('floats in the bottom-right of authenticated app screens', async ({ page, app }) => {
-    await signInFast(page, app);
+test.describe('bug reporter entry', () => {
+  test('lives in the profile menu, with nothing floating over the page', async ({ page, app }) => {
+    const { user } = await signInFast(page, app);
+    // The old "hide the launcher" flag must not hide anything.
+    await page.addInitScript(([key, value]) => {
+      try { window.localStorage.setItem(key, value); } catch { /* ignore */ }
+    }, [`${HIDDEN_KEY}:${user.id}`, '1']);
     await openView(page, 'minecraft', 'dashboard');
 
-    const button = launcher(page);
-    await expect(button).toBeVisible();
-
-    // Fixed positioning, directly or through a fixed wrapper.
-    const fixed = await button.evaluate((el) => {
-      for (let node = el; node && node !== document.body; node = node.parentElement) {
-        if (getComputedStyle(node).position === 'fixed') return true;
-      }
-      return false;
-    });
-    expect(fixed).toBe(true);
-
-    const box = await button.boundingBox();
-    const arrow = page.getByRole('button', { name: en('bugReport.hide'), exact: true });
-    const arrowBox = await arrow.boundingBox();
-    const viewport = page.viewportSize();
-    expect(arrowBox.x + arrowBox.width).toBeGreaterThan(viewport.width - 48);
-    expect(box.y + box.height / 2).toBeGreaterThan(viewport.height / 2);
+    await expect(page.locator('[data-bug-report-dock]')).toHaveCount(0);
+    await openReporter(page);
+    await expect(reporterDialog(page)).toBeVisible();
   });
 
-  test('does not appear on the login screen or the games hub', async ({ page, app }) => {
-    await page.goto('/');
-    await expect(loginScreen(page).heading).toBeVisible();
-    await expect(launcher(page)).toHaveCount(0);
-
-    await signInFast(page, app);
-    await page.goto('/games');
-    await expect(gamesHub(page).carousel).toBeVisible();
-    await expect(launcher(page)).toHaveCount(0);
-
-    await openView(page, 'minecraft', 'dashboard');
-    await expect(launcher(page)).toBeVisible();
-  });
-
-  test('has an accessible name, a tooltip and a 44px hit target', async ({ page, app }) => {
+  test('opens from the keyboard', async ({ page, app }) => {
     await signInFast(page, app);
     await openView(page, 'minecraft', 'dashboard');
 
-    const button = launcher(page);
-    await expect(button).toBeVisible();
-    await expect(button).toHaveAttribute('title', /.+/);
-
-    const box = await button.boundingBox();
-    expect(box.width).toBeGreaterThanOrEqual(44);
-    expect(box.height).toBeGreaterThanOrEqual(44);
-  });
-
-  test('is reachable with Tab and opens the dialog with Enter', async ({ page, app }) => {
-    await signInFast(page, app);
-    await openView(page, 'minecraft', 'dashboard');
-
-    const button = launcher(page);
-    await expect(button).toBeVisible();
-
-    // Bounded walk: the launcher's place in the tab order depends on the
-    // screen's other controls, which may change. 40 tabs is far beyond the
-    // current page's focusables.
+    await appShell(page).profileButton.focus();
+    await page.keyboard.press('Enter');
+    const item = appShell(page).menuReportProblem;
+    await expect(item).toBeVisible();
+    // Bounded walk down the menu: its order may change.
     let focused = false;
-    for (let i = 0; i < 40 && !focused; i += 1) {
-      await page.keyboard.press('Tab');
-      focused = await button.evaluate((el) => el === document.activeElement);
+    for (let i = 0; i < 10 && !focused; i += 1) {
+      await page.keyboard.press('ArrowDown');
+      focused = await item.evaluate((el) => el === document.activeElement);
     }
-    expect(focused, 'launcher should be reachable from the keyboard').toBe(true);
+    expect(focused, 'Report a problem should be reachable from the keyboard').toBe(true);
 
     await page.keyboard.press('Enter');
     await expect(reporterDialog(page)).toBeVisible();
@@ -140,14 +93,14 @@ test.describe('bug reporter dialog', () => {
     await signInFast(page, app);
     await openView(page, 'minecraft', 'dashboard');
 
-    await launcher(page).click();
+    await openReporter(page);
     const dlg = reporterDialog(page);
     await expect(dlg).toBeVisible();
 
     await page.keyboard.press('Escape');
     await expect(dlg).toBeHidden();
 
-    await launcher(page).click();
+    await openReporter(page);
     await expect(dlg).toBeVisible();
     await dlg.getByRole('button', { name: en('common.close'), exact: true }).click();
     await expect(dlg).toBeHidden();
@@ -158,13 +111,13 @@ test.describe('bug reporter dialog', () => {
     // A non-default view, so a stale "dashboard" capture cannot pass.
     await openView(page, 'terraria', 'files');
 
-    await launcher(page).click();
+    await openReporter(page);
     const dlg = reporterDialog(page);
     await expect(dlg).toBeVisible();
 
     await expect(dlg.locator('[data-bug-report-context-game="terraria"]')).toBeVisible();
-    await expect(dlg.locator('[data-bug-report-context-view="files"]')).toBeVisible();
-    await expect(dlg.locator('[data-bug-report-context-route="/games/terraria/files"]')).toBeVisible();
+    await expect(dlg.locator('[data-bug-report-context-view="settings/files"]')).toBeVisible();
+    await expect(dlg.locator('[data-bug-report-context-route="/servers/srv-hardmode/settings/files"]')).toBeVisible();
     await expect(dlg).toContainText(en('bugReport.privacy'));
   });
 
@@ -173,7 +126,7 @@ test.describe('bug reporter dialog', () => {
     await signInFast(page, panel);
     await openView(page, 'minecraft', 'dashboard', { origin: panel.url });
 
-    await launcher(page).click();
+    await openReporter(page);
     const dlg = reporterDialog(page);
     await expect(dlg).toBeVisible();
 
@@ -214,7 +167,7 @@ test.describe('bug reporter dialog', () => {
     await signInFast(page, panel);
     await openView(page, 'minecraft', 'dashboard', { origin: panel.url });
 
-    await launcher(page).click();
+    await openReporter(page);
     const dlg = reporterDialog(page);
     await expect(dlg).toBeVisible();
 
@@ -246,7 +199,7 @@ test.describe('bug reporter dialog', () => {
       expected: 'It should stay open',
       game: 'minecraft',
       view: 'dashboard',
-      route: '/games/minecraft/dashboard',
+      route: '/servers/srv-survival',
     });
   });
 
@@ -255,7 +208,7 @@ test.describe('bug reporter dialog', () => {
     await signInFast(page, panel);
     await openView(page, 'minecraft', 'dashboard', { origin: panel.url });
 
-    await launcher(page).click();
+    await openReporter(page);
     const dlg = reporterDialog(page);
     await expect(dlg).toBeVisible();
 
@@ -279,7 +232,7 @@ test.describe('bug reporter dialog', () => {
     await signInFast(page, panel);
     await openView(page, 'minecraft', 'dashboard', { origin: panel.url });
 
-    await launcher(page).click();
+    await openReporter(page);
     const dlg = reporterDialog(page);
     await expect(dlg).toBeVisible();
 
@@ -310,7 +263,7 @@ test.describe('bug reporter dialog', () => {
     await signInFast(page, panel);
     await openView(page, 'minecraft', 'dashboard', { origin: panel.url });
 
-    await launcher(page).click();
+    await openReporter(page);
     const dlg = reporterDialog(page);
     await expect(dlg).toBeVisible();
 
@@ -341,84 +294,15 @@ test.describe('bug reporter dialog', () => {
   });
 });
 
-test.describe('bug reporter hide and restore', () => {
-  test('hides per user and stays hidden after a reload', async ({ page, app }) => {
-    const { user } = await signInFast(page, app);
-    await openView(page, 'minecraft', 'dashboard');
-
-    const button = launcher(page);
-    await expect(button).toBeVisible();
-
-    await page.getByRole('button', { name: en('bugReport.hide'), exact: true }).click();
-    await expect(button).toHaveAttribute('data-bug-report-hidden', 'true');
-    await expect(button).toHaveAttribute('tabindex', '-1');
-
-    const hidden = await page.evaluate(
-      ([key, userId]) => window.localStorage.getItem(`${key}:${userId}`),
-      [HIDDEN_KEY, user.id],
-    );
-    expect(hidden).toBe('1');
-
-    await page.reload();
-    await expect(appShell(page).header).toBeVisible();
-    await expect(button).toHaveAttribute('data-bug-report-hidden', 'true');
-  });
-
-  test('hidden state can be restored with the chevron', async ({ page, app }) => {
-    const { user } = await signInFast(page, app);
-    // Plant the hidden flag before the app boots: addInitScript runs on the
-    // next navigation (openView's page.goto).
-    await page.addInitScript(([key, value]) => {
-      try { window.localStorage.setItem(key, value); } catch { /* ignore */ }
-    }, [`${HIDDEN_KEY}:${user.id}`, '1']);
-    await openView(page, 'minecraft', 'dashboard');
-
-    const button = launcher(page);
-    await expect(button).toHaveAttribute('data-bug-report-hidden', 'true');
-    await page.getByRole('button', { name: en('bugReport.show'), exact: true }).click();
-
-    await expect(button).toBeVisible();
-    const hidden = await page.evaluate(
-      ([key, userId]) => window.localStorage.getItem(`${key}:${userId}`),
-      [HIDDEN_KEY, user.id],
-    );
-    expect(hidden).not.toBe('1');
-  });
-});
-
-test.describe('bug reporter layout', () => {
-  test('sits above the control bar on a short viewport', async ({ page, app }) => {
-    await signInFast(page, app);
-    await page.setViewportSize({ width: 726, height: 337 });
-    await openView(page, 'minecraft', 'dashboard');
-
-    const button = launcher(page);
-    const dock = controlBar(page).root;
-    await expect(button).toBeVisible();
-    await expect(dock).toBeVisible();
-
-    // The launcher must not cover the dock: a 2px graze of the dock's top
-    // border is tolerated, never more. Poll because fixed-position layout can
-    // settle a frame late.
-    const overlap = async () => {
-      const b = await button.boundingBox();
-      const d = await dock.boundingBox();
-      return b.y + b.height - (d.y + 2);
-    };
-    await expect.poll(overlap, { timeout: 5000 }).toBeLessThanOrEqual(0);
-  });
-});
-
 test.describe('bug reporter languages', () => {
   test.use({ uiLanguage: 'es' });
 
-  test('launcher and dialog render in Spanish', async ({ page, app }) => {
+  test('menu entry and dialog render in Spanish', async ({ page, app }) => {
     await signInFast(page, app);
     await openView(page, 'minecraft', 'dashboard');
 
-    const button = page.getByRole('button', { name: es('bugReport.launcher'), exact: true });
-    await expect(button).toBeVisible();
-    await button.click();
+    await appShell(page).profileButton.click();
+    await page.getByRole('menuitem', { name: es('bugReport.menu') }).click();
     await expect(page.getByRole('dialog', { name: es('bugReport.title'), exact: true })).toBeVisible();
   });
 });

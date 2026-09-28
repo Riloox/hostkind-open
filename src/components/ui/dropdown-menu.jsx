@@ -1,5 +1,6 @@
 import * as React from 'react';
 import * as DropdownMenuPrimitive from '@radix-ui/react-dropdown-menu';
+import { Check, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const DropdownMenu = DropdownMenuPrimitive.Root;
@@ -60,6 +61,60 @@ const DropdownMenuSeparator = React.forwardRef(({ className, ...props }, ref) =>
 ));
 DropdownMenuSeparator.displayName = DropdownMenuPrimitive.Separator.displayName;
 
+const DropdownMenuSubTrigger = React.forwardRef(({ className, children, ...props }, ref) => (
+  <DropdownMenuPrimitive.SubTrigger
+    ref={ref}
+    className={cn(
+      'relative flex cursor-default select-none items-center gap-2 rounded-md px-3 py-2 text-sm outline-none',
+      'transition-colors focus:bg-secondary/60 focus:text-foreground data-[state=open]:bg-secondary/60',
+      className
+    )}
+    {...props}
+  >
+    {children}
+    <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+  </DropdownMenuPrimitive.SubTrigger>
+));
+DropdownMenuSubTrigger.displayName = DropdownMenuPrimitive.SubTrigger.displayName;
+
+const DropdownMenuSubContent = React.forwardRef(({ className, sideOffset = 4, ...props }, ref) => (
+  <DropdownMenuPrimitive.Portal>
+    <DropdownMenuPrimitive.SubContent
+      ref={ref}
+      sideOffset={sideOffset}
+      className={cn(
+        'z-50 min-w-[10rem] overflow-hidden rounded border-2 border-border bg-popover/84 shadow-xl backdrop-blur-xl',
+        'data-[state=open]:animate-in data-[state=closed]:animate-out',
+        'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
+        className
+      )}
+      {...props}
+    />
+  </DropdownMenuPrimitive.Portal>
+));
+DropdownMenuSubContent.displayName = DropdownMenuPrimitive.SubContent.displayName;
+
+const DropdownMenuRadioItem = React.forwardRef(({ className, children, ...props }, ref) => (
+  <DropdownMenuPrimitive.RadioItem
+    ref={ref}
+    className={cn(
+      'relative flex cursor-default select-none items-center rounded-md py-2 pl-8 pr-3 text-sm outline-none',
+      'transition-colors focus:bg-secondary/60 focus:text-foreground',
+      'data-[disabled]:pointer-events-none data-[disabled]:opacity-40',
+      className
+    )}
+    {...props}
+  >
+    <span className="absolute left-3 flex h-3.5 w-3.5 items-center justify-center">
+      <DropdownMenuPrimitive.ItemIndicator>
+        <Check className="h-3.5 w-3.5" />
+      </DropdownMenuPrimitive.ItemIndicator>
+    </span>
+    {children}
+  </DropdownMenuPrimitive.RadioItem>
+));
+DropdownMenuRadioItem.displayName = DropdownMenuPrimitive.RadioItem.displayName;
+
 const DropdownMenuShortcut = ({ className, ...props }) => (
   <span className={cn('ml-auto text-xs tracking-widest text-muted-foreground', className)} {...props} />
 );
@@ -69,5 +124,6 @@ export {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
   DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
   DropdownMenuShortcut, DropdownMenuGroup, DropdownMenuPortal,
-  DropdownMenuSub, DropdownMenuRadioGroup,
+  DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent,
+  DropdownMenuRadioGroup, DropdownMenuRadioItem,
 };

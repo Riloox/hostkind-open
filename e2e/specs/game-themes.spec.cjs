@@ -8,7 +8,7 @@
 
 const { test, expect, en } = require('../support/fixtures.cjs');
 const { signInFast, openView } = require('../support/actions.cjs');
-const { appShell, dialog } = require('../support/pages.cjs');
+const { appShell, panelSettings } = require('../support/pages.cjs');
 
 /*
  * Read a custom property back from the document. Not compared as a string:
@@ -72,13 +72,13 @@ test.describe('per-game custom colours', () => {
     await openView(page, 'terraria', 'dashboard', { origin: panel.url });
     expect(await accentToken(page, '--ember-5')).toEqual([74, 0.123, 210]); // built-in sky
 
-    // Profile menu -> settings -> Game colours.
+    // Profile menu -> Hostkind settings -> Game colours.
     await appShell(page).profileButton.click();
     await appShell(page).menuSettings.click();
-    const settings = dialog(page, en('settings.title'));
-    await expect(settings.root).toBeVisible();
+    const colours = panelSettings(page).group('game-colors');
+    await expect(colours).toBeVisible();
 
-    const terrariaRow = settings.root.getByText(en('games.terraria'), { exact: true })
+    const terrariaRow = colours.getByText(en('games.terraria'), { exact: true })
       .locator('xpath=ancestor::div[contains(@class, "space-y-1.5")]');
     await terrariaRow.getByRole('button', { name: en('portability.accentSwatch', { value: '#3b82f6' }), exact: true }).click();
 
@@ -101,9 +101,8 @@ test.describe('per-game custom colours', () => {
 
     await appShell(page).profileButton.click();
     await appShell(page).menuSettings.click();
-    const settings = dialog(page, en('settings.title'));
-    await expect(settings.root).toBeVisible();
+    await expect(panelSettings(page).group('language')).toBeVisible();
 
-    await expect(settings.root.getByText(en('settings.gameColors'))).toHaveCount(0);
+    await expect(panelSettings(page).group('game-colors')).toHaveCount(0);
   });
 });

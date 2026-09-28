@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import {
-  CalendarClock, CheckCircle2, Database, Download, Ellipsis, FileArchive, FileBox, FileWarning,
-  Globe2, HardDrive, Info, Loader2, Power, Puzzle, Sparkles, Square, Trash2, TriangleAlert, Upload,
+  CheckCircle2, Download, Ellipsis, FileArchive, FileBox, FileWarning, Globe2, Info, Loader2,
+  Power, Puzzle, Sparkles, Square, Trash2, TriangleAlert, Upload,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,7 +17,7 @@ import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, Dia
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { Loading } from '@/components/shared/Loading';
-import { PageIntro, SummaryGrid, SummaryItem } from '@/components/layout/Page';
+import { ViewHeader } from '@/components/layout/Page';
 import { useApi } from '@/hooks/useApi';
 import { useWorldOperation } from '@/hooks/useWorldOperation';
 import { useAuth } from '@/context/AuthContext';
@@ -431,8 +431,6 @@ export function TerrariaWorldsView() {
   const live = activeServerId ? getServerStatus(activeServerId) : null;
   const offline = !live || live.status === 'offline';
   const busy = !!op && ['queued', 'running'].includes(op.state);
-  const totalSize = data.worlds.reduce((sum, world) => sum + (world.sizeBytes || 0), 0);
-  const latestChange = data.worlds.reduce((latest, world) => Math.max(latest, world.modifiedAt || 0), 0);
   // A selection takes effect at the next start, and the operation says so in its
   // own result rather than the view guessing from what it just did.
   const restartRequired = offline && op?.state === 'succeeded' && op.summary?.restartRequired === true;
@@ -440,23 +438,21 @@ export function TerrariaWorldsView() {
   // the operation's own word for what it is doing.
   const runningAction = String(op?.kind || '').split('.').pop().replace(/^terraria-/, '');
   const lastEvent = events.length ? events[events.length - 1] : null;
+  const worldButtons = (
+    <>
+      <Button variant="glass" onClick={() => setDialog({ action: 'import' })} disabled={busy || !offline}>
+        <Upload className="h-4 w-4" />{t('terraria.worlds.import')}
+      </Button>
+      <Button onClick={() => setDialog({ action: 'generate' })} disabled={busy || !offline}>
+        <Sparkles className="h-4 w-4" />{t('terraria.worlds.generate')}
+      </Button>
+    </>
+  );
 
   return (
     <div className="space-y-5">
-      <PageIntro
-        title={t('terraria.worlds.title')}
-        description={t('terraria.worlds.subtitle')}
-        actions={
-          <>
-            <Button variant="glass" onClick={() => setDialog({ action: 'import' })} disabled={busy || !offline}>
-              <Upload className="h-4 w-4" />{t('terraria.worlds.import')}
-            </Button>
-            <Button onClick={() => setDialog({ action: 'generate' })} disabled={busy || !offline}>
-              <Sparkles className="h-4 w-4" />{t('terraria.worlds.generate')}
-            </Button>
-          </>
-        }
-      />
+      {/* An empty list carries these buttons itself. */}
+      <ViewHeader actions={data.worlds.length ? worldButtons : null} />
 
       {/* Every world mutation needs the server stopped, so the notice carries the
           button that gets it there instead of sending the operator elsewhere. */}
@@ -525,14 +521,6 @@ export function TerrariaWorldsView() {
         </Card>
       )}
 
-      <SummaryGrid className="sm:grid-cols-3 xl:grid-cols-3">
-        {[
-          { icon: Database, label: t('terraria.worlds.summaryWorlds'), value: data.worlds.length },
-          { icon: HardDrive, label: t('terraria.worlds.summaryStorage'), value: fmtBytes(totalSize) },
-          { icon: CalendarClock, label: t('terraria.worlds.summaryUpdated'), value: latestChange ? fmtDate(latestChange) : '-' },
-        ].map(({ icon, label, value }) => <SummaryItem key={label} icon={icon} label={label} value={value} />)}
-      </SummaryGrid>
-
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><FileBox className="h-4 w-4" />{t('terraria.worlds.list')}</CardTitle>
@@ -540,9 +528,13 @@ export function TerrariaWorldsView() {
         </CardHeader>
         <CardContent className="grid gap-3 lg:grid-cols-2">
           {data.worlds.length === 0 && (
-            <div className="col-span-full rounded-lg border border-dashed px-4 py-10 text-center text-sm text-muted-foreground">
-              {t('terraria.worlds.empty')}
-            </div>
+            <EmptyState
+              className="col-span-full"
+              icon={Globe2}
+              title={t('terraria.worlds.emptyTitle')}
+              message={t('terraria.worlds.empty')}
+              action={<div className="flex flex-wrap justify-center gap-2">{worldButtons}</div>}
+            />
           )}
           {data.worlds.map((world) => (
             <div key={world.file} className="group flex min-h-40 flex-col rounded-xl border bg-background/35 p-4 transition-colors hover:border-primary/30 hover:bg-background/60">

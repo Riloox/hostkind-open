@@ -1,8 +1,9 @@
 ﻿'use strict';
 
 /*
- * The server registry: what is registered, which one is active, and starting
- * and stopping them.
+ * The server registry: the all-servers list, opening a server from it,
+ * starting and stopping them, and editing or removing one from its own
+ * Settings -> General and the header's menu.
  *
  * The lifecycle tests drive the "Worker" fixture - a custom-module server
  * pointed at e2e/support/fake-process.cjs - so a start here spawns a real
@@ -13,8 +14,11 @@
 const fs = require('fs');
 const path = require('path');
 const { test, expect, en } = require('../support/fixtures.cjs');
-const { controlBar, serverRow, toasts, dialog, fieldByLabel, minecraftWizard, folderBrowser } = require('../support/pages.cjs');
-const { signInFast, openView, waitForLiveConnection } = require('../support/actions.cjs');
+const {
+  serverControls, serverRow, serverUrl, homeScreen, generalSettings, serverMenu,
+  toasts, dialog, fieldByLabel, minecraftWizard, folderBrowser,
+} = require('../support/pages.cjs');
+const { signInFast, openView, openGeneralSettings, startAddServer, openMoreOptions, waitForLiveConnection } = require('../support/actions.cjs');
 const { client } = require('../support/api.cjs');
 const seed = require('../support/seed.cjs');
 
@@ -25,33 +29,46 @@ const row = (page, name) => serverRow(page, name).root;
 const LIFECYCLE = { timeout: 20_000 };
 
 test.describe('registry', () => {
-  test('lists only the servers belonging to the game you are in', async ({ page, app }) => {
+  test('lists every server, whatever its game', async ({ page, app }) => {
     await signInFast(page, app);
     await openView(page, 'minecraft', 'servers');
 
-    await expect(page.getByText(en('servers.registeredTitle'))).toBeVisible();
-    await expect(row(page, 'Survival')).toBeVisible();
-    // The other games' servers are registered, but they are not this game's.
-    await expect(row(page, 'Hardmode')).toHaveCount(0);
-    await expect(row(page, 'Pal Camp')).toHaveCount(0);
-
-    await openView(page, 'terraria', 'servers');
-    await expect(row(page, 'Hardmode')).toBeVisible();
-    await expect(row(page, 'Survival')).toHaveCount(0);
+    await expect(homeScreen(page).serverList).toBeVisible();
+    // Servers of different games sit side by side; the list is not scoped to
+    // the game of whichever server was open last.
+    for (const name of ['Survival', 'Hardmode', 'Midgard', 'Pal Camp', 'Worker']) {
+      await expect(row(page, name)).toBeVisible();
+    }
   });
 
-  test('shows the folder and status of each server', async ({ page, app }) => {
+  test('shows the game and status of each server', async ({ page, app }) => {
     await signInFast(page, app);
     await openView(page, 'minecraft', 'servers');
 
-    const survival = row(page, 'Survival');
-    await expect(survival).toContainText(app.server('Survival').dir);
-    await expect(survival.locator('.status-pill')).toHaveText(en('status.offline'));
-    // Nothing is running, so players and uptime have nothing to report.
-    await expect(survival).toContainText(en('common.dashPlaceholder'));
+    const survival = serverRow(page, 'Survival');
+    await expect(survival.root).toContainText(en('games.minecraft'));
+    await expect(survival.status).toHaveText(en('status.offline'));
+    // Nothing is running, so players and resources have nothing to report,
+    // and the only lifecycle button is Start.
+    await expect(survival.root).toContainText(en('common.dashPlaceholder'));
+    await expect(survival.start).toBeVisible();
+    await expect(survival.stop).toHaveCount(0);
+    // Folders are configuration, not status: they live on Settings -> General.
+    await expect(survival.root).not.toContainText(app.server('Survival').dir);
   });
 
-  test('marks the active server and moves the mark on request', async ({ page, newApp }) => {
+  test('has no "active" server to pick', async ({ page, app }) => {
+    await signInFast(page, app);
+    await openView(page, 'minecraft', 'servers');
+
+    await expect(homeScreen(page).serverList).toBeVisible();
+    // The server you look at is the one in the URL; the list never asks you
+    // to choose one for the other pages to act on.
+    await expect(page.getByTitle('Set active')).toHaveCount(0);
+    await expect(homeScreen(page).serverList.getByText('active', { exact: true })).toHaveCount(0);
+  });
+
+  test('opens a server from its row', async ({ page, newApp }) => {
     const panel = await newApp({
       servers: (dirs) => [
         seed.minecraft(dirs, { name: 'Survival' }),
@@ -61,24 +78,26 @@ test.describe('registry', () => {
     await signInFast(page, panel);
     await openView(page, 'minecraft', 'servers', { origin: panel.url });
 
-    await expect(row(page, 'Survival')).toContainText(en('servers.activeLabel'));
-    await expect(row(page, 'Creative')).not.toContainText(en('servers.activeLabel'));
+    // Anywhere on the row opens it, not just the button.
+    await serverRow(page, 'Creative').root.getByText('Creative', { exact: true }).click();
 
-    await serverRow(page, 'Creative').setActive.click();
+    // Opening a server is a navigation: the URL names it, and the switcher follows.
+    await expect(page).toHaveURL(serverUrl('', 'srv-creative'));
+    await expect(serverControls(page).picker).toContainText('Creative');
 
-    await expect(row(page, 'Creative')).toContainText(en('servers.activeLabel'));
-    await expect(row(page, 'Survival')).not.toContainText(en('servers.activeLabel'));
-    // The dock follows the registry.
-    await expect(controlBar(page).picker).toContainText('Creative');
+    await page.goBack();
+    await serverRow(page, 'Survival').open.click();
+    await expect(page).toHaveURL(serverUrl('', 'srv-survival'));
   });
 
-  test('offers an empty state for a game with nothing registered', async ({ page, newApp }) => {
+  test('offers the game picker when nothing is registered', async ({ page, newApp }) => {
     const panel = await newApp({ servers: [] });
     await signInFast(page, panel);
     await openView(page, 'valheim', 'servers', { origin: panel.url });
 
-    await expect(page.getByText(en('servers.emptyTitle'))).toBeVisible();
-    await expect(page.getByRole('button', { name: en('servers.createNew') }).first()).toBeVisible();
+    // An empty list is the same first step as an empty home: pick a game.
+    await expect(homeScreen(page).firstServer).toBeVisible();
+    await expect(homeScreen(page).gameChoice('valheim')).toBeVisible();
   });
 });
 
@@ -88,9 +107,9 @@ test.describe('registering', () => {
     await signInFast(page, panel);
     await openView(page, 'minecraft', 'servers', { origin: panel.url });
 
-    // Minecraft's "add existing" opens the adoption dialog, which inspects the
-    // folder before anything is registered.
-    await page.getByRole('button', { name: en('servers.addExisting') }).click();
+    // Adding an existing Minecraft folder opens the adoption dialog, which
+    // inspects the folder before anything is registered.
+    await startAddServer(page, 'minecraft', 'existing');
     const form = dialog(page, en('portability.minecraftAdoptTitle'));
     await form.root.getByRole('textbox').first().fill(path.join(panel.dirs.servers, 'nowhere'));
     await form.root.getByRole('button', { name: en('portability.inspect') }).click();
@@ -115,7 +134,7 @@ test.describe('registering', () => {
       });
     });
 
-    await page.getByRole('button', { name: en('servers.addExisting') }).click();
+    await startAddServer(page, 'minecraft', 'existing');
     const form = dialog(page, en('portability.minecraftAdoptTitle'));
     const browse = form.root.getByRole('button', { name: en('servers.browse'), exact: true });
 
@@ -136,7 +155,7 @@ test.describe('registering', () => {
     await signInFast(page, panel);
     await openView(page, 'minecraft', 'servers', { origin: panel.url });
 
-    await page.getByRole('button', { name: en('servers.addExisting') }).click();
+    await startAddServer(page, 'minecraft', 'existing');
     const form = dialog(page, en('portability.minecraftAdoptTitle'));
     await form.root.getByRole('textbox').first().fill(dir);
     await form.root.getByRole('button', { name: en('portability.inspect') }).click();
@@ -146,7 +165,9 @@ test.describe('registering', () => {
     await expect(form.root.getByRole('textbox').nth(1)).toHaveValue('adopted');
     await form.root.getByRole('button', { name: en('portability.minecraftAdopt') }).click();
 
-    await expect(row(page, 'adopted')).toBeVisible();
+    // The server that was just added opens straight away.
+    await expect(page).toHaveURL(serverUrl());
+    await expect(page.getByRole('heading', { name: 'adopted', exact: true })).toBeVisible();
     // And it is in the config, not just on screen.
     expect(panel.readConfig().servers.some((server) => server.name === 'adopted')).toBe(true);
   });
@@ -181,7 +202,7 @@ test.describe('registering', () => {
     await signInFast(page, panel);
     await openView(page, 'minecraft', 'servers', { origin: panel.url });
 
-    await page.getByRole('button', { name: en('servers.addExisting') }).click();
+    await startAddServer(page, 'minecraft', 'existing');
     const form = dialog(page, en('portability.minecraftAdoptTitle'));
     await form.root.getByRole('textbox').first().fill(dir);
     await form.root.getByRole('button', { name: en('portability.inspect') }).click();
@@ -191,7 +212,8 @@ test.describe('registering', () => {
     await expect(form.root.getByRole('button', { name: en('portability.minecraftAdopt') })).toBeEnabled();
     await form.root.getByRole('button', { name: en('portability.minecraftAdopt') }).click();
 
-    await expect(row(page, 'neoforge-adopted')).toBeVisible();
+    await expect(page).toHaveURL(serverUrl());
+    await expect(page.getByRole('heading', { name: 'neoforge-adopted', exact: true })).toBeVisible();
     const registered = panel.readConfig().servers.find((server) => server.name === 'neoforge-adopted');
     expect(registered.launchArgs).toEqual([`@libraries/net/neoforged/neoforge/21.4.157/${argName}`, 'nogui']);
     expect(registered.mcVersion).toBe('1.21.4');
@@ -214,7 +236,7 @@ test.describe('registering', () => {
     await signInFast(page, panel);
     await openView(page, 'custom', 'servers', { origin: panel.url });
 
-    await page.getByRole('button', { name: en('servers.createNew') }).first().click();
+    await startAddServer(page, 'custom');
     const wizard = dialog(page, en('servers.createTitle'));
 
     await fieldByLabel(wizard.root, en('servers.fieldName')).fill('Wizard Made');
@@ -223,7 +245,10 @@ test.describe('registering', () => {
     await fieldByLabel(wizard.root, en('servers.fieldHealthCheckRegex')).fill('\\[fake\\] ready');
     await wizard.root.getByRole('button', { name: en('servers.createProcess') }).click();
 
-    // Registered, and the config agrees.
+    // Registered and opened, and the config agrees.
+    await expect(page).toHaveURL(serverUrl());
+    const created = page.url();
+    await page.goto(`${panel.url}/servers`);
     await expect(row(page, 'Wizard Made')).toBeVisible();
     expect(panel.readConfig().servers.some((server) => server.name === 'Wizard Made')).toBe(true);
 
@@ -240,9 +265,10 @@ test.describe('registering', () => {
      * ago, and Windows can still hold that image handle - the rename fails
      * with EPERM. Trashing is covered by the sibling test, on a folder nothing
      * has ever run from. The waitForResponse is so a refusal reports itself
-     * instead of showing up as a row that mysteriously stayed put.
+     * instead of showing up as a server that mysteriously stayed put.
      */
-    await serverRow(page, 'Wizard Made').remove.click();
+    await page.goto(`${created}/settings/general`);
+    await generalSettings(page).remove.click();
     const confirm = dialog(page, en('servers.removeTitle'));
     const [removal] = await Promise.all([
       page.waitForResponse((response) =>
@@ -251,16 +277,17 @@ test.describe('registering', () => {
     ]);
     expect(removal.status(), await removal.text()).toBe(200);
 
-    await expect(row(page, 'Wizard Made')).toHaveCount(0);
+    // Its pages have nothing behind them any more.
+    await expect(page).not.toHaveURL(/\/servers\//);
     expect(panel.readConfig().servers.some((server) => server.name === 'Wizard Made')).toBe(false);
     // Keeping the files is the promise of that button, so they are still here.
     expect(fs.existsSync(workdir)).toBe(true);
   });
 
   /*
-   * Custom processes have their own game section now, so the create button on
-   * Minecraft used to open a two-option picker whose second option duplicated
-   * it. Nothing stands between the button and the Minecraft form any more.
+   * Choosing Minecraft and "install" goes straight to the Minecraft form: custom
+   * processes are their own game in the picker, so the form never offers a
+   * second kind to pick first.
    */
   test('opens the Minecraft wizard with no kind to pick first', async ({ page, app }) => {
     await signInFast(page, app);
@@ -268,7 +295,7 @@ test.describe('registering', () => {
     await page.route('**/api/create/versions*', (route) => route.fulfill({ json: { versions: ['1.21.4'] } }));
 
     await openView(page, 'minecraft', 'servers');
-    await page.getByRole('button', { name: en('servers.createNew') }).first().click();
+    await startAddServer(page, 'minecraft');
 
     const wizard = minecraftWizard(page);
     await expect(wizard.type).toBeVisible();
@@ -298,7 +325,7 @@ test.describe('registering', () => {
     });
 
     await openView(page, 'minecraft', 'servers');
-    await page.getByRole('button', { name: en('servers.createNew') }).first().click();
+    await startAddServer(page, 'minecraft');
     const wizard = minecraftWizard(page);
 
     // In flight: neither control may be touched, and nothing can be posted.
@@ -321,54 +348,98 @@ test.describe('registering', () => {
     await expect(wizard.submit).toBeEnabled();
   });
 
-  test('renames a server from the edit dialog', async ({ page, newApp }) => {
+  test('renames a server from its own settings', async ({ page, newApp }) => {
     const panel = await newApp();
     await signInFast(page, panel);
-    await openView(page, 'minecraft', 'servers', { origin: panel.url });
+    await page.goto(`${panel.url}/servers/${panel.server('Survival').id}/settings/general`);
 
-    await serverRow(page, 'Survival').edit.click();
-    const form = dialog(page, en('servers.editTitle'));
-    await form.root.getByRole('textbox').first().fill('Survival Reborn');
-    await form.root.getByRole('button', { name: en('common.save') }).click();
+    const save = page.getByRole('button', { name: en('common.save'), exact: true });
+    // Nothing to save until something changed.
+    await expect(save).toBeDisabled();
+    await page.getByRole('textbox').first().fill('Survival Reborn');
+    await save.click();
 
-    await expect(row(page, 'Survival Reborn')).toBeVisible();
+    await expect(page.locator('header h1')).toHaveText('Survival Reborn');
     expect(panel.readConfig().servers.some((server) => server.name === 'Survival Reborn')).toBe(true);
+  });
+
+  test('reaches a server\'s settings from the header menu', async ({ page, app }) => {
+    await signInFast(page, app);
+    await page.goto(`/servers/${app.server('Survival').id}/console`);
+
+    const menu = serverMenu(page);
+    await menu.trigger.click();
+    await menu.settings.click();
+    await expect(page).toHaveURL(serverUrl('settings/general', app.server('Survival').id));
+  });
+
+  test('makes a Minecraft server from a template through Add server', async ({ page, app }) => {
+    await signInFast(page, app);
+    await page.goto('/servers');
+
+    await startAddServer(page, 'minecraft', 'template');
+    await expect(dialog(page, en('servers.templatesTitle')).root).toBeVisible();
   });
 });
 
 test.describe('removing', () => {
-  test('removes the profile and leaves the files alone', async ({ page, newApp }) => {
+  test('removes the profile from the header menu and leaves the files alone', async ({ page, newApp }) => {
     const panel = await newApp();
     const dir = panel.server('Survival').dir;
     await signInFast(page, panel);
-    await openView(page, 'minecraft', 'servers', { origin: panel.url });
+    await page.goto(`${panel.url}/servers/${panel.server('Survival').id}`);
 
-    await serverRow(page, 'Survival').remove.click();
+    const menu = serverMenu(page);
+    await menu.trigger.click();
+    await menu.remove.click();
     const confirm = dialog(page, en('servers.removeTitle'));
     await confirm.root.getByRole('button', { name: en('portability.removeProfile') }).click();
 
     // The outcome, not the toast: a toast lives 3.5s and a loaded machine can
     // miss it, but the registry either lost the server or it did not.
+    await expect(page).not.toHaveURL(/\/servers\//);
+    await expect(row(page, 'Hardmode')).toBeVisible();
     await expect(row(page, 'Survival')).toHaveCount(0);
     expect(panel.readConfig().servers.some((server) => server.name === 'Survival')).toBe(false);
     // The point of the default: the world is still on disk.
     expect(fs.existsSync(dir)).toBe(true);
   });
 
+  test('removes a server from its own settings and leaves it', async ({ page, newApp }) => {
+    const panel = await newApp();
+    await signInFast(page, panel);
+    await page.goto(`${panel.url}/servers/${panel.server('Survival').id}/settings/general`);
+
+    await page.getByRole('button', { name: en('servers.btnRemove'), exact: true }).click();
+    const confirm = dialog(page, en('servers.removeTitle'));
+    await confirm.root.getByRole('button', { name: en('portability.removeProfile') }).click();
+
+    // The page it was on no longer has a server behind it.
+    await expect(page).not.toHaveURL(/\/servers\//);
+    expect(panel.readConfig().servers.some((server) => server.name === 'Survival')).toBe(false);
+  });
+
   test('can also move the files to trash, which is recoverable', async ({ page, newApp }) => {
     const panel = await newApp();
     const dir = panel.server('Survival').dir;
     await signInFast(page, panel);
-    await openView(page, 'minecraft', 'servers', { origin: panel.url });
+    await openGeneralSettings(page, panel, 'Survival');
 
-    await serverRow(page, 'Survival').remove.click();
+    await generalSettings(page).remove.click();
     const confirm = dialog(page, en('servers.removeTitle'));
     await confirm.root.getByText(en('portability.trashFilesLabel')).click();
     await confirm.root.getByRole('button', { name: en('portability.removeAndTrash') }).click();
 
-    await expect(row(page, 'Survival')).toHaveCount(0);
+    await expect(page).not.toHaveURL(/\/servers\//);
     // Moved, not deleted: gone from where it was, still somewhere.
-    expect(fs.existsSync(dir)).toBe(false);
+    await expect.poll(() => fs.existsSync(dir)).toBe(false);
+
+    // The trash sits under the list of servers, one click from getting it back.
+    await page.goto(`${panel.url}/servers`);
+    const home = homeScreen(page);
+    await expect(home.trash).toBeVisible();
+    await home.restore.first().click();
+    await expect.poll(() => fs.existsSync(dir)).toBe(true);
   });
 });
 
@@ -391,24 +462,24 @@ test.describe('lifecycle', () => {
     await expect(worker.locator('.status-pill')).toHaveText(en('status.offline'), LIFECYCLE);
   });
 
-  test('drives the same process from the dock', async ({ page, newApp }) => {
+  test('drives the same process from the header', async ({ page, newApp }) => {
     const panel = await newApp();
     await signInFast(page, panel);
     await openView(page, 'custom', 'dashboard', { origin: panel.url });
 
     await waitForLiveConnection(page);
-    const dock = controlBar(page);
-    await expect(dock.status).toHaveText(en('status.offline'));
+    const controls = serverControls(page);
+    await expect(controls.status).toHaveText(en('status.offline'));
 
-    await dock.start.click();
-    await expect(dock.status).toHaveText(en('status.online'), LIFECYCLE);
+    await controls.start.click();
+    await expect(controls.status).toHaveText(en('status.online'), LIFECYCLE);
     // Start gives way to restart and stop once it is up.
-    await expect(dock.start).toHaveCount(0);
-    await expect(dock.stop).toBeVisible();
+    await expect(controls.start).toHaveCount(0);
+    await expect(controls.stop).toBeVisible();
 
-    await dock.stop.click();
-    await expect(dock.status).toHaveText(en('status.offline'), LIFECYCLE);
-    await expect(dock.start).toBeVisible();
+    await controls.stop.click();
+    await expect(controls.status).toHaveText(en('status.offline'), LIFECYCLE);
+    await expect(controls.start).toBeVisible();
   });
 
   test('asks before a restart, because it kicks everyone', async ({ page, newApp }) => {
@@ -417,17 +488,17 @@ test.describe('lifecycle', () => {
     await openView(page, 'custom', 'dashboard', { origin: panel.url });
 
     await waitForLiveConnection(page);
-    const dock = controlBar(page);
-    await dock.start.click();
-    await expect(dock.status).toHaveText(en('status.online'), LIFECYCLE);
+    const controls = serverControls(page);
+    await controls.start.click();
+    await expect(controls.status).toHaveText(en('status.online'), LIFECYCLE);
 
-    await dock.restart.click();
+    await controls.restart.click();
     const confirm = dialog(page, en('header.restart'));
     await expect(confirm.root).toContainText(en('header.restartConfirm'));
 
     await confirm.root.getByRole('button', { name: en('header.restart') }).click();
     // It comes back up on its own.
-    await expect(dock.status).toHaveText(en('status.online'), LIFECYCLE);
+    await expect(controls.status).toHaveText(en('status.online'), LIFECYCLE);
   });
 
   test('refuses to edit or remove a server while it is running', async ({ page, newApp }) => {
@@ -440,12 +511,13 @@ test.describe('lifecycle', () => {
     await serverRow(page, 'Worker').start.click();
     await expect(worker.locator('.status-pill')).toHaveText(en('status.online'), LIFECYCLE);
 
-    await serverRow(page, 'Worker').remove.click();
+    await openGeneralSettings(page, panel, 'Worker');
+    await generalSettings(page).remove.click();
     await dialog(page, en('servers.removeTitle')).root
       .getByRole('button', { name: en('portability.removeProfile') }).click();
 
     await expect(toasts(page).withText(en('errors.stopBeforeRemove'))).toBeVisible();
-    await expect(row(page, 'Worker')).toBeVisible();
+    expect(panel.readConfig().servers.some((server) => server.name === 'Worker')).toBe(true);
   });
 });
 
@@ -462,8 +534,9 @@ test.describe('permissions', () => {
     await openView(page, 'minecraft', 'servers', { origin: panel.url });
 
     // The registry itself is behind per-server grants, so an operator with no
-    // grants cannot even enumerate the fleet.
-    await expect(page.getByText(en('servers.emptyTitle'))).toBeVisible();
+    // grants cannot even enumerate the fleet - and cannot add to it either.
+    await expect(page.getByText(en('home.firstBodyViewer'))).toBeVisible();
+    await expect(homeScreen(page).gameChoice('minecraft')).toHaveCount(0);
     await expect(row(page, 'Survival')).toHaveCount(0);
   });
 
@@ -480,9 +553,11 @@ test.describe('permissions', () => {
 
     await expect(row(page, 'Survival')).toBeVisible();
     // Registry-changing controls are admin-only in the UI regardless of grants.
-    await expect(page.getByRole('button', { name: en('servers.createNew') })).toHaveCount(0);
-    await expect(serverRow(page, 'Survival').edit).toHaveCount(0);
-    await expect(serverRow(page, 'Survival').remove).toHaveCount(0);
+    await expect(homeScreen(page).addServer).toHaveCount(0);
+    await openGeneralSettings(page, panel, 'Survival');
+    await expect(serverMenu(page).trigger).toHaveCount(0);
+    await expect(generalSettings(page).remove).toHaveCount(0);
+    await expect(generalSettings(page).clone).toHaveCount(0);
   });
 });
 
@@ -512,7 +587,7 @@ test.describe('folder picker', () => {
     });
 
     await openView(page, 'custom', 'servers');
-    await page.getByRole('button', { name: en('servers.createNew') }).first().click();
+    await startAddServer(page, 'custom');
     const wizard = dialog(page, en('servers.createTitle'));
     const browse = wizard.root.getByRole('button', { name: en('servers.browse'), exact: true });
 
@@ -547,8 +622,10 @@ test.describe('folder picker', () => {
     }));
 
     await openView(page, 'minecraft', 'servers');
-    await page.getByRole('button', { name: en('servers.createNew') }).first().click();
+    await startAddServer(page, 'minecraft');
     const wizard = minecraftWizard(page);
+    // The parent folder is optional, so it sits under More options.
+    await openMoreOptions(wizard.root);
     const parent = fieldByLabel(wizard.root, en('servers.fieldParent'));
     const browse = wizard.root.getByRole('button', { name: en('servers.browse'), exact: true });
 
@@ -588,8 +665,10 @@ test.describe('folder picker', () => {
     await signInFast(page, app);
 
     await openView(page, 'minecraft', 'servers');
-    await page.getByRole('button', { name: en('servers.createNew') }).first().click();
+    await startAddServer(page, 'minecraft');
     const wizard = minecraftWizard(page);
+    // The parent folder is optional, so it sits under More options.
+    await openMoreOptions(wizard.root);
     const parent = fieldByLabel(wizard.root, en('servers.fieldParent'));
     const browse = wizard.root.getByRole('button', { name: en('servers.browse'), exact: true });
 

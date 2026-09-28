@@ -156,7 +156,6 @@ export function ConfigsView() {
   return (
     <div className="space-y-6">
       <ViewHeader
-        title={t('configs.title')}
         actions={!isPalworld && !isTerraria ? (
           <>
             {canFriendly && (
@@ -206,7 +205,7 @@ export function ConfigsView() {
               <FileNav
                 files={files}
                 selected={selected}
-                onSelect={(f) => { setSelected(f); setCurrent(''); setIssues([]); }}
+                onSelect={(f) => { if (f === selected) return; setSelected(f); setCurrent(''); setIssues([]); }}
                 minecraft={isMinecraft}
               />
             )}

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
-import { ViewHeader } from '@/components/layout/Page';
+import { ViewHeader, useSectionPage } from '@/components/layout/Page';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
@@ -12,22 +12,17 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { Loading } from '@/components/shared/Loading';
 import { useApi } from '@/hooks/useApi';
 import { useServer } from '@/context/ServerContext';
-import { useT, useI18n } from '@/context/I18nContext';
+import { useT } from '@/context/I18nContext';
 import { serverAddonKind } from '@/lib/compat';
 import { fmtBytes } from '@/lib/utils';
 import { toast } from 'sonner';
-import { RefreshCw, Trash2, Upload, Package, Power, PowerOff } from 'lucide-react';
+import { RefreshCw, Trash2, Upload, Package, Power, PowerOff, Search } from 'lucide-react';
 import { PalworldModsView } from '@/views/PalworldModsView';
-
-const HINT_EM = {
-  en: 'restart the server',
-  es: 'reinicia el servidor',
-};
 
 export function AddonsView() {
   const api = useApi();
   const t = useT();
-  const { lang } = useI18n();
+  const section = useSectionPage();
   const { servers, activeServerId, getServerStatus } = useServer();
   const [kind, setKind] = useState(null);
   const [addons, setAddons] = useState([]);
@@ -76,8 +71,7 @@ export function AddonsView() {
     } catch (e) { toast.error(e.message); }
   }
 
-  async function setSelectedEnabled(enabled) {
-    const names = [...selected];
+  async function setEnabled(names, enabled) {
     if (!names.length) return;
     try {
       const result = await api(`/api/addons/enabled?kind=${currentKind}`, {
@@ -85,7 +79,7 @@ export function AddonsView() {
         body: { names, enabled },
       });
       toast.success(t(enabled ? 'minecraft.addons.enabledSelected' : 'minecraft.addons.disabledSelected', { count: result.changed.length }));
-      setSelected(new Set());
+      setSelected((current) => new Set([...current].filter((name) => !names.includes(name))));
       await load();
     } catch (e) { toast.error(e.message); }
   }
@@ -106,13 +100,15 @@ export function AddonsView() {
   const isMods = currentKind === 'mods';
   const selectedCount = addons.filter((addon) => selected.has(addon.name)).length;
 
-  const hint = (() => {
-    const h = t('minecraft.addons.hint', { folder: currentKind });
-    const tag = HINT_EM[lang] || HINT_EM.en;
-    const i = h.toLowerCase().indexOf(tag);
-    if (i < 0) return h;
-    return <>{h.slice(0, i)}<strong className="text-foreground">{h.slice(i, i + tag.length)}</strong>{h.slice(i + tag.length)}</>;
-  })();
+  const uploadButton = (variant) => (
+    <Button variant={variant} size="sm" asChild>
+      <label className="cursor-pointer">
+        <Upload className="h-3.5 w-3.5" />
+        {t('minecraft.addons.uploadJar')}
+        <input type="file" accept=".jar" hidden onChange={upload} />
+      </label>
+    </Button>
+  );
 
   if (isPalworld) return <PalworldModsView />;
 
@@ -120,17 +116,9 @@ export function AddonsView() {
     <>
       <div className="space-y-6">
         <ViewHeader
-          title={t('minecraft.addons.title')}
-          description={hint}
           actions={
             <>
-              <Button variant="default" size="sm" asChild>
-                <label className="cursor-pointer">
-                  <Upload className="h-3.5 w-3.5" />
-                  {t('minecraft.addons.uploadJar')}
-                  <input type="file" accept=".jar" hidden onChange={upload} />
-                </label>
-              </Button>
+              {uploadButton('default')}
               <Button variant="glass" size="icon-sm" onClick={() => load()} aria-label={t('common.refresh')}>
                 <RefreshCw className="h-3.5 w-3.5" />
               </Button>
@@ -150,7 +138,26 @@ export function AddonsView() {
         ) : error ? (
           <ErrorState error={error} onRetry={() => load()} />
         ) : addons.length === 0 ? (
-          <Card><CardContent className="py-4"><EmptyState icon={Package} title={t('minecraft.addons.title')} message={isMods ? t('minecraft.addons.emptyMods') : t('minecraft.addons.emptyPlugins')} /></CardContent></Card>
+          <Card>
+            <CardContent className="py-4">
+              <EmptyState
+                icon={Package}
+                title={isMods ? t('minecraft.addons.emptyMods') : t('minecraft.addons.emptyPlugins')}
+                message={isMods ? t('minecraft.addons.emptyModsHint') : t('minecraft.addons.emptyPluginsHint')}
+                action={(
+                  <div className="flex flex-wrap justify-center gap-2">
+                    {section?.onTab && (
+                      <Button size="sm" onClick={() => section.onTab('browse')}>
+                        <Search className="h-3.5 w-3.5" />
+                        {t('minecraft.addons.browse')}
+                      </Button>
+                    )}
+                    {uploadButton('glass')}
+                  </div>
+                )}
+              />
+            </CardContent>
+          </Card>
         ) : (
           <Card className="overflow-hidden">
             <div className="flex flex-wrap items-center gap-3 border-b border-border/60 bg-secondary/10 px-4 py-3">
@@ -165,11 +172,11 @@ export function AddonsView() {
               <span className="text-xs text-muted-foreground">{t('minecraft.addons.selectedCount', { count: selectedCount })}</span>
               {!offline && <span className="text-xs text-status-warn">{t('minecraft.addons.offline')}</span>}
               <div className="ml-auto flex flex-wrap gap-2">
-                <Button type="button" variant="glass" size="sm" disabled={!offline || !selectedCount} onClick={() => setSelectedEnabled(true)}>
+                <Button type="button" variant="glass" size="sm" disabled={!offline || !selectedCount} onClick={() => setEnabled([...selected], true)}>
                   <Power className="h-3.5 w-3.5" />
                   {t('minecraft.addons.enableSelected')}
                 </Button>
-                <Button type="button" variant="glass" size="sm" disabled={!offline || !selectedCount} onClick={() => setSelectedEnabled(false)}>
+                <Button type="button" variant="glass" size="sm" disabled={!offline || !selectedCount} onClick={() => setEnabled([...selected], false)}>
                   <PowerOff className="h-3.5 w-3.5" />
                   {t('minecraft.addons.disableSelected')}
                 </Button>
@@ -178,7 +185,7 @@ export function AddonsView() {
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
-                  <TableHead className="pl-5">{t('minecraft.addons.title')}</TableHead>
+                  <TableHead className="pl-5">{isMods ? t('minecraft.addons.tabMods') : t('minecraft.addons.tabPlugins')}</TableHead>
                   <TableHead className="text-right">{t('common.size')}</TableHead>
                   <TableHead className="text-center">{t('minecraft.addons.status')}</TableHead>
                   <TableHead className="pr-5 text-right">{t('common.actions')}</TableHead>
@@ -210,10 +217,29 @@ export function AddonsView() {
                         {t(a.enabled ? 'minecraft.addons.enabled' : 'minecraft.addons.disabled')}
                       </Badge>
                     </TableCell>
-                    <TableCell className="pr-5 text-right">
-                      <Button variant="ghost" size="icon-xs" onClick={() => setPendingDelete(a.name)}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                    <TableCell className="pr-5">
+                      <div className="flex items-center justify-end gap-1">
+                        {/* Same rule as the bulk buttons: jars change only while stopped. */}
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          disabled={!offline}
+                          onClick={() => setEnabled([a.name], !a.enabled)}
+                          title={t(a.enabled ? 'minecraft.addons.disableOne' : 'minecraft.addons.enableOne', { name: a.name })}
+                          aria-label={t(a.enabled ? 'minecraft.addons.disableOne' : 'minecraft.addons.enableOne', { name: a.name })}
+                        >
+                          {a.enabled ? <PowerOff className="h-3.5 w-3.5" /> : <Power className="h-3.5 w-3.5" />}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          onClick={() => setPendingDelete(a.name)}
+                          title={t('minecraft.addons.deleteOne', { name: a.name })}
+                          aria-label={t('minecraft.addons.deleteOne', { name: a.name })}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

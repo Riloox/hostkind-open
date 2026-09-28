@@ -57,6 +57,10 @@ const cjsToEsm = {
 const I18N_JSON = path.join(__dirname, 'i18n.json');
 const I18N_ID = 'virtual:i18n';
 const I18N_LANG_PREFIX = 'virtual:i18n/lang/';
+// JSON.stringify output is valid JS, but escape the characters that can end a
+// <script> block or a line (U+2028/9) so the generated module stays inert.
+const jsLiteral = (value) => JSON.stringify(value)
+  .replace(/[<>/\u2028\u2029]/g, (c) => '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0'));
 const i18nSplit = {
   name: 'i18n-split',
   resolveId(id) {
@@ -69,16 +73,16 @@ const i18nSplit = {
     if (id.startsWith(`\0${I18N_LANG_PREFIX}`)) {
       const dict = data.dictionaries[id.slice(`\0${I18N_LANG_PREFIX}`.length)] || {};
       // JSON.parse of a string literal parses faster than an object literal.
-      return `export default JSON.parse(${JSON.stringify(JSON.stringify(dict))});`;
+      return `export default JSON.parse(${jsLiteral(JSON.stringify(dict))});`;
     }
     const loaders = data.SUPPORTED_LANGS
       .filter((lang) => lang !== data.DEFAULT_LANG)
-      .map((lang) => `${JSON.stringify(lang)}: () => import(${JSON.stringify(I18N_LANG_PREFIX + lang)})`);
+      .map((lang) => `${jsLiteral(lang)}: () => import(${jsLiteral(I18N_LANG_PREFIX + lang)})`);
     return [
-      `import defaultDictionary from ${JSON.stringify(I18N_LANG_PREFIX + data.DEFAULT_LANG)};`,
-      `export const SUPPORTED_LANGS = ${JSON.stringify(data.SUPPORTED_LANGS)};`,
-      `export const DEFAULT_LANG = ${JSON.stringify(data.DEFAULT_LANG)};`,
-      `export const SPANISH_COUNTRIES = ${JSON.stringify(data.SPANISH_COUNTRIES)};`,
+      `import defaultDictionary from ${jsLiteral(I18N_LANG_PREFIX + data.DEFAULT_LANG)};`,
+      `export const SUPPORTED_LANGS = ${jsLiteral(data.SUPPORTED_LANGS)};`,
+      `export const DEFAULT_LANG = ${jsLiteral(data.DEFAULT_LANG)};`,
+      `export const SPANISH_COUNTRIES = ${jsLiteral(data.SPANISH_COUNTRIES)};`,
       'export { defaultDictionary };',
       `export const loaders = { ${loaders.join(', ')} };`,
     ].join('\n');

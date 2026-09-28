@@ -9,7 +9,7 @@
  */
 
 const { test, expect, en } = require('../support/fixtures.cjs');
-const { toasts, dialog, appShell, userRow } = require('../support/pages.cjs');
+const { toasts, dialog, appShell, userRow, serverUrl, panelSettings } = require('../support/pages.cjs');
 const { signInFast, openView } = require('../support/actions.cjs');
 const { client } = require('../support/api.cjs');
 
@@ -150,7 +150,7 @@ test.describe('audit trail', () => {
     await signInFast(page, panel);
     await openView(page, 'minecraft', 'audit', { origin: panel.url });
 
-    await expect(page.getByText(en('audit.title'))).toBeVisible();
+    await expect(panelSettings(page).tab('audit')).toHaveAttribute('data-state', 'active');
     await expect(page.getByText(panel.admin.username).first()).toBeVisible();
     await expect(page.getByText('auth.login').first()).toBeVisible();
   });
@@ -159,8 +159,47 @@ test.describe('audit trail', () => {
     await signInFast(page, app, app.operator);
     await openView(page, 'minecraft', 'audit');
 
-    // audit.view is global and ungranted here, so the view bounces.
-    await expect(page).toHaveURL(/\/games\/minecraft\/dashboard$/);
+    // audit.view is global and ungranted here, so the tab is not offered and
+    // its URL falls back to the first tab of Hostkind settings.
+    await expect(page).toHaveURL(/\/settings$/);
+    // Preferences, whether or not a tab bar shows (with one tab it does not).
+    await expect(panelSettings(page).group('profile')).toBeVisible();
+    await expect(panelSettings(page).tab('audit')).toHaveCount(0);
+  });
+});
+
+test.describe('Hostkind settings', () => {
+  test('shows an operator only the tabs they may use', async ({ page, app }) => {
+    await signInFast(page, app, app.operator);
+    await page.goto('/settings/users');
+
+    await expect(page).toHaveURL(/\/settings$/);
+    const settings = panelSettings(page);
+    // No bar when Preferences is the only tab left, so look for its content.
+    for (const tab of ['users', 'audit', 'updates']) await expect(settings.tab(tab)).toHaveCount(0);
+    // Their own profile and password, but not the panel-wide admin settings.
+    await expect(settings.group('profile')).toBeVisible();
+    await expect(settings.group('watchdog')).toHaveCount(0);
+  });
+
+  test('gives an admin every tab, each at its own URL', async ({ page, app }) => {
+    await signInFast(page, app);
+    await page.goto('/settings');
+
+    const settings = panelSettings(page);
+    for (const tab of ['preferences', 'users', 'audit', 'updates']) await expect(settings.tab(tab)).toBeVisible();
+
+    await settings.tab('audit').click();
+    await expect(page).toHaveURL(/\/settings\/audit$/);
+    await expect(page.getByRole('button', { name: 'CSV' })).toBeVisible();
+
+    await settings.tab('users').click();
+    await expect(page).toHaveURL(/\/settings\/users$/);
+
+    // Back returns to the previous tab.
+    await page.goBack();
+    await expect(page).toHaveURL(/\/settings\/audit$/);
+    await expect(settings.tab('audit')).toHaveAttribute('data-state', 'active');
   });
 });
 
@@ -169,7 +208,8 @@ test.describe('schedules', () => {
     await signInFast(page, app);
     await openView(page, 'minecraft', 'tasks');
 
-    await expect(page.getByRole('heading', { name: en('tasks.title') })).toBeVisible();
+    await expect(page.getByRole('heading', { name: en('nav.schedules') })).toBeVisible();
+    await expect(page.getByRole('button', { name: en('tasks.newTask') })).toHaveCount(1);
     await expect(page.getByText(en('tasks.empty'))).toBeVisible();
   });
 
@@ -192,12 +232,41 @@ test.describe('schedules', () => {
   });
 });
 
+test.describe('schedules of one server', () => {
+  test('lists only the open server schedules, next one first', async ({ page, newApp }) => {
+    const seed = require('../support/seed.cjs');
+    const panel = await newApp({
+      servers: (dirs) => [seed.minecraft(dirs, { name: 'Survival' }), seed.minecraft(dirs, { name: 'Creative' })],
+    });
+    const api = await client(panel);
+    const survival = panel.server('Survival').id;
+    for (const [serverId, name, cron] of [
+      [survival, 'Weekly restart', '0 3 * * 0'],
+      [survival, 'Hourly backup', '0 * * * *'],
+      [panel.server('Creative').id, 'Creative restart', '0 4 * * *'],
+    ]) {
+      await api.post('/api/tasks', { serverId, name, action: 'restart', cron, enabled: true });
+    }
+
+    await signInFast(page, panel);
+    await page.goto(`${panel.url}/servers/${survival}/schedules`);
+
+    const rows = page.locator('tbody tr');
+    await expect(rows).toHaveCount(2);
+    await expect(rows.nth(0)).toContainText('Hourly backup');
+    await expect(rows.nth(1)).toContainText('Weekly restart');
+    await expect(page.getByText('Creative restart')).toHaveCount(0);
+  });
+});
+
 test.describe('updates', () => {
   test('offers the update centre for a game that has one', async ({ page, app }) => {
     await signInFast(page, app);
     await openView(page, 'minecraft', 'updates');
 
-    await expect(page.getByText(en('updates.title'))).toBeVisible();
+    await expect(appShell(page).sectionTab('updates')).toHaveAttribute('data-state', 'active');
+    // Its scan button sits on the tab bar's row.
+    await expect(page.locator('[data-section-actions]').getByRole('button').first()).toBeVisible();
   });
 
   test('is not offered for a game with no update path', async ({ page, app }) => {
@@ -205,7 +274,7 @@ test.describe('updates', () => {
     // The custom module declares no `updates` capability.
     await openView(page, 'custom', 'updates');
 
-    await expect(page).toHaveURL(/\/games\/custom\/dashboard$/);
-    await expect(appShell(page).navItem('updates')).toHaveCount(0);
+    await expect(page).toHaveURL(serverUrl());
+    await expect(appShell(page).navItem('mods')).toHaveCount(0);
   });
 });

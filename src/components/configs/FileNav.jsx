@@ -24,7 +24,7 @@ export function FileNav({ files = [], selected, onSelect, minecraft = false }) {
   buckets[buckets.length - 1].items = files.filter((f) => !matched.has(f));
 
   return (
-    <nav className="space-y-3 text-sm" aria-label={t('configs.title')}>
+    <nav className="space-y-3 text-sm" aria-label={t('sections.game')}>
       {buckets.map((b) => {
         if (b.items.length === 0 && !b.alwaysShow) return null;
         return (

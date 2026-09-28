@@ -1,7 +1,7 @@
 import { createContext, useContext, useCallback, useMemo, useRef } from 'react';
 
 // Replaces the window.__dashOnStats global bridge (App.jsx onStats callback ->
-// DashboardView listener). A tiny emitter instead of state: WS stats ticks are
+// OverviewView listener). A tiny emitter instead of state: WS stats ticks are
 // frequent, and state would re-render every provider descendant on each tick.
 // Listeners only fire while subscribed, so ticks update the dashboard only when
 // it is mounted (and active).

@@ -124,7 +124,6 @@ export function FileManagerView() {
     <>
       <div className="space-y-6">
         <ViewHeader
-          title={t('files.title')}
           actions={
             <>
               <Button variant="default" size="sm" asChild>

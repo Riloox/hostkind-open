@@ -9,7 +9,7 @@
 const fs = require('fs');
 const path = require('path');
 const { test, expect, en } = require('../support/fixtures.cjs');
-const { toasts, dialog } = require('../support/pages.cjs');
+const { toasts, dialog, serverUrl, appShell } = require('../support/pages.cjs');
 const { signInFast, openView } = require('../support/actions.cjs');
 
 test.describe('config editor', () => {
@@ -17,7 +17,7 @@ test.describe('config editor', () => {
     await signInFast(page, app);
     await openView(page, 'minecraft', 'configs');
 
-    await expect(page.getByText(en('configs.title'))).toBeVisible();
+    await expect(appShell(page).sectionTab('game')).toHaveAttribute('data-state', 'active');
     await expect(page.getByRole('button', { name: 'server.properties' })).toBeVisible();
 
     // The friendly editor labels each key in plain language rather than
@@ -100,7 +100,7 @@ test.describe('config editor', () => {
 
     // Terraria's serverconfig.txt is not server.properties, and the view says so.
     await expect(page.getByRole('button', { name: en('configs.switchToRaw') })).toHaveCount(0);
-    await expect(page.getByText(en('configs.title'))).toBeVisible();
+    await expect(appShell(page).sectionTab('game')).toHaveAttribute('data-state', 'active');
   });
 
   test('gives Palworld its structured settings editor', async ({ page, app }) => {
@@ -111,21 +111,19 @@ test.describe('config editor', () => {
     // which left its settings editor unreachable (the route guard bounced and
     // the sidebar entry never appeared). Now it is offered, and the view is
     // the structured editor, not the raw file pane.
-    await expect(page).toHaveURL(/\/games\/palworld\/configs$/);
-    await expect(page.getByText(en('configs.title'))).toBeVisible();
+    await expect(page).toHaveURL(serverUrl('settings/game'));
+    await expect(appShell(page).sectionTab('game')).toHaveAttribute('data-state', 'active');
     await expect(page.getByText(en('palworldSettings.syntaxValid'))).toBeVisible();
     await expect(page.getByText(en('configs.switchToRaw'))).toHaveCount(0);
   });
 
   test('is not offered for a game that has no config surface', async ({ page, app }) => {
     await signInFast(page, app);
-    // Valheim's module declares no `configs` capability, so a typed URL is
-    // bounced. Note the bounce is silent on a cold load - the "not supported"
-    // toast only fires for in-app navigation, and the sidebar disables the
-    // entry there anyway.
+    // Valheim's module declares no `configs` capability, so a typed URL
+    // lands on the settings it does have. The move is silent on a cold load.
     await openView(page, 'valheim', 'configs');
 
-    await expect(page).toHaveURL(/\/games\/valheim\/dashboard$/);
-    await expect(page.getByText(en('configs.title'))).toHaveCount(0);
+    await expect(page).toHaveURL(serverUrl('settings'));
+    await expect(appShell(page).sectionTab('game')).toHaveCount(0);
   });
 });

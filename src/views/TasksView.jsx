@@ -150,7 +150,7 @@ function TriggerPreview({ preview }) {
   );
 }
 
-function TaskModal({ open, onOpenChange, task, servers, activeServerId, onSaved }) {
+function TaskModal({ open, onOpenChange, task, server, onSaved }) {
   const api = useApi();
   const t = useT();
   const [form, setForm] = useState(EMPTY_FORM);
@@ -161,10 +161,9 @@ function TaskModal({ open, onOpenChange, task, servers, activeServerId, onSaved 
     if (!open) return;
     setError('');
     setPreview(null);
-    setForm(task ? formFromTask(task) : { ...EMPTY_FORM, serverId: activeServerId || (servers[0]?.id || '') });
-  }, [open, task, activeServerId]);
+    setForm(task ? formFromTask(task) : { ...EMPTY_FORM, serverId: server?.id || '' });
+  }, [open, task, server?.id]);
 
-  const server = servers.find(s => s.id === form.serverId);
   const isPalworld = gameForServer(server) === 'palworld';
   const isTerraria = gameForServer(server) === 'terraria';
 
@@ -228,25 +227,18 @@ function TaskModal({ open, onOpenChange, task, servers, activeServerId, onSaved 
             <Label>{t('tasks.fieldName')}</Label>
             <Input value={form.name} onChange={f('name')} placeholder={t('tasks.namePlaceholder')} />
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label>{t('tasks.fieldServer')}</Label>
-              <select className={SELECT_CLASS} value={form.serverId} onChange={f('serverId')}>
-                {servers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>{t('tasks.fieldTrigger')}</Label>
-              <select className={SELECT_CLASS} value={form.triggerKind} onChange={f('triggerKind')}>
-                {triggers.map(item => <option key={item.kind} value={item.kind}>{t(item.labelKey)}</option>)}
-              </select>
-            </div>
+          <div className="space-y-1.5">
+            <Label>{t('tasks.fieldTrigger')}</Label>
+            <select className={SELECT_CLASS} value={form.triggerKind} onChange={f('triggerKind')}>
+              {triggers.map(item => <option key={item.kind} value={item.kind}>{t(item.labelKey)}</option>)}
+            </select>
           </div>
 
           {form.triggerKind === 'cron' && (
             <div className="space-y-1.5">
               <Label>{t('tasks.fieldCron')}</Label>
               <Input value={form.cron} onChange={f('cron')} placeholder={t('tasks.cronPlaceholder')} />
+              <p className="text-xs text-muted-foreground">{t('tasks.localTime')}</p>
               <div className="flex flex-wrap gap-1.5 mt-2">
                 {CRON_PRESETS.map(p => (
                   <button key={p.cron} type="button"
@@ -377,6 +369,12 @@ function TaskModal({ open, onOpenChange, task, servers, activeServerId, onSaved 
   );
 }
 
+// When a task next fires, for sorting; tasks with nothing coming sort last.
+function nextRunAt(task) {
+  const at = task.enabled ? task.preview?.next?.[0]?.at : null;
+  return at ? new Date(at).getTime() : Number.MAX_SAFE_INTEGER;
+}
+
 function triggerLabel(task, t) {
   const trigger = task.trigger || { kind: 'cron', expression: task.cron };
   if (trigger.kind === 'cron') return trigger.expression;
@@ -395,9 +393,7 @@ function actionLabel(task, t) {
 export function TasksView() {
   const api = useApi();
   const t = useT();
-  const { servers: allServers, activeServerId, currentGame } = useServer();
-  const servers = currentGame ? allServers.filter(s => gameForServer(s) === currentGame) : allServers;
-  const serverGameById = Object.fromEntries(allServers.map(s => [s.id, gameForServer(s)]));
+  const { activeServer } = useServer();
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -417,7 +413,18 @@ export function TasksView() {
 
   useEffect(() => { load(); }, []);
 
-  const visibleTasks = currentGame ? tasks.filter(task => serverGameById[task.serverId] === currentGame) : tasks;
+  // Schedules belongs to the open server: its own tasks, the next one due
+  // first, and those with nothing coming (paused, event triggers) after.
+  const visibleTasks = tasks
+    .filter(task => task.serverId === activeServer?.id)
+    .sort((a, b) => nextRunAt(a) - nextRunAt(b) || String(a.name).localeCompare(String(b.name)));
+  const listEmpty = !loading && !error && visibleTasks.length === 0;
+  const newButton = (
+    <Button variant="default" size="sm" onClick={() => { setEditTask(null); setModalOpen(true); }}>
+      <Plus className="h-3.5 w-3.5" />
+      {t('tasks.newTask')}
+    </Button>
+  );
 
   async function runTask(id) {
     try {
@@ -438,29 +445,20 @@ export function TasksView() {
   return (
     <>
       <div className="space-y-6">
-        <ViewHeader
-          title={t('tasks.title')}
-          description={t('tasks.hint')}
-          actions={
-            <Button variant="default" size="sm" onClick={() => { setEditTask(null); setModalOpen(true); }}>
-              <Plus className="h-3.5 w-3.5" />
-              {t('tasks.newTask')}
-            </Button>
-          }
-        />
+        {/* An empty list carries the button itself; one is enough. */}
+        <ViewHeader title={t('nav.schedules')} actions={listEmpty ? null : newButton} />
         {loading ? (
           <Loading />
         ) : error ? (
           <ErrorState error={error} onRetry={load} />
         ) : visibleTasks.length === 0 ? (
-          <Card><CardContent className="py-4"><EmptyState icon={CalendarClock} title={t('tasks.title')} message={t('tasks.empty')} /></CardContent></Card>
+          <Card><CardContent className="py-4"><EmptyState icon={CalendarClock} title={t('tasks.empty')} message={t('tasks.emptyHint')} action={newButton} /></CardContent></Card>
         ) : (
           <Card className="overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
                   <TableHead className="pl-5">{t('tasks.fieldName')}</TableHead>
-                  <TableHead>{t('tasks.fieldServer')}</TableHead>
                   <TableHead>{t('tasks.fieldAction')}</TableHead>
                   <TableHead>{t('tasks.colTrigger')}</TableHead>
                   <TableHead>{t('tasks.lastRun')}</TableHead>
@@ -481,7 +479,6 @@ export function TasksView() {
                         </p>
                       )}
                     </TableCell>
-                    <TableCell className="text-muted-foreground">{task.serverName}</TableCell>
                     <TableCell className="text-muted-foreground">{actionLabel(task, t)}</TableCell>
                     <TableCell>
                       <code className="rounded bg-muted px-1.5 py-0.5 text-xs text-foreground">{triggerLabel(task, t)}</code>
@@ -495,10 +492,10 @@ export function TasksView() {
                     <TableCell className="pr-5">
                       <div className="flex items-center justify-end gap-1">
                         <Button variant="glass" size="xs" onClick={() => runTask(task.id)}><Play className="h-3 w-3" />{t('tasks.run')}</Button>
-                        <Button variant="ghost" size="icon-xs" onClick={() => { setEditTask(task); setModalOpen(true); }}>
+                        <Button variant="ghost" size="icon-xs" title={t('common.edit')} aria-label={t('common.edit')} onClick={() => { setEditTask(task); setModalOpen(true); }}>
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
-                        <Button variant="ghost" size="icon-xs" onClick={() => setPendingDelete(task)}>
+                        <Button variant="ghost" size="icon-xs" title={t('common.delete')} aria-label={t('common.delete')} onClick={() => setPendingDelete(task)}>
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>
@@ -514,8 +511,7 @@ export function TasksView() {
         open={modalOpen}
         onOpenChange={setModalOpen}
         task={editTask}
-        servers={servers}
-        activeServerId={activeServerId}
+        server={activeServer}
         onSaved={(msg) => { toast.success(msg); load(); }}
       />
       <ConfirmDialog

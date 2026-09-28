@@ -224,7 +224,6 @@ export function UsersView() {
           </Button>
         </CardHeader>
         <CardContent>
-          <p className="text-xs text-muted-foreground mb-4">{t('users.hint')}</p>
           {loading ? (
             <Loading />
           ) : error ? (
@@ -259,6 +258,8 @@ export function UsersView() {
                     )}
                     <Button variant="ghost" size="icon-xs"
                       disabled={isSelf}
+                      title={t('common.delete')}
+                      aria-label={t('common.delete')}
                       onClick={() => setPendingDelete(u)}>
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>

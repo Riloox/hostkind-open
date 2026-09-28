@@ -202,7 +202,7 @@ export function ApplicationUpdateNotice({ onOpenSettings }) {
           <button
             type="button"
             onClick={openSettings}
-            title={t('settings.title')}
+            title={t('panelSettings.updates')}
             className="cursor-pointer text-left text-sm font-semibold leading-snug hover:underline"
           >
             {t('settings.applicationUpdateToastTitle')}

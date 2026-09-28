@@ -92,3 +92,76 @@ export function applyGameTheme(game, theme) {
   for (const [token, value] of themeRungs(theme)) root.style.setProperty(token, value);
   if (theme.signalOnline) root.style.setProperty('--signal-online', theme.signalOnline);
 }
+
+// Switching servers re-tints the whole app. The ramp tokens are bare OKLCH
+// triples, which CSS cannot transition (an unregistered custom property only
+// snaps, and @property cannot type a mixed "L% C H" list), so the fade is
+// driven here: sample every token before and after the change, then write the
+// in-between values onto <html> each frame. Because every role aliases the
+// ramp, that one loop moves every surface, portals included, and the page
+// stays live throughout - nothing is frozen or snapshotted.
+const FADE_TOKENS = [...RAMP_TOKENS, '--signal-online'];
+const THEME_FADE_MS = 600;
+const TRIPLE = /^\s*([\d.]+)%\s+([\d.]+)\s+([\d.]+)\s*$/;
+let fade = null;
+
+function readTokens(root) {
+  const style = getComputedStyle(root);
+  return FADE_TOKENS.map((token) => style.getPropertyValue(token).trim());
+}
+
+function mixTriple(from, to, t) {
+  const a = TRIPLE.exec(from);
+  const b = TRIPLE.exec(to);
+  if (!a || !b) return to;
+  const lerp = (x, y) => x + (y - x) * t;
+  // Hue takes the short way round the wheel, so ember to sky does not detour
+  // through every colour in between.
+  const dh = ((Number(b[3]) - Number(a[3]) + 540) % 360) - 180;
+  const h = (Number(a[3]) + dh * t + 360) % 360;
+  return `${lerp(Number(a[1]), Number(b[1])).toFixed(2)}% ${lerp(Number(a[2]), Number(b[2])).toFixed(4)} ${h.toFixed(1)}`;
+}
+
+const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
+
+/**
+ * Runs `apply` (which swaps the game theme on <html>) and fades the ramp from
+ * the colours on screen to the new ones instead of snapping. Interrupting a
+ * fade starts the next one from wherever the current one had got to.
+ */
+export function fadeGameTheme(apply) {
+  const root = document.documentElement;
+  if (fade) cancelAnimationFrame(fade);
+  fade = null;
+
+  const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const from = readTokens(root);
+  apply();
+  if (reduced) return;
+  const to = readTokens(root);
+  if (from.every((value, i) => value === to[i])) return;
+
+  // What `apply` left inline is the resting state to restore once the fade
+  // lands: set values stay set, removed ones hand back to the stylesheet.
+  const resting = FADE_TOKENS.map((token) => root.style.getPropertyValue(token));
+  const start = performance.now();
+
+  const frame = (now) => {
+    const t = Math.min(1, (now - start) / THEME_FADE_MS);
+    if (t >= 1) {
+      FADE_TOKENS.forEach((token, i) => {
+        if (resting[i]) root.style.setProperty(token, resting[i]);
+        else root.style.removeProperty(token);
+      });
+      fade = null;
+      return;
+    }
+    const k = easeInOut(t);
+    FADE_TOKENS.forEach((token, i) => {
+      if (from[i] && to[i]) root.style.setProperty(token, mixTriple(from[i], to[i], k));
+    });
+    fade = requestAnimationFrame(frame);
+  };
+  // Paint the old colours on this frame so nothing flashes before the fade.
+  frame(start);
+}

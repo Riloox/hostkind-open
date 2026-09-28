@@ -12,7 +12,7 @@ Start, stop, monitor, update, and back up your servers without handing your data
 
 </div>
 
-![Hostkind dashboard](resources/hero.webp)
+![Hostkind](resources/hero.webp)
 
 Hostkind is a free, self-hosted app for dedicated game servers and other long-running processes. It runs on your own computer, keeps your files local, and does not require a cloud account, external database, or API key.
 
@@ -22,6 +22,8 @@ Hostkind is a free, self-hosted app for dedicated game servers and other long-ru
 
 |  |  |
 | --- | --- |
+| **At a glance** | One overview per server with a "needs attention" list: crashes, stale backups, pending updates, each with the button that fixes it. |
+| **Presets** | Add a server in a few clicks from a preset per game (survival, hardcore, modded, community...). |
 | **Process supervision** | Start, stop, restart, and monitor multiple servers, with crash detection and watchdog restarts. |
 | **Live consoles** | Stream console output and send commands over WebSocket. |
 | **Metrics & health** | Track players, CPU, memory, disk, uptime, and game-specific health signals. |
@@ -32,19 +34,19 @@ Hostkind is a free, self-hosted app for dedicated game servers and other long-ru
 | **Schedules** | Run scheduled commands, restarts, and maintenance actions. |
 | **Users & roles** | Local users with admin and operator roles, plus API keys. |
 | **Audit trail** | Record administrative and security-relevant activity in a local audit log. |
-| **In-app updates** | Check for, review, and install new Hostkind releases from Settings. |
+| **In-app updates** | Check for, review, and install new Hostkind releases from Hostkind settings. |
 | **Languages** | English and Spanish. |
 
-Some tools are game-specific. Hostkind only shows the tools supported by the active server.
+Some tools are game-specific. Hostkind only shows the tools the open server supports.
 
 ## Supported games
 
 | Game | Server types | Highlights |
 | --- | --- | --- |
-| **Minecraft** | Vanilla, Paper, Spigot, Fabric, Forge, NeoForge | Fetches current stable versions and provisions the right Java runtime. Modrinth browsing and modpacks (`.mrpack`), local plugin/mod JAR uploads, CurseForge server-pack imports, and FTB installer imports. Player and world management with safe world backups. |
+| **Minecraft** | Vanilla, Paper, Spigot, Fabric, Forge, NeoForge | Fetches current stable versions and provisions the right Java runtime. Modrinth browsing and modpacks (`.mrpack`), local plugin/mod JAR uploads, CurseForge server-pack imports, and FTB installer imports. One-click web maps (BlueMap, Dynmap, squaremap, Pl3xMap). Player and world management with safe world backups. |
 | **Terraria** | Vanilla, TShock, tModLoader | Install or register servers, edit `serverconfig.txt` with history, manage and import worlds. Live player roster with kick and ban, TShock REST administration, and reviewed tModLoader Workshop mod imports. |
 | **Valheim** | Dedicated server | Install through SteamCMD or register an existing server. Manage world saves, updates, and backups. |
-| **Palworld** | Dedicated server | Install through SteamCMD on Windows and Linux. Loopback-only REST API integration for health, players, announcements, saves, and guarded shutdown. Settings editor, map data, updates, mods, and backups. |
+| **Palworld** | Dedicated server | Install through SteamCMD on Windows and Linux. Loopback-only REST API integration for health, players, announcements, saves, console commands, and guarded shutdown. Settings editor, map data, updates, mods, and backups. |
 | **Other processes** | Any long-running command | Register a command and configure how Hostkind starts, stops, and checks it. |
 
 Hostkind keeps process management generic and puts game-specific behavior (launch preparation, readiness detection, graceful shutdown, console parsing, health checks, content workflows) in modules under `lib/modules/`.

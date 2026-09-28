@@ -50,6 +50,11 @@ const { appendConsoleLine } = require('./lib/consoleHistory.cjs');
 // classifier all see plain text — and the broadcast we send to clients matches
 // the normalized text we already persist in the console history.
 const ANSI_ESCAPE_RE = /[\u001B\u009B][[\]()#;?]*(?:(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><~])/g;
+// Operating-system commands (`ESC ] ... BEL` or `ESC ] ... ESC \`), which a
+// pseudo-console emits to set the window title. The CSI pattern above only
+// eats their first characters and leaves the title text glued to the next
+// line - in front of a readiness line, that hides it.
+const OSC_ESCAPE_RE = /\u001B\][^\u0007\u001B]*(?:\u0007|\u001B\\)/g;
 const { extractRuntimeArchive } = require('./lib/runtimeArchive.cjs');
 const {
   readMrpackIndex,
@@ -1094,13 +1099,20 @@ class ServerManager {
     while ((idx = this[key].indexOf('\n')) !== -1) {
       let line = this[key].slice(0, idx);
       this[key] = this[key].slice(idx + 1);
-      line = line.replace(/\r$/, '').replace(ANSI_ESCAPE_RE, '');
+      const raw = line.replace(/\r$/, '');
+      line = raw.replace(OSC_ESCAPE_RE, '').replace(ANSI_ESCAPE_RE, '');
       if (line.length === 0) {
-        this.pushLine('', 'info');
+        // A line made only of escape codes is a pseudo-console repainting
+        // its screen (conhost clears each row with `ESC[K`), not output the
+        // server wrote. Only a genuinely empty line is kept.
+        if (raw.length === 0) this.pushLine('', 'info');
         continue;
       }
       const level = stream === 'stderr' ? 'error' : this.classify(line);
-      this.pushLine(line, level);
+      // A module may keep a line off the console (an echo of typed input, a
+      // progress counter redrawn once per percent) while still parsing it.
+      const mod = this.module();
+      if (!mod.displayLine || mod.displayLine(line, this) !== false) this.pushLine(line, level);
       this._inspectLine(line);
     }
   }
@@ -1157,6 +1169,22 @@ class ServerManager {
   }
 
   sendCommand(cmd, silent = false) {
+    const cmdModule = this.module();
+    // A server with no console input of its own (Palworld) takes commands
+    // through its admin API instead of stdin. That works for an adopted
+    // process too, since nothing is written to a pipe.
+    if (cmdModule && typeof cmdModule.runCommand === 'function') {
+      if (!this.isRunning()) return { ok: false, error: eKey('errors.notRunning') };
+      const text = String(cmd).replace(/[\r\n]+$/, '');
+      if (!silent) this.pushLine(`> ${text}`, 'cmd');
+      Promise.resolve()
+        .then(() => cmdModule.runCommand(this, text))
+        .then((lines) => {
+          for (const line of Array.isArray(lines) ? lines : []) this.pushLine(String(line), 'info');
+        })
+        .catch((err) => this.pushLine(`[Hostkind] ${err && err.message ? err.message : 'Command failed'}`, 'error'));
+      return { ok: true };
+    }
     if (this.adopted) {
       return { ok: false, error: eKey('errors.consoleDetached') };
     }
@@ -1980,7 +2008,7 @@ function requestServerId(req) {
   }
   const requested = requestedServerId(req);
   if (requested) return requested;
-  if (/^\/(?:server|status|metrics|system|health|crashes|command|players|playerlists|whitelist|palworld|terraria|addons|modrinth|modpacks|configs|files|backups|tasks|worlds)(?:\/|$)/.test(req.path)) {
+  if (/^\/(?:server|status|metrics|system|health|crashes|command|players|playerlists|whitelist|palworld|terraria|addons|modrinth|modpacks|configs|files|backups|tasks|worlds|valheim)(?:\/|$)/.test(req.path)) {
     return config.activeServerId || null;
   }
   return null;
@@ -2039,6 +2067,9 @@ function capabilityForRequest(req) {
   // etc.) are unaffected - the table only answers for /valheim/worlds.
   const valheim = valheimRouteCapability(p, method);
   if (valheim) return valheim;
+  if (/^\/valheim\/updates\/policy$/.test(p)) return method === 'GET' ? CAPABILITIES.UPDATES_VIEW : CAPABILITIES.UPDATES_POLICY;
+  if (/^\/valheim\/updates\/(?:apply|[^/]+\/rollback)$/.test(p)) return CAPABILITIES.UPDATES_APPLY;
+  if (/^\/valheim\/updates(?:\/|$)/.test(p)) return CAPABILITIES.UPDATES_VIEW;
   if (/^\/(?:players|playerlists|whitelist)(?:\/|$)/.test(p)) return method === 'GET' ? CAPABILITIES.PLAYERS_VIEW : CAPABILITIES.PLAYERS_MANAGE;
   if (/^\/minecraft\/content(?:\/|$)/.test(p)) {
     if (method === 'GET') return foundationCapabilities.CAPABILITIES.CONTENT_VIEW;
@@ -2052,7 +2083,14 @@ function capabilityForRequest(req) {
     if (/\/update(?:\/|$)/.test(p) || /\/rollback$/.test(p)) return foundationCapabilities.CAPABILITIES.UPDATES_APPLY;
     return foundationCapabilities.CAPABILITIES.CONTENT_INSTALL;
   }
-  if (/^\/addons(?:\/|$)/.test(p) || p === '/modrinth/install') return method === 'GET' ? foundationCapabilities.CAPABILITIES.FILES_VIEW : foundationCapabilities.CAPABILITIES.PLUGINS_MANAGE;
+  // Creating a server from a modpack registers a new server entry, so it needs
+  // the same grant as any other registration; installing into one is content.
+  if (p === '/modrinth/modpack/install') {
+    return String(req.body?.mode || '').toLowerCase() === 'create'
+      ? foundationCapabilities.CAPABILITIES.SERVER_REGISTER
+      : foundationCapabilities.CAPABILITIES.CONTENT_INSTALL;
+  }
+  if (/^\/addons(?:\/|$)/.test(p) || p === '/modrinth/install' || p === '/modrinth/install-batch') return method === 'GET' ? foundationCapabilities.CAPABILITIES.FILES_VIEW : foundationCapabilities.CAPABILITIES.PLUGINS_MANAGE;
   if (/^\/configs(?:\/|$)/.test(p)) return method === 'GET' ? foundationCapabilities.CAPABILITIES.CONFIGS_VIEW : foundationCapabilities.CAPABILITIES.CONFIGS_MANAGE;
   if (/^\/files(?:\/|$)/.test(p)) return method === 'GET' ? foundationCapabilities.CAPABILITIES.FILES_VIEW : foundationCapabilities.CAPABILITIES.FILES_MANAGE;
   if (/^\/backups(?:\/|$)/.test(p)) return method === 'GET' ? foundationCapabilities.CAPABILITIES.FILES_VIEW : foundationCapabilities.CAPABILITIES.BACKUPS_MANAGE;
@@ -2837,6 +2875,8 @@ app.use('/api', panelConfigRouter({
 function hasGeneratedContent(s) {
   if (!s || !s.dir) return false;
   if (s.hasStarted) return true;
+  // Created with its game rules already written: only a start counts.
+  if (s.seededProperties) return false;
   try {
     return fs.existsSync(path.join(s.dir, 'server.properties'));
   } catch (_) {
@@ -3353,11 +3393,13 @@ async function createBackup(m, { applyRetention = true, includeMods = false, off
     includeMods: includeMods === true,
     selection,
   } : null;
-  await recovery.inspect({
-    file: outPath, filename: outName, serverId: m.id,
-    worlds: [...new Set(selection.map((item) => item.split('/')[0]))],
-    metadata,
-  });
+  const archived = { file: outPath, filename: outName, serverId: m.id, worlds: [...new Set(selection.map((item) => item.split('/')[0]))] };
+  await recovery.inspect({ ...archived, metadata });
+  // Health only counts a verified backup, so verify this one now and re-run the
+  // analysis instead of leaving "No fresh verified backup" up until the next
+  // sampler tick. A failed check is recorded as such and stays visible.
+  try { await recovery.verify(archived); } catch (err) { log(`Backup: verification of ${outName} failed: ${err.message}`); }
+  health.analyze(m.id, { systemTotalMb: os.totalmem() / 1048576, systemFreeMb: os.freemem() / 1048576 });
   if (applyRetention) pruneBackups(slug);
   log(`Backup: done -> ${outName} (${(st.size / 1048576).toFixed(1)} MB)`);
   m.pushLine(`[Hostkind] Backup created: ${outName} (${(st.size / 1048576).toFixed(1)} MB)`, 'info');
@@ -4685,6 +4727,11 @@ wss.on('connection', (ws, req) => {
         return;
       }
       const result = m.sendCommand(msg.cmd);
+      // A refused command (detached process, server stopped) writes nothing to
+      // the console, so without this the operator's text simply vanishes.
+      if (!result || !result.ok) {
+        ws.send(JSON.stringify({ type: 'error', code: 'command_failed', serverId, error: localizeErr(user, result && result.error) }));
+      }
       try {
         // The command text is redacted by lib/audit.cjs before storage, so a
         // password typed at a console never reaches the audit table.
@@ -4700,7 +4747,11 @@ wss.on('connection', (ws, req) => {
         });
       } catch (err) { log('audit: ws command capture failed:', err.message); }
     } else if (msg.type === 'selectServer' && msg.serverId) {
-      const liveUser = config.users.find(user => user.id === ws.userId);
+      // Resolved the way the command branch does: with sign-in off the caller
+      // is the guest principal, which has no row in config.users, so a lookup
+      // there refused every selection and left the socket on the config's
+      // active server - console commands then went to the wrong server.
+      const liveUser = principalFromToken(ws.fleetdeckToken || '');
       const allowed = findServer(msg.serverId)
         && liveUser
         && foundationCapabilities.has(liveUser, msg.serverId, foundationCapabilities.CAPABILITIES.CONSOLE_VIEW);

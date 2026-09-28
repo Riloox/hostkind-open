@@ -10,7 +10,7 @@
 
 const jwt = require('jsonwebtoken');
 const { test, expect, en } = require('../support/fixtures.cjs');
-const { loginScreen, gamesHub, appShell } = require('../support/pages.cjs');
+const { loginScreen, homeScreen, appShell } = require('../support/pages.cjs');
 const { submitLogin, signIn, enterGame, readToken, seedToken } = require('../support/actions.cjs');
 
 test.describe('sign-in', () => {
@@ -32,11 +32,11 @@ test.describe('sign-in', () => {
     expect(await readToken(page)).toBeNull();
   });
 
-  test('signs in with a username and lands on the games hub', async ({ page, app }) => {
+  test('signs in with a username and lands on home', async ({ page, app }) => {
     await signIn(page, { identifier: app.admin.username, password: app.admin.password });
 
-    await expect(page).toHaveURL(/\/games$/);
-    await expect(gamesHub(page).carousel).toBeVisible();
+    await expect(page).toHaveURL(/\/$/);
+    await expect(homeScreen(page).serverList).toBeVisible();
     await expect(loginScreen(page).heading).toBeHidden();
     expect(await readToken(page)).toBeTruthy();
   });
@@ -44,7 +44,7 @@ test.describe('sign-in', () => {
   test('signs in with an email address too', async ({ page, app }) => {
     await signIn(page, { identifier: app.admin.email, password: app.admin.password });
 
-    await expect(gamesHub(page).carousel).toBeVisible();
+    await expect(homeScreen(page).serverList).toBeVisible();
     expect(await readToken(page)).toBeTruthy();
   });
 
@@ -111,7 +111,7 @@ test.describe('session', () => {
 
     await page.reload();
 
-    await expect(gamesHub(page).carousel).toBeVisible();
+    await expect(homeScreen(page).serverList).toBeVisible();
     await expect(loginScreen(page).heading).toBeHidden();
     expect(await readToken(page)).toBe(token);
   });
@@ -127,7 +127,7 @@ test.describe('session', () => {
     await page.goto('/');
 
     await expect(loginScreen(page).heading).toBeVisible();
-    await expect(gamesHub(page).carousel).toBeHidden();
+    await expect(appShell(page).header).toBeHidden();
   });
 
   test('ends the session when the panel stops accepting the token', async ({ page }) => {

@@ -32,7 +32,9 @@ const { CAPABILITIES } = require('../lib/capabilities.cjs');
 // Read as LF: the assertions below slice this source on '\n' boundaries, and a
 // Windows checkout hands it back with CRLF.
 const SERVER_JS = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8').replace(/\r\n/g, '\n');
-const terraria = createTerrariaModule({});
+// Pinned to Linux: the Windows launch wraps every variant in a pseudo-console,
+// and that path has its own assertions below.
+const terraria = createTerrariaModule({ platform: 'linux' });
 
 // A stand-in ServerManager: the module only ever touches desc() and _launch().
 function fakeManager(desc) {
@@ -264,7 +266,31 @@ try {
   });
   const windowsTerraria = createTerrariaModule({ platform: 'win32', windowsSystemRoot: 'C:/Windows' });
   assert.equal(windowsTerraria.formatCommand('exit', legacyTmod), 'exit\r\n');
+  assert.equal(windowsTerraria.formatCommand('exit', manager), 'exit\r\n', 'every variant submits with CR on Windows');
   assert.equal(terraria.formatCommand('exit', manager), 'exit\n');
+
+  // Vanilla and TShock 1.4.5 read keys from a console on Windows and never
+  // see a stdin pipe, so they run under conhost exactly like tModLoader.
+  const windowsVanilla = fakeManager({ ...registered, dir: installRoot });
+  assert.deepEqual(windowsTerraria.start(windowsVanilla), { ok: true });
+  assert.deepEqual(windowsVanilla.launches, [{
+    bin: path.join('C:/Windows', 'System32', 'conhost.exe'),
+    args: ['--headless', executable, '-port', '7777'],
+  }]);
+
+  // The pseudo-console echoes typed commands and redraws progress once per
+  // percent; both stay off the console but are still parsed.
+  const echoing = fakeManager({ ...registered, dir: installRoot });
+  windowsTerraria.formatCommand('playing', echoing);
+  assert.equal(windowsTerraria.displayLine('playing', echoing), false, 'the echo of a typed command is hidden');
+  assert.equal(windowsTerraria.displayLine('playing', echoing), true, 'an echo is consumed once');
+  assert.equal(windowsTerraria.displayLine(': No players connected.', echoing), true);
+  assert.equal(windowsTerraria.displayLine(':', echoing), false, 'a prompt-only row is hidden');
+  assert.equal(windowsTerraria.displayLine('Resetting game objects 1%', echoing), true, 'first line of a stage is kept');
+  assert.equal(windowsTerraria.displayLine('Resetting game objects 2%', echoing), false);
+  assert.equal(windowsTerraria.displayLine('Resetting game objects 100%', echoing), true, 'a finished stage is kept');
+  assert.equal(windowsTerraria.displayLine('12.3% - Generating world terrain - 45.6%', echoing), true);
+  assert.equal(terraria.displayLine('Resetting game objects 2%', echoing), true, 'off Windows every line is shown');
   assert.ok(SERVER_JS.includes("typeof mod.formatCommand === 'function'"));
   assert.ok(SERVER_JS.includes('mod.formatCommand(trimmed, this)'));
   assert.deepEqual(windowsTerraria.start(legacyTmod), { ok: true });

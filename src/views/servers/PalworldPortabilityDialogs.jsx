@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert } from '@/components/ui/alert';
 import { useApi } from '@/hooks/useApi';
+import { useFolderPicker } from '@/hooks/useFolderPicker';
 import { useT } from '@/context/I18nContext';
 import { fmtBytes } from '@/lib/utils';
 import { FolderBrowserModal } from './FolderBrowserModal';
@@ -19,11 +20,24 @@ import { FolderBrowserModal } from './FolderBrowserModal';
 export function PalworldAdoptDialog({ open, onOpenChange, onAdopted }) {
   const api = useApi();
   const t = useT();
+  const { picking, pick } = useFolderPicker(api);
   const [dir, setDir] = useState('');
   const [name, setName] = useState('');
   const [inspection, setInspection] = useState(null);
   const [busy, setBusy] = useState(false);
   const [fsOpen, setFsOpen] = useState(false);
+
+  async function pickFolder() {
+    try {
+      const picked = await pick(dir, t('portability.adoptTitle'));
+      if (!picked) return;
+      setDir(picked);
+      setInspection(null);
+      await inspect(picked);
+    } catch {
+      setFsOpen(true);
+    }
+  }
 
   async function inspect(target = dir) {
     setBusy(true);
@@ -58,7 +72,7 @@ export function PalworldAdoptDialog({ open, onOpenChange, onAdopted }) {
               <Label>{t('portability.folder')}</Label>
               <div className="flex gap-2">
                 <Input value={dir} onChange={(e) => { setDir(e.target.value); setInspection(null); }} placeholder="/srv/palworld" />
-                <Button variant="glass" className="h-11 shrink-0" onClick={() => setFsOpen(true)}><FolderOpen className="h-3.5 w-3.5" /></Button>
+                <Button variant="glass" className="h-11 shrink-0" type="button" aria-label={t('servers.browse')} disabled={busy || picking} onClick={pickFolder}><FolderOpen className="h-3.5 w-3.5" /></Button>
               </div>
             </div>
             <Button variant="glass" size="sm" disabled={busy || !dir} onClick={() => inspect()}>{t('portability.inspect')}</Button>
@@ -118,11 +132,21 @@ export function PalworldAdoptDialog({ open, onOpenChange, onAdopted }) {
 export function PalworldImportDialog({ open, onOpenChange, onImported }) {
   const api = useApi();
   const t = useT();
+  const { picking, pick } = useFolderPicker(api);
   const fileRef = useRef(null);
   const [preview, setPreview] = useState(null);
   const [form, setForm] = useState({ name: '', dir: '', port: '', restPort: '' });
   const [busy, setBusy] = useState(false);
   const [fsOpen, setFsOpen] = useState(false);
+
+  async function pickFolder() {
+    try {
+      const picked = await pick(form.dir, t('portability.importTitle'));
+      if (picked) setForm((value) => ({ ...value, dir: picked }));
+    } catch {
+      setFsOpen(true);
+    }
+  }
 
   async function choose(file) {
     if (!file) return;
@@ -195,7 +219,7 @@ export function PalworldImportDialog({ open, onOpenChange, onImported }) {
                     <Label>{t('portability.destination')}</Label>
                     <div className="flex gap-2">
                       <Input value={form.dir} onChange={(e) => setForm({ ...form, dir: e.target.value })} placeholder="/srv/palworld-imported" />
-                      <Button variant="glass" className="h-11 shrink-0" onClick={() => setFsOpen(true)}><FolderOpen className="h-3.5 w-3.5" /></Button>
+                      <Button variant="glass" className="h-11 shrink-0" type="button" aria-label={t('servers.browse')} disabled={busy || picking} onClick={pickFolder}><FolderOpen className="h-3.5 w-3.5" /></Button>
                     </div>
                     <p className="text-label text-muted-foreground">{t('portability.destinationNote')}</p>
                   </div>

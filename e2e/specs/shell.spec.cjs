@@ -1,7 +1,7 @@
 'use strict';
 
 /*
- * The shell every game shares - sidebar, header, settings, tour - and the
+ * The shell every game shares - sidebar, header, profile menu, settings - and the
  * rule that decides which sections a given game is even offered.
  *
  * The gating table is the interesting part: each module declares what it can
@@ -10,11 +10,13 @@
  */
 
 const { test, expect, en, es } = require('../support/fixtures.cjs');
-const { appShell, controlBar, toasts, dialog, gamesHub, serverRow } = require('../support/pages.cjs');
+const { appShell, serverControls, toasts, dialog, homeScreen, serverUrl, serverRow, panelSettings } = require('../support/pages.cjs');
 const { signIn, signInFast, openView, enterGame, waitForLiveConnection, seedToken } = require('../support/actions.cjs');
 const { client } = require('../support/api.cjs');
 const seed = require('../support/seed.cjs');
 const net = require('net');
+
+const APP_VERSION = require('../../package.json').version;
 
 /** A free localhost port for the fake Palworld REST API of a runnable fixture. */
 function freePort() {
@@ -29,27 +31,28 @@ function freePort() {
   });
 }
 
-test.describe('games hub', () => {
-  test('offers every game the panel supports', async ({ page, app }) => {
+test.describe('home', () => {
+  test('lists every server, whatever its game', async ({ page, app }) => {
     await signInFast(page, app);
-    await page.goto('/games');
+    await page.goto('/');
 
-    for (const game of ['minecraft', 'terraria', 'valheim', 'palworld', 'custom']) {
-      await expect(gamesHub(page).game(game)).toHaveCount(1);
+    await expect(homeScreen(page).serverList).toBeVisible();
+    for (const name of ['Survival', 'Hardmode', 'Midgard', 'Pal Camp', 'Worker']) {
+      await expect(serverRow(page, name).root).toHaveCount(1);
     }
   });
 
-  test('enters a game and comes back to the hub', async ({ page, app }) => {
+  test('opens a server and comes back home', async ({ page, app }) => {
     await signInFast(page, app);
-    await page.goto('/games');
+    await page.goto('/');
 
-    await enterGame(page, 'terraria');
-    await expect(page).toHaveURL(/\/games\/terraria\/dashboard$/);
+    await serverRow(page, 'Hardmode').open.click();
+    await expect(page).toHaveURL(serverUrl('', 'srv-hardmode'));
     await expect(appShell(page).header).toContainText('Terraria');
 
-    await page.getByRole('button', { name: /go to all games/i }).click();
-    await expect(page).toHaveURL(/\/games$/);
-    await expect(gamesHub(page).carousel).toBeVisible();
+    await page.getByRole('button', { name: /go home/i }).click();
+    await expect(page).toHaveURL(/\/$/);
+    await expect(homeScreen(page).serverList).toBeVisible();
   });
 });
 
@@ -61,28 +64,58 @@ test.describe('sidebar', () => {
     const shell = appShell(page);
     await expect(shell.navItem('dashboard')).toHaveAttribute('data-active', 'true');
 
-    await shell.navItem('files').click();
+    await shell.navItem('settings').click();
 
-    await expect(page).toHaveURL(/\/games\/minecraft\/files$/);
-    await expect(shell.navItem('files')).toHaveAttribute('data-active', 'true');
+    await expect(page).toHaveURL(serverUrl('settings'));
+    await expect(shell.navItem('settings')).toHaveAttribute('data-active', 'true');
     await expect(shell.navItem('dashboard')).toHaveAttribute('data-active', 'false');
+
+    // A tab of the section is a URL of its own, and Back returns to the last one.
+    await shell.sectionTab('files').click();
+    await expect(page).toHaveURL(serverUrl('settings/files'));
+    await expect(shell.navItem('settings')).toHaveAttribute('data-active', 'true');
+    await page.goBack();
+    await expect(page).toHaveURL(serverUrl('settings'));
+    await expect(shell.sectionTab('game')).toHaveAttribute('data-state', 'active');
+  });
+
+  test('marks the overview as current on its details page', async ({ page, app }) => {
+    await signInFast(page, app);
+    await openView(page, 'minecraft', 'health');
+
+    await expect(page).toHaveURL(serverUrl('details'));
+    await expect(appShell(page).navItem('dashboard')).toHaveAttribute('data-active', 'true');
   });
 
   test('only lists the sections a game actually has', async ({ page, app }) => {
     await signInFast(page, app);
 
-    // Minecraft is the fullest module: worlds, mods, a map, a player list.
+    // Minecraft is the fullest module: all eight sections, the old ones
+    // merged into them.
     await openView(page, 'minecraft', 'dashboard');
-    for (const view of ['console', 'players', 'addons', 'content', 'worlds', 'map', 'configs', 'backups']) {
+    for (const view of ['dashboard', 'console', 'players', 'worlds', 'mods', 'backups', 'tasks', 'settings']) {
       await expect(appShell(page).navItem(view)).toHaveCount(1);
+    }
+    for (const view of ['health', 'map', 'addons', 'content', 'updates', 'configs', 'files']) {
+      await expect(appShell(page).navItem(view)).toHaveCount(0);
+    }
+    // Panel-wide pages are tabs of Hostkind settings, not sidebar items: the
+    // sidebar is only ever about the open server.
+    for (const view of ['users', 'audit', 'panel']) {
+      await expect(appShell(page).navItem(view)).toHaveCount(0);
+    }
+    await expect(appShell(page).sidebar.locator('[data-nav-item]')).toHaveCount(8);
+    await appShell(page).navItem('mods').click();
+    for (const tab of ['installed', 'browse', 'updates']) {
+      await expect(appShell(page).sectionTab(tab)).toHaveCount(1);
     }
 
     // "Other processes" have a console and files, and nothing to do with a game.
     await openView(page, 'custom', 'dashboard');
-    for (const view of ['console', 'files', 'backups', 'tasks']) {
+    for (const view of ['console', 'backups', 'tasks', 'settings']) {
       await expect(appShell(page).navItem(view)).toHaveCount(1);
     }
-    for (const view of ['players', 'worlds', 'map', 'content', 'updates']) {
+    for (const view of ['players', 'worlds', 'mods']) {
       await expect(appShell(page).navItem(view)).toHaveCount(0);
     }
   });
@@ -97,7 +130,47 @@ test.describe('sidebar', () => {
 
     // A typed URL for the removed view collapses to the dashboard.
     await page.goto('/games/palworld/integrations');
-    await expect(page).toHaveURL(/\/games\/palworld\/dashboard$/);
+    await expect(page).toHaveURL(serverUrl());
+  });
+});
+
+test.describe('phone width', () => {
+  test('fits a 375px screen, with the sidebar as a drawer', async ({ page, app }) => {
+    await page.setViewportSize({ width: 375, height: 800 });
+    await signInFast(page, app);
+    await openView(page, 'minecraft', 'console');
+
+    const shell = appShell(page);
+    const sidebar = page.locator('[data-app-sidebar]');
+    const toggle = page.locator('[data-nav-toggle]');
+
+    // Nothing scrolls sideways, and the sidebar is off screen until asked for.
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    expect(overflow).toBeLessThanOrEqual(0);
+    await expect(sidebar).toHaveAttribute('data-drawer', 'closed');
+    await expect(serverControls(page).start).toBeVisible();
+
+    // Open it, go somewhere: the drawer closes behind the navigation.
+    await toggle.click();
+    await expect(sidebar).toHaveAttribute('data-drawer', 'open');
+    await shell.navItem('backups').click();
+    await expect(page).toHaveURL(serverUrl('backups'));
+    await expect(sidebar).toHaveAttribute('data-drawer', 'closed');
+
+    // Escape closes it too.
+    await toggle.click();
+    await expect(sidebar).toHaveAttribute('data-drawer', 'open');
+    await page.keyboard.press('Escape');
+    await expect(sidebar).toHaveAttribute('data-drawer', 'closed');
+  });
+
+  test('keeps the desktop sidebar on a wide screen', async ({ page, app }) => {
+    await signInFast(page, app);
+    await openView(page, 'minecraft', 'dashboard');
+
+    await expect(page.locator('[data-nav-toggle]')).toBeHidden();
+    await expect(page.locator('[data-app-sidebar]')).not.toHaveAttribute('data-drawer', /.+/);
+    await expect(appShell(page).navItem('console')).toBeVisible();
   });
 });
 
@@ -124,11 +197,11 @@ test.describe('per-game views', () => {
     await signInFast(page, app);
 
     await openView(page, 'minecraft', 'content');
-    await expect(page).toHaveURL(/\/games\/minecraft\/content$/);
+    await expect(page).toHaveURL(serverUrl('mods/browse'));
 
     // content-install is Minecraft's alone.
     await openView(page, 'terraria', 'content');
-    await expect(page).toHaveURL(/\/games\/terraria\/dashboard$/);
+    await expect(page).toHaveURL(serverUrl());
   });
 
   test('sends Terraria to its own mods view', async ({ page, app }) => {
@@ -136,7 +209,7 @@ test.describe('per-game views', () => {
     // The seeded Terraria server is vanilla, which has no mod support at all.
     await openView(page, 'terraria', 'addons');
 
-    await expect(page).toHaveURL(/\/games\/terraria\/dashboard$/);
+    await expect(page).toHaveURL(serverUrl());
   });
 
   test('opens the tModLoader mods view for a tModLoader server', async ({ page, newApp }) => {
@@ -148,10 +221,13 @@ test.describe('per-game views', () => {
     await openView(page, 'terraria', 'dashboard', { origin: panel.url });
 
     // Navigated to from inside the app, once the active server is known.
-    await appShell(page).navItem('addons').click();
+    await appShell(page).navItem('mods').click();
 
-    await expect(page).toHaveURL(/\/games\/terraria\/addons$/);
-    await expect(page.getByText(en('terraria.mods.title'))).toBeVisible();
+    await expect(page).toHaveURL(serverUrl('mods'));
+    // One tab for this server, so no tab bar to choose from.
+    await expect(page.locator('[data-section-tabs]')).toHaveCount(0);
+    // Without a bar, the page carries the section's own name.
+    await expect(page.getByRole('heading', { name: en('nav.mods'), exact: true })).toBeVisible();
   });
 
   test('opens a variant-gated view from a typed URL', async ({ page, newApp }) => {
@@ -162,7 +238,7 @@ test.describe('per-game views', () => {
     await signInFast(page, panel);
     await openView(page, 'terraria', 'addons', { origin: panel.url });
 
-    await expect(page).toHaveURL(/\/games\/terraria\/addons$/);
+    await expect(page).toHaveURL(serverUrl('mods/installed'));
   });
 
   test('surfaces downloaded Workshop content on the Palworld addons view', async ({ page, newApp }) => {
@@ -188,8 +264,8 @@ test.describe('per-game views', () => {
 
     await openView(page, 'palworld', 'addons', { origin: panel.url });
 
-    await expect(page).toHaveURL(/\/games\/palworld\/addons$/);
-    await expect(page.getByText(en('palworldMods.title'))).toBeVisible();
+    await expect(page).toHaveURL(serverUrl('mods/installed'));
+    await expect(page.getByRole('heading', { name: en('nav.mods'), exact: true })).toBeVisible();
 
     // The seeded item lives in the server's own folder. It must surface as
     // downloadable content instead of silently vanishing.
@@ -208,7 +284,7 @@ test.describe('per-game views', () => {
     await signInFast(page, app);
 
     await openView(page, 'palworld', 'map');
-    await expect(page).toHaveURL(/\/games\/palworld\/map$/);
+    await expect(page).toHaveURL(serverUrl('worlds/map'));
 
     // The bundled asset is served to the map canvas: an <img> under the
     // application region whose src hits the asset endpoint and that actually
@@ -220,8 +296,9 @@ test.describe('per-game views', () => {
     await expect(mapImage).toHaveAttribute('src', /\/api\/palworld\/map\/asset\?/);
     await expect.poll(() => mapImage.evaluate((img) => img.naturalWidth), { timeout: 7000 }).toBeGreaterThan(0);
 
+    // Valheim has worlds but no map: the section opens on what it has.
     await openView(page, 'valheim', 'map');
-    await expect(page).toHaveURL(/\/games\/valheim\/dashboard$/);
+    await expect(page).toHaveURL(serverUrl('worlds'));
   });
 
   test('map canvas survives clicks and drags without page errors', async ({ page, app }) => {
@@ -338,12 +415,12 @@ test.describe('per-game views', () => {
     expect(state.calibration.contentRect).toEqual({ u0: 0, v0: 0.25, u1: 1, v1: 0.75 });
   });
 
-  test('keeps the health view for every game', async ({ page, app }) => {
+  test('keeps the details page for every game', async ({ page, app }) => {
     await signInFast(page, app);
 
     for (const game of ['minecraft', 'terraria', 'valheim', 'palworld', 'custom']) {
       await openView(page, game, 'health');
-      await expect(page).toHaveURL(new RegExp(`/games/${game}/health$`));
+      await expect(page).toHaveURL(serverUrl('details'));
     }
   });
 });
@@ -357,14 +434,39 @@ test.describe('settings', () => {
     await appShell(page).profileButton.click();
     await appShell(page).menuSettings.click();
 
-    const settings = dialog(page, en('settings.title'));
-    await expect(settings.root).toBeVisible();
-    await page.getByRole('button', { name: 'Español', exact: false }).click();
+    await expect(page).toHaveURL(/\/settings$/);
+    await panelSettings(page).group('language').getByRole('button', { name: 'Español', exact: false }).click();
 
     // The shell re-renders in Spanish...
-    await expect(appShell(page).sidebar).toContainText(es('nav.servers'));
+    await expect(appShell(page).sidebar).toContainText(es('nav.console'));
     await expect(page.locator('html')).toHaveAttribute('lang', 'es');
     expect(await page.evaluate(() => window.localStorage.getItem('fleetdeck_lang'))).toBe('es');
+  });
+
+  test("the profile menu opens Hostkind settings, What's new and the language", async ({ page, newApp }) => {
+    const panel = await newApp();
+    await signInFast(page, panel);
+    await openView(page, 'minecraft', 'dashboard', { origin: panel.url });
+    const shell = appShell(page);
+
+    await shell.profileButton.click();
+    await shell.menuWhatsNew.click();
+    await expect(shell.changelog).toBeVisible();
+    await shell.changelog.getByRole('button', { name: en('common.close'), exact: true }).first().click();
+    await expect(shell.changelog).toBeHidden();
+
+    await shell.profileButton.click();
+    await shell.menuLanguage.click();
+    await page.getByRole('menuitemradio', { name: 'Español' }).click();
+    await expect(page.locator('html')).toHaveAttribute('lang', 'es');
+    await expect(shell.sidebar).toContainText(es('nav.console'));
+    await expect(page.getByRole('menu')).toHaveCount(0);
+
+    await shell.profileButton.click();
+    await page.getByRole('menuitem', { name: es('nav.panelSettings', { name: es('brand.name') }) }).click();
+    await expect(page).toHaveURL(/\/settings$/);
+    // Nothing of the server is left in the sidebar's rail marker.
+    await expect(shell.sidebar.locator('[data-nav-item][data-active="true"]')).toHaveCount(0);
   });
 
   test('flips the crash watchdog from settings', async ({ page, newApp }) => {
@@ -375,10 +477,9 @@ test.describe('settings', () => {
     await appShell(page).profileButton.click();
     await appShell(page).menuSettings.click();
 
-    // The watchdog used to be config.json-only; the admin settings dialog is
-    // the surface that flips it, and the write lands in the panel config.
-    const settings = dialog(page, en('settings.title'));
-    const watchdog = settings.root.getByRole('checkbox').locator('xpath=ancestor::section');
+    // The watchdog used to be config.json-only; Hostkind settings is the
+    // surface that flips it, and the write lands in the panel config.
+    const watchdog = panelSettings(page).group('watchdog');
     await expect(watchdog).toBeVisible();
 
     await watchdog.getByRole('checkbox').click();
@@ -392,326 +493,28 @@ test.describe('settings', () => {
   });
 });
 
-test.describe('onboarding tour', () => {
-  test('greets you the first time you enter a game, once', async ({ page, newApp }) => {
+test.describe('first visit and updates', () => {
+  test('a first sign-in opens the server with nothing in the way', async ({ page, newApp }) => {
     const panel = await newApp();
-    // Deliberately not signInFast, which marks the tour as already seen.
-    const api = await require('../support/api.cjs').client(panel);
-    await page.addInitScript(([key, value]) => {
-      window.localStorage.setItem(key, value);
-    }, ['fleetdeck_token', api.token]);
-
-    await page.goto(`${panel.url}/games`);
-    await gamesHub(page).game('minecraft').click();
-
-    const tour = appShell(page).tour;
-    await expect(tour).toBeVisible();
-    await page.keyboard.press('Escape');
-    await expect(tour).toBeHidden();
-
-    // Second visit to the same game: no tour.
+    // The real form, so nothing is planted: this is a brand-new browser.
+    await signIn(page, { identifier: panel.admin.username, password: panel.admin.password, origin: panel.url });
     await page.goto(`${panel.url}/games/minecraft/dashboard`);
     await expect(appShell(page).header).toBeVisible();
-    await expect(tour).toBeHidden();
+
+    // No tour, no changelog, no first-start modal, and nothing floating over
+    // the page.
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(page.locator('[data-bug-report-dock]')).toHaveCount(0);
+    // A fresh browser has nothing new to read: it starts from this build.
+    await expect(appShell(page).whatsNewDot).toHaveCount(0);
+    expect(await page.evaluate(() => window.localStorage.getItem('fleetdeck_changelog_version'))).toBe(APP_VERSION);
   });
 
-  test('does not close when the backdrop is clicked', async ({ page, newApp }) => {
-    const panel = await newApp();
-    // Deliberately not signInFast, which marks the tour as already seen.
-    const api = await require('../support/api.cjs').client(panel);
-    await page.addInitScript(([key, value]) => {
-      window.localStorage.setItem(key, value);
-    }, ['fleetdeck_token', api.token]);
-
-    await page.goto(`${panel.url}/games`);
-    await gamesHub(page).game('minecraft').click();
-
-    const tour = appShell(page).tour;
-    await expect(tour).toBeVisible();
-
-    // The welcome card is centered, so the top-left corner is on the dimmed
-    // backdrop. Clicking it must not dismiss the tour - only the X button or
-    // Escape may.
-    await page.mouse.click(10, 10);
-    await expect(tour).toBeVisible();
-
-    // Same with a spotlight target: the far side of the sidebar is dimmed,
-    // and the click must be swallowed rather than passed to the app below.
-    await page.keyboard.press('ArrowRight');
-    await expect(tour).toBeVisible();
-    await page.mouse.click(1250, 400);
-    await expect(tour).toBeVisible();
-
-    // Escape still closes it.
-    await page.keyboard.press('Escape');
-    await expect(tour).toBeHidden();
-  });
-
-  test('can be replayed from settings', async ({ page, app }) => {
-    await signInFast(page, app);
-    await openView(page, 'minecraft', 'dashboard');
-    await expect(appShell(page).tour).toBeHidden();
-
-    await appShell(page).profileButton.click();
-    await appShell(page).menuSettings.click();
-    const settings = dialog(page, en('settings.title'));
-    await settings.root.getByRole('button', { name: en('settings.tourRepeat') }).click();
-
-    const tour = appShell(page).tour;
-    await expect(tour).toBeVisible();
-
-    // The X button closes it too.
-    await tour.getByRole('button', { name: en('common.close') }).click();
-    await expect(tour).toBeHidden();
-  });
-
-  test('ArrowRight walks forward through the tour until Finish appears', async ({ page, newApp }) => {
-    const panel = await newApp();
-    const api = await require('../support/api.cjs').client(panel);
-    await page.addInitScript(([key, value]) => {
-      window.localStorage.setItem(key, value);
-    }, ['fleetdeck_token', api.token]);
-
-    await page.goto(`${panel.url}/games`);
-    await gamesHub(page).game('minecraft').click();
-
-    const tour = appShell(page).tour;
-    await expect(tour).toBeVisible();
-
-    // Back button should not be visible on the first step.
-    await expect(tour.getByRole('button', { name: en('common.back'), exact: true })).toHaveCount(0);
-
-    // Advance through all steps with ArrowRight, bounded to avoid infinite
-    // loops if the tour changes step count in parallel.
-    let finishVisible = false;
-    for (let i = 0; i < 15; i += 1) {
-      if (await tour.getByRole('button', { name: en('tour.finish'), exact: true }).isVisible()) {
-        finishVisible = true;
-        break;
-      }
-      await page.keyboard.press('ArrowRight');
-      // Small pause so React can re-render between steps.
-      await tour.getByRole('button', { name: /Next|Finish/i }).waitFor();
-    }
-
-    expect(finishVisible).toBe(true);
-
-    // Finish button is present on the last step.
-    await expect(tour.getByRole('button', { name: en('tour.finish'), exact: true })).toBeVisible();
-  });
-
-  test('ArrowLeft walks back after advancing', async ({ page, newApp }) => {
-    const panel = await newApp();
-    const api = await require('../support/api.cjs').client(panel);
-    await page.addInitScript(([key, value]) => {
-      window.localStorage.setItem(key, value);
-    }, ['fleetdeck_token', api.token]);
-
-    await page.goto(`${panel.url}/games`);
-    await gamesHub(page).game('minecraft').click();
-
-    const tour = appShell(page).tour;
-    await expect(tour).toBeVisible();
-
-    // First step: Back is absent.
-    await expect(tour.getByRole('button', { name: en('common.back'), exact: true })).toHaveCount(0);
-
-    // Advance one step — Back should appear.
-    await page.keyboard.press('ArrowRight');
-    await expect(tour.getByRole('button', { name: en('common.back'), exact: true })).toBeVisible();
-
-    // Go back — Back should disappear again.
-    await page.keyboard.press('ArrowLeft');
-    await expect(tour.getByRole('button', { name: en('common.back'), exact: true })).toHaveCount(0);
-  });
-
-  test('Finish button closes the tour and marks it seen', async ({ page, newApp }) => {
-    const panel = await newApp();
-    const api = await require('../support/api.cjs').client(panel);
-    await page.addInitScript(([key, value]) => {
-      window.localStorage.setItem(key, value);
-    }, ['fleetdeck_token', api.token]);
-
-    await page.goto(`${panel.url}/games`);
-    await gamesHub(page).game('minecraft').click();
-
-    const tour = appShell(page).tour;
-    await expect(tour).toBeVisible();
-
-    // Navigate to the last step.
-    for (let i = 0; i < 15; i += 1) {
-      if (await tour.getByRole('button', { name: en('tour.finish'), exact: true }).isVisible()) break;
-      await page.keyboard.press('ArrowRight');
-      await tour.getByRole('button', { name: /Next|Finish/i }).waitFor();
-    }
-
-    await tour.getByRole('button', { name: en('tour.finish'), exact: true }).click();
-    await expect(tour).toBeHidden();
-
-    // Tour is marked seen in localStorage.
-    const seen = await page.evaluate(
-      ([key, userId, game]) => window.localStorage.getItem(`${key}:${userId}:${game}`),
-      ['fleetdeck_tour_seen', api.user.id, 'minecraft'],
-    );
-    expect(seen).toBe('1');
-  });
-
-  test('completing the tour in one game marks it seen in every game', async ({ page, newApp }) => {
-    const panel = await newApp();
-    const api = await require('../support/api.cjs').client(panel);
-    await page.addInitScript(([key, value]) => {
-      window.localStorage.setItem(key, value);
-    }, ['fleetdeck_token', api.token]);
-
-    await page.goto(`${panel.url}/games`);
-    await gamesHub(page).game('minecraft').click();
-
-    const tour = appShell(page).tour;
-    await expect(tour).toBeVisible();
-
-    // Walk to the last step and Finish.
-    for (let i = 0; i < 15; i += 1) {
-      if (await tour.getByRole('button', { name: en('tour.finish'), exact: true }).isVisible()) break;
-      await page.keyboard.press('ArrowRight');
-      await tour.getByRole('button', { name: /Next|Finish/i }).waitFor();
-    }
-    await tour.getByRole('button', { name: en('tour.finish'), exact: true }).click();
-    await expect(tour).toBeHidden();
-
-    // The walkthroughs are near-identical per game, so finishing it once
-    // marks it seen for every game in the catalogue.
-    const seen = await page.evaluate(
-      ([key, userId]) => Object.fromEntries(
-        ['minecraft', 'terraria', 'valheim', 'palworld', 'custom']
-          .map((game) => [game, window.localStorage.getItem(`${key}:${userId}:${game}`)]),
-      ),
-      ['fleetdeck_tour_seen', api.user.id],
-    );
-    for (const game of ['minecraft', 'terraria', 'valheim', 'palworld', 'custom']) {
-      expect(seen[game], `seen flag for ${game}`).toBe('1');
-    }
-
-    // ...so entering another game opens no tour at all. The carousel
-    // centers a slide on the first click and enters it on the second.
-    await page.goto(`${panel.url}/games`);
-    const terraria = gamesHub(page).game('terraria');
-    await terraria.click();
-    await terraria.click();
-    await expect(appShell(page).header).toBeVisible();
-    await expect(appShell(page).tour).toBeHidden();
-  });
-
-  test('controlbar step keeps the dock visible on a short viewport', async ({ page, newApp }) => {
-    const panel = await newApp();
-    const api = await require('../support/api.cjs').client(panel);
-    await page.addInitScript(([key, value]) => {
-      window.localStorage.setItem(key, value);
-    }, ['fleetdeck_token', api.token]);
-
-    // A short window is where the bug lives: the card cannot fit above the
-    // bottom dock, and the old positioning clamp parked the card on top of
-    // the very controls the step is teaching about.
-    await page.setViewportSize({ width: 726, height: 337 });
-    await page.goto(`${panel.url}/games`);
-    await gamesHub(page).game('minecraft').click();
-
-    const tour = appShell(page).tour;
-    await expect(tour).toBeVisible();
-
-    // Walk to the controlbar step (the one describing the server controls dock).
-    for (let i = 0; i < 15; i += 1) {
-      if (await tour.getByRole('heading', { name: en('tour.controlbar.title') }).isVisible()) break;
-      await page.keyboard.press('ArrowRight');
-      await tour.getByRole('button', { name: /Next|Finish/i }).waitFor();
-    }
-    await expect(tour.getByRole('heading', { name: en('tour.controlbar.title') })).toBeVisible();
-
-    // The card must not bury the dock: on an extreme viewport it may graze
-    // the dock's top edge, but its bottom must stay above the dock's vertical
-    // centre so the controls remain visible. Poll because the spotlight rect
-    // lands a double-rAF after the step renders.
-    const card = tour.locator('div[tabindex="-1"]');
-    const dock = page.locator('[data-tour="controlbar"]');
-    await expect(dock).toBeVisible();
-    const overhang = async () => {
-      const cardBox = await card.boundingBox();
-      const dockBox = await dock.boundingBox();
-      return cardBox.y + cardBox.height - (dockBox.y + dockBox.height / 2);
-    };
-    await expect.poll(overhang, { timeout: 5000 }).toBeLessThanOrEqual(0);
-  });
-
-  test('X button mid-tour closes and marks it seen', async ({ page, newApp }) => {
-    const panel = await newApp();
-    const api = await require('../support/api.cjs').client(panel);
-    await page.addInitScript(([key, value]) => {
-      window.localStorage.setItem(key, value);
-    }, ['fleetdeck_token', api.token]);
-
-    await page.goto(`${panel.url}/games`);
-    await gamesHub(page).game('minecraft').click();
-
-    const tour = appShell(page).tour;
-    await expect(tour).toBeVisible();
-
-    // Advance a couple of steps to be mid-tour.
-    await page.keyboard.press('ArrowRight');
-    await page.keyboard.press('ArrowRight');
-
-    // Click the X (Close) button.
-    await tour.getByRole('button', { name: en('common.close'), exact: true }).click();
-    await expect(tour).toBeHidden();
-
-    // Tour is marked seen in localStorage.
-    const seen = await page.evaluate(
-      ([key, userId, game]) => window.localStorage.getItem(`${key}:${userId}:${game}`),
-      ['fleetdeck_tour_seen', api.user.id, 'minecraft'],
-    );
-    expect(seen).toBe('1');
-  });
-
-  test('backdrop click advances a spotlight step without closing', async ({ page, newApp }) => {
-    const panel = await newApp();
-    const api = await require('../support/api.cjs').client(panel);
-    await page.addInitScript(([key, value]) => {
-      window.localStorage.setItem(key, value);
-    }, ['fleetdeck_token', api.token]);
-
-    await page.goto(`${panel.url}/games`);
-    await gamesHub(page).game('minecraft').click();
-
-    const tour = appShell(page).tour;
-    await expect(tour).toBeVisible();
-
-    // The selected progress dot's aria-label is the badge text, which names
-    // the current step - so a change in it proves the step advanced.
-    const selected = () => tour.locator('[role="tab"][aria-selected="true"]').getAttribute('aria-label');
-
-    // Move to a spotlight step first (welcome is a centered card, where the
-    // backdrop must stay swallowed).
-    await page.keyboard.press('ArrowRight');
-    await expect(tour).toBeVisible();
-    const before = await selected();
-
-    // Click the dimmed area far from the card: the tour must not close, and
-    // on a spotlight step it advances instead.
-    await page.mouse.click(1250, 400);
-    await expect(tour).toBeVisible();
-    await expect.poll(selected).not.toBe(before);
-
-    // Escape still closes it.
-    await page.keyboard.press('Escape');
-    await expect(tour).toBeHidden();
-  });
-
-  test('shows a rendered changelog popup once after an update', async ({ page, app }) => {
-    // signInFast marks the tour as seen for every game and plants the current
-    // changelog version. Overwrite that with a stale version once, on the first
-    // navigation only: that is what an upgrade looks like - the tour was seen,
-    // but the stored version predates the build, so the app opens the
-    // changelog popup instead. (addInitScript runs on every navigation, so
-    // guard it with a sessionStorage flag; a second navigation must look like
-    // a normal post-upgrade visit.)
+  test("after an update the profile menu marks What's new until it is opened", async ({ page, app }) => {
+    // signInFast plants the current changelog version. Overwrite it with a
+    // stale one on the first navigation only: that is what an upgrade looks
+    // like. (addInitScript runs on every navigation, so a sessionStorage flag
+    // keeps the reload below a normal visit.)
     await signInFast(page, app);
     await page.addInitScript(() => {
       if (sessionStorage.getItem('changelog_stale_planted')) return;
@@ -719,57 +522,98 @@ test.describe('onboarding tour', () => {
       window.localStorage.setItem('fleetdeck_changelog_version', '0.0.0');
     });
     await page.goto(`${app.url}/games/minecraft/dashboard`);
+    const shell = appShell(page);
+    await expect(shell.header).toBeVisible();
 
-    const changelog = appShell(page).changelog;
-    await expect(changelog).toBeVisible();
-    await expect(changelog.getByRole('heading', { name: en('whatsNew.title'), exact: true })).toBeVisible();
-    await expect(changelog).toContainText('Changelog');
-    await expect(changelog).toContainText('Windows desktop support');
-    await expect(appShell(page).tour).toBeHidden();
+    // It never opens by itself.
+    await expect(shell.changelog).toBeHidden();
+    await expect(shell.whatsNewDot).toBeVisible();
 
-    // Once seen, it does not re-open on the next visit.
-    await changelog.getByRole('button', { name: en('common.close'), exact: true }).first().click();
-    await expect(changelog).toBeHidden();
-    await page.goto(`${app.url}/games/minecraft/dashboard`);
-    await expect(appShell(page).header).toBeVisible();
-    await expect(changelog).toBeHidden();
+    await shell.profileButton.click();
+    await expect(shell.menuWhatsNew).toHaveAttribute('data-whats-new-unread', 'true');
+    await shell.menuWhatsNew.click();
+    await expect(shell.changelog).toBeVisible();
+    await expect(shell.changelog).toContainText('Changelog');
+    await expect(shell.changelog).toContainText('Windows desktop support');
+    await shell.changelog.getByRole('button', { name: en('common.close'), exact: true }).first().click();
+    await expect(shell.changelog).toBeHidden();
+    await expect(shell.whatsNewDot).toHaveCount(0);
+
+    // Read stays read.
+    await page.reload();
+    await expect(shell.header).toBeVisible();
+    await expect(shell.whatsNewDot).toHaveCount(0);
+    await expect(shell.changelog).toBeHidden();
   });
 
-  test('does not show the changelog again when the desktop port changes', async ({ page, newApp }) => {
-    // Desktop launches choose a fresh loopback port. Browser localStorage is
-    // origin-scoped (and therefore port-scoped), while cookies are not. A
-    // completed tour must remain dismissed across that boundary.
+  test("What's new stays read when the desktop port changes", async ({ page, newApp }) => {
+    // Desktop launches choose a fresh loopback port. localStorage is scoped to
+    // the origin (so to the port); cookies are not, and carry what was read.
     const first = await newApp();
-    await signIn(page, {
-      identifier: first.admin.username,
-      password: first.admin.password,
-      origin: first.url,
-    });
+    await signIn(page, { identifier: first.admin.username, password: first.admin.password, origin: first.url });
     await page.goto(`${first.url}/games/minecraft/dashboard`);
-
-    const tour = appShell(page).tour;
-    await expect(tour).toBeVisible();
-    await page.keyboard.press('Escape');
-    await expect(tour).toBeHidden();
+    await expect(appShell(page).header).toBeVisible();
 
     const second = await newApp();
     const session = await client(second);
     await seedToken(page, session.token);
-    await page.context().addCookies([{
-      name: `fleetdeck_tour_seen_${session.user.id}_minecraft`,
-      value: '1',
-      domain: '127.0.0.1',
-      path: '/',
-    }]);
+    // The new origin's localStorage says an old build; the cookie wins.
+    await page.addInitScript(() => window.localStorage.setItem('fleetdeck_changelog_version', '0.0.0'));
     await page.goto(`${second.url}/games/minecraft/dashboard`);
     await expect(appShell(page).header).toBeVisible();
-    await expect(tour).toBeHidden();
-    await expect(appShell(page).changelog).toBeHidden();
+    await expect(appShell(page).whatsNewDot).toHaveCount(0);
+  });
+});
+
+test.describe('first start', () => {
+  test('a never-started server says so on its content pages without blocking them', async ({ page, newApp }) => {
+    const panel = await newApp({ servers: (dirs) => [seed.minecraft(dirs, { name: 'Fresh', generated: false })] });
+    await signInFast(page, panel);
+    const id = panel.server('Fresh').id;
+    const shell = appShell(page);
+
+    // In-app navigation goes straight through; the notice sits on the page.
+    await page.goto(`${panel.url}/servers/${id}`);
+    await expect(shell.header).toBeVisible();
+    await shell.navItem('mods').click();
+    await expect(page).toHaveURL(serverUrl('mods', id));
+    await expect(shell.firstStartNotice).toBeVisible();
+    await expect(shell.firstStartNotice.getByRole('button', { name: en('firstStart.startNow'), exact: true })).toBeVisible();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+
+    for (const segment of ['worlds', 'settings/game', 'settings/files']) {
+      await page.goto(`${panel.url}/servers/${id}/${segment}`);
+      await expect(shell.firstStartNotice, segment).toBeVisible();
+    }
+    // Settings -> General is the panel's own record of the server: nothing to generate.
+    await page.goto(`${panel.url}/servers/${id}/settings/general`);
+    await expect(shell.header).toBeVisible();
+    await expect(shell.firstStartNotice).toHaveCount(0);
+  });
+
+  test('Start on the notice starts the server and the notice goes away', async ({ page, newApp }) => {
+    const panel = await newApp({ servers: (dirs) => [seed.custom(dirs, { name: 'Worker', started: false })] });
+    await signInFast(page, panel);
+    const id = panel.server('Worker').id;
+    await page.goto(`${panel.url}/servers/${id}/settings/files`);
+    await waitForLiveConnection(page);
+    const shell = appShell(page);
+    await expect(shell.firstStartNotice).toBeVisible();
+
+    await shell.firstStartNotice.getByRole('button', { name: en('firstStart.startNow'), exact: true }).click();
+    await expect(serverControls(page).status).toHaveText(en('status.online'), { timeout: 20_000 });
+    await expect(shell.firstStartNotice).toHaveCount(0);
+    await expect(toasts(page).withText(en('firstStart.onlineToast'))).toBeVisible();
+
+    // Once it has run, stopping it does not bring the notice back.
+    await serverControls(page).stop.click();
+    await expect(serverControls(page).start).toBeVisible();
+    await expect(shell.firstStartNotice).toHaveCount(0);
   });
 });
 
 test.describe('server switching', () => {
-  test('switches the active server from the dock', async ({ page, newApp }) => {
+  test('switches the open server from the sidebar', async ({ page, newApp }) => {
     const seed = require('../support/seed.cjs');
     const panel = await newApp({
       servers: (dirs) => [
@@ -780,13 +624,13 @@ test.describe('server switching', () => {
     await signInFast(page, panel);
     await openView(page, 'minecraft', 'files', { origin: panel.url });
 
-    const dock = controlBar(page);
-    await expect(dock.picker).toContainText('Survival');
+    const switcher = serverControls(page);
+    await expect(switcher.picker).toContainText('Survival');
 
-    await dock.picker.click();
-    await dock.pickerOption('Creative').click();
+    await switcher.picker.click();
+    await switcher.pickerOption('Creative').click();
 
-    await expect(dock.picker).toContainText('Creative');
+    await expect(switcher.picker).toContainText('Creative');
     // The view follows the server: the file list is now the other folder's.
     await expect(page.getByRole('row').filter({ hasText: 'server.properties' })).toBeVisible();
   });
@@ -803,15 +647,15 @@ test.describe('server switching', () => {
     await signInFast(page, panel);
     await openView(page, 'minecraft', 'dashboard', { origin: panel.url });
 
-    await controlBar(page).picker.click();
-    await controlBar(page).pickerOption('Creative').click();
-    await expect(controlBar(page).picker).toContainText('Creative');
+    await serverControls(page).picker.click();
+    await serverControls(page).pickerOption('Creative').click();
+    await expect(serverControls(page).picker).toContainText('Creative');
 
     // Go somewhere else entirely, then come back.
     await openView(page, 'terraria', 'dashboard', { origin: panel.url });
-    await expect(controlBar(page).picker).toContainText('Hardmode');
+    await expect(serverControls(page).picker).toContainText('Hardmode');
 
     await openView(page, 'minecraft', 'dashboard', { origin: panel.url });
-    await expect(controlBar(page).picker).toContainText('Creative');
+    await expect(serverControls(page).picker).toContainText('Creative');
   });
 });

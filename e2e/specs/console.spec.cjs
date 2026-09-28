@@ -10,7 +10,7 @@
  */
 
 const { test, expect, en } = require('../support/fixtures.cjs');
-const { controlBar, toasts } = require('../support/pages.cjs');
+const { serverControls, toasts } = require('../support/pages.cjs');
 const { signInFast, openView, waitForLiveConnection } = require('../support/actions.cjs');
 const { client } = require('../support/api.cjs');
 
@@ -25,7 +25,7 @@ async function startWorker(page, panel) {
   await openView(page, 'custom', 'console', { origin: panel.url });
   await waitForLiveConnection(page);
   // A real spawn, on a machine running several panels at once.
-  await expect(controlBar(page).status).toHaveText(en('status.online'), { timeout: 20_000 });
+  await expect(serverControls(page).status).toHaveText(en('status.online'), { timeout: 20_000 });
 }
 
 test.describe('console', () => {
@@ -69,7 +69,7 @@ test.describe('console', () => {
   test('refuses to send anything while the process is stopped', async ({ page, app }) => {
     await signInFast(page, app);
     await openView(page, 'custom', 'console');
-    await expect(controlBar(page).status).toHaveText(en('status.offline'));
+    await expect(serverControls(page).status).toHaveText(en('status.offline'));
 
     await commandInput(page).fill('say nobody is listening');
     await commandInput(page).press('Enter');
@@ -149,7 +149,7 @@ test.describe('console', () => {
     await commandInput(page).fill('boom');
     await commandInput(page).press('Enter');
 
-    await expect(controlBar(page).status).toHaveText(en('status.offline'), { timeout: 20_000 });
+    await expect(serverControls(page).status).toHaveText(en('status.offline'), { timeout: 20_000 });
     await expect(consoleArea(page)).toContainText('exit');
   });
 });

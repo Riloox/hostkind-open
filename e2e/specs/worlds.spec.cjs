@@ -7,7 +7,7 @@
  */
 
 const { test, expect, en } = require('../support/fixtures.cjs');
-const { appShell } = require('../support/pages.cjs');
+const { appShell, serverUrl } = require('../support/pages.cjs');
 const { signInFast, openView } = require('../support/actions.cjs');
 
 test.describe('worlds', () => {
@@ -15,14 +15,16 @@ test.describe('worlds', () => {
     await signInFast(page, app);
     await openView(page, 'minecraft', 'worlds');
 
-    await expect(page.getByRole('heading', { name: en('minecraft.worlds.title'), exact: true })).toBeVisible();
+    // The tab bar names the page (Worlds · Map); no second title under it.
+    await expect(appShell(page).sectionTab('worlds')).toHaveAttribute('data-state', 'active');
+    await expect(page.locator('[data-view-header] h2')).toHaveCount(0);
     // Each world's name appears twice on its card - as the title and as the
     // folder underneath it - so this only asks that it is on screen at all.
     for (const world of ['world', 'world_nether', 'world_the_end']) {
       await expect(page.getByText(world, { exact: true }).first()).toBeVisible();
     }
-    // Three of them exist on disk, and the summary agrees.
-    await expect(page.getByText(en('minecraft.worlds.summaryWorlds'))).toBeVisible();
+    // Each card carries its own size.
+    await expect(page.getByText(en('minecraft.worlds.summaryStorage'))).toHaveCount(3);
   });
 
   test('labels each world with its dimension', async ({ page, app }) => {
@@ -63,8 +65,8 @@ test.describe('worlds', () => {
     await signInFast(page, app);
     await openView(page, 'valheim', 'worlds');
 
-    await expect(page).toHaveURL(/\/games\/valheim\/worlds$/);
-    // The world name appears on its card and in the dock's server picker.
+    await expect(page).toHaveURL(serverUrl('worlds'));
+    // The world name appears on its card and in the sidebar's server switcher.
     await expect(page.getByText('Midgard', { exact: true }).first()).toBeVisible();
   });
 
@@ -79,7 +81,7 @@ test.describe('worlds', () => {
 
     await worlds.click();
 
-    await expect(page).toHaveURL(/\/games\/valheim\/worlds$/);
+    await expect(page).toHaveURL(serverUrl('worlds'));
     await expect(page.getByText('Midgard', { exact: true }).first()).toBeVisible();
   });
 
@@ -88,6 +90,6 @@ test.describe('worlds', () => {
     // "Other processes" have files, not worlds.
     await openView(page, 'custom', 'worlds');
 
-    await expect(page).toHaveURL(/\/games\/custom\/dashboard$/);
+    await expect(page).toHaveURL(serverUrl());
   });
 });

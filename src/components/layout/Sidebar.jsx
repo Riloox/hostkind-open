@@ -2,80 +2,35 @@ import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { BrandMark } from '@/components/shared/BrandMark';
-import { GameLogo } from '@/components/shared/GameArtwork';
-import { useAuth, useBranding } from '@/context/AuthContext';
+import { useBranding } from '@/context/AuthContext';
 import { useServer } from '@/context/ServerContext';
 import { useT } from '@/context/I18nContext';
 import { cn } from '@/lib/utils';
-import { gameForServer, gameById } from '@/lib/games';
+import { viewAvailable } from '@/lib/sections';
+import { useSectionContext } from '@/hooks/useSections';
+import { useNarrowScreen } from '@/hooks/useNarrowScreen';
+import { ServerSwitcher } from './ServerSwitcher';
 import {
-  LayoutDashboard, Server, BarChart2, Terminal, Users, User, Map,
-  Puzzle, Package, FolderOpen, FileText, Database, Clock, Globe2,
-  RefreshCw,
-  Gamepad2,
-  ShieldCheck,
-  ChevronDown, ChevronsLeft, ChevronsRight, ChevronsLeftRight,
+  LayoutDashboard, Terminal, Users,
+  Puzzle, Database, Clock, Globe2, Settings,
+  ChevronsLeft, ChevronsRight,
   LifeBuoy,
 } from 'lucide-react';
 
-const NAV_GROUPS = [
-  {
-    key: 'nav.groupOverview',
-    items: [
-      { view: 'dashboard', labelKey: 'nav.dashboard', icon: LayoutDashboard },
-      { view: 'servers',   labelKey: 'nav.servers',   icon: Server },
-      { view: 'health',    labelKey: 'nav.health',    icon: BarChart2, requiresServer: true },
-    ],
-  },
-  {
-    key: 'nav.groupOperate',
-    items: [
-      { view: 'console', labelKey: 'nav.console', icon: Terminal, requiresServer: true },
-      { view: 'players', labelKey: 'nav.players', icon: Users, requiresServer: true, capability: 'players.view', moduleCapability: ['players', 'terraria-tshock'] },
-      { view: 'map',     labelKey: 'nav.map',     icon: Map, requiresServer: true, moduleCapability: 'map' },
-    ],
-  },
-  {
-    key: 'nav.groupContent',
-    items: [
-      { view: 'addons',   labelKey: 'nav.addons',   icon: Puzzle, requiresServer: true, moduleCapability: ['addons', 'terraria-mods'] },
-      { view: 'content', labelKey: 'nav.modrinth', icon: Package, requiresServer: true, moduleCapability: 'content-install' },
-      { view: 'files',    labelKey: 'nav.files',    icon: FolderOpen, requiresServer: true, moduleCapability: 'files' },
-      { view: 'configs',  labelKey: 'nav.configs',  icon: FileText, requiresServer: true, moduleCapability: 'configs' },
-      // Two world models, one view: Minecraft's folder-per-world and Terraria's
-      // file-per-world. A server declares whichever one it actually has.
-      { view: 'worlds',   labelKey: 'nav.worlds',   icon: Globe2, requiresServer: true, capability: 'worlds.view', moduleCapability: ['worlds', 'terraria-worlds', 'valheim-worlds'] },
-    ],
-  },
-  {
-    key: 'nav.groupMaintenance',
-    items: [
-      { view: 'updates', labelKey: 'nav.updates', icon: RefreshCw, requiresServer: true, moduleCapability: 'updates' },
-      { view: 'backups', labelKey: 'nav.backups',   icon: Database, requiresServer: true, moduleCapability: 'backups' },
-      { view: 'tasks',   labelKey: 'nav.schedules', icon: Clock, requiresServer: true, moduleCapability: 'schedules' },
-    ],
-  },
-  {
-    key: 'nav.groupSettings',
-    items: [
-      { view: 'users', labelKey: 'nav.users', icon: User, capability: 'users.manage' },
-      { view: 'audit', labelKey: 'nav.audit', icon: ShieldCheck, capability: 'audit.view' },
-    ],
-  },
+// One flat list of what the open server has. No group headings: a list short
+// enough to read at a glance does not need sorting into drawers. Each item is
+// shown only when the server has that section (src/lib/sections.js). Details
+// and crash pages are reached from the overview and mark it as current.
+const SERVER_NAV = [
+  { view: 'dashboard', labelKey: 'nav.dashboard', icon: LayoutDashboard, also: ['details', 'crashes'] },
+  { view: 'console',   labelKey: 'nav.console',   icon: Terminal },
+  { view: 'players',   labelKey: 'nav.players',   icon: Users },
+  { view: 'worlds',    labelKey: 'nav.worlds',    icon: Globe2 },
+  { view: 'mods',      labelKey: 'nav.mods',      icon: Puzzle },
+  { view: 'backups',   labelKey: 'nav.backups',   icon: Database },
+  { view: 'tasks',     labelKey: 'nav.schedules', icon: Clock },
+  { view: 'settings',  labelKey: 'nav.settings',  icon: Settings },
 ];
-
-// A nav item may name one module capability or any of a list of them.
-const supportsAny = (capability, supports) =>
-  (Array.isArray(capability) ? capability : [capability]).some((entry) => supports(entry));
-
-function getInitialCollapsed() {
-  try {
-    const arr = JSON.parse(localStorage.getItem('ls-collapsed-navs') || '[]');
-    return new Set(Array.isArray(arr) ? arr : []);
-  } catch {
-    return new Set();
-  }
-}
 
 function getInitialMode() {
   try {
@@ -86,15 +41,32 @@ function getInitialMode() {
   }
 }
 
-export function Sidebar({ currentView, onNavigate, onAllGames }) {
-  const { user, hasCapability } = useAuth();
+function storeMode(mode) {
+  try { localStorage.setItem('ls-sidebar-mode', mode); } catch {}
+}
+
+/**
+ * The app's left rail. On a phone (useNarrowScreen) it is a drawer instead:
+ * off screen until the header's menu button opens it (`drawerOpen`), over the
+ * page with a scrim, and closed again by the scrim, Escape or any navigation
+ * (App closes it on every route change).
+ */
+export function Sidebar({ currentView, onNavigate, onHome, onSwitchServer, onAllServers, drawerOpen = false, onDrawerClose }) {
   const branding = useBranding();
-  const { servers, activeServerId, activeModule, supports, currentGame } = useServer();
+  const { servers, activeServerId, moduleCapabilities } = useServer();
+  const sectionContext = useSectionContext();
   const t = useT();
-  const isAdmin = user?.role === 'admin';
-  const hasServers = (servers || []).some(server => !currentGame || gameForServer(server) === currentGame);
-  const [collapsed, setCollapsed] = useState(getInitialCollapsed);
   const [mode, setMode] = useState(getInitialMode);
+  const narrow = useNarrowScreen();
+  const drawerHidden = narrow && !drawerOpen;
+
+  const toggleMode = () => {
+    setMode(prev => {
+      const next = prev === 'expanded' ? 'collapsed' : 'expanded';
+      storeMode(next);
+      return next;
+    });
+  };
 
   useEffect(() => {
     const onKey = (e) => {
@@ -102,7 +74,7 @@ export function Sidebar({ currentView, onNavigate, onAllGames }) {
         e.preventDefault();
         setMode(prev => {
           const next = prev === 'expanded' ? 'collapsed' : 'expanded';
-          try { localStorage.setItem('ls-sidebar-mode', next); } catch {}
+          storeMode(next);
           return next;
         });
       }
@@ -111,30 +83,24 @@ export function Sidebar({ currentView, onNavigate, onAllGames }) {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  const toggleMode = () => {
-    setMode(prev => {
-      const next = prev === 'expanded' ? 'collapsed' : 'expanded';
-      try { localStorage.setItem('ls-sidebar-mode', next); } catch {}
-      return next;
-    });
-  };
-
-  const toggleGroup = (key) => {
-    if (mode === 'collapsed') return;
-    setCollapsed(prev => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      localStorage.setItem('ls-collapsed-navs', JSON.stringify([...next]));
-      return next;
-    });
-  };
-
-  const isCollapsed = mode === 'collapsed';
+  // The drawer always opens full width; the collapsed rail is a desktop choice.
+  const isCollapsed = !narrow && mode === 'collapsed';
 
   useEffect(() => {
-    document.documentElement.style.setProperty('--ls-sidebar-w', isCollapsed ? '48px' : '220px');
-  }, [isCollapsed]);
+    document.documentElement.style.setProperty('--ls-sidebar-w', narrow ? '0px' : isCollapsed ? '48px' : '220px');
+  }, [isCollapsed, narrow]);
+
+  useEffect(() => {
+    if (!narrow || !drawerOpen) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') onDrawerClose?.(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [narrow, drawerOpen, onDrawerClose]);
+
+  // With no server open there is nothing for the server's sections to act on,
+  // so they are not offered at all rather than shown disabled.
+  const hasServer = !!activeServerId && servers.some((s) => s.id === activeServerId);
+  const serverItems = hasServer ? SERVER_NAV.filter((it) => viewAvailable(it.view, sectionContext)) : [];
 
   // The active marker belongs to the rail, not to the item. It travels to
   // whichever station is current, which is what ties the views together into
@@ -149,16 +115,16 @@ export function Sidebar({ currentView, onNavigate, onAllGames }) {
     const marker = markerRef.current;
     if (!rail || !marker) return;
 
-    // Travel is reserved for actual navigation. A group collapsing, the rail
-    // narrowing, or an item appearing once a server exists all move the target
-    // without the user having gone anywhere - those are placed, not animated.
+    // Travel is reserved for actual navigation. The rail narrowing, or an item
+    // appearing once a server is open, move the target without the user having
+    // gone anywhere - those are placed, not animated.
     const navigated = lastViewRef.current !== null && lastViewRef.current !== currentView;
     lastViewRef.current = currentView;
 
     const target = rail.querySelector('[data-nav-item][data-active="true"]');
     if (!target) {
-      // Views with no rail entry (the games picker) leave the rail unmarked
-      // rather than pointing at a station the user is not on.
+      // Pages with no rail entry (home, the server list, Hostkind settings) leave the rail
+      // unmarked rather than pointing at a station the user is not on.
       marker.style.setProperty('--marker-opacity', '0');
       lastPosRef.current = null;
       return;
@@ -176,13 +142,59 @@ export function Sidebar({ currentView, onNavigate, onAllGames }) {
     marker.style.setProperty('--marker-y', `${target.offsetTop}px`);
     marker.style.setProperty('--marker-h', String(target.offsetHeight));
     marker.style.setProperty('--marker-opacity', '1');
-  }, [currentView, isCollapsed, collapsed, hasServers, activeServerId, currentGame, servers]);
+  }, [currentView, isCollapsed, activeServerId, moduleCapabilities, servers]);
+
+  const renderItem = ({ view, labelKey, icon: Icon, also }) => {
+    const label = t(labelKey);
+    const isActive = currentView === view || !!also?.includes(currentView);
+    const itemBtn = (
+      <button
+        key={view}
+        type="button"
+        data-nav-item={view}
+        data-active={isActive ? 'true' : 'false'}
+        aria-current={isActive ? 'page' : undefined}
+        onClick={() => onNavigate(view)}
+        className={cn(
+          'flex min-h-9 w-full items-center rounded-sm border transition-[background-color,color,border-color] duration-100',
+          isCollapsed ? 'justify-center px-0 py-1.5' : 'gap-3 px-3 py-1.5',
+          isActive
+            // The rail marker carries the accent edge, so the item itself
+            // does not also outline.
+            ? 'border-transparent bg-primary/15 text-primary font-bold'
+            : 'border-transparent text-muted-foreground hover:border-border hover:bg-secondary hover:text-foreground'
+        )}
+      >
+        <Icon className="h-4 w-4 shrink-0" />
+        {!isCollapsed && <span className="truncate">{label}</span>}
+      </button>
+    );
+    if (!isCollapsed) return itemBtn;
+    return (
+      <Tooltip key={view}>
+        <TooltipTrigger asChild>{itemBtn}</TooltipTrigger>
+        <TooltipContent side="right" sideOffset={8}>{label}</TooltipContent>
+      </Tooltip>
+    );
+  };
 
   return (
-    <aside data-tour="sidebar" className={cn(
-      'fleet-sidebar fixed top-0 left-0 z-20 flex h-screen flex-col overflow-hidden border-r-2 border-sidebar-border bg-sidebar/80 backdrop-blur-xl transition-[width] duration-200',
-      isCollapsed ? 'w-sidebar-collapsed' : 'w-sidebar'
-    )}>
+    <>
+    {narrow && drawerOpen && (
+      <div data-sidebar-scrim aria-hidden className="fixed inset-0 z-40 bg-background/70 backdrop-blur-sm" onClick={onDrawerClose} />
+    )}
+    <aside
+      data-app-sidebar
+      data-drawer={narrow ? (drawerOpen ? 'open' : 'closed') : undefined}
+      // Off screen is out of the tab order and the accessibility tree too.
+      {...(drawerHidden ? { inert: '', 'aria-hidden': true } : {})}
+      className={cn(
+        'fleet-sidebar fixed top-0 left-0 flex h-screen flex-col overflow-hidden border-r-2 border-sidebar-border backdrop-blur-xl duration-200',
+        narrow
+          ? cn('z-50 w-sidebar bg-sidebar transition-transform', drawerOpen ? 'translate-x-0' : '-translate-x-full')
+          : cn('z-20 bg-sidebar/80 transition-[width]', isCollapsed ? 'w-sidebar-collapsed' : 'w-sidebar'),
+      )}
+    >
       {/* Same h-16 as the header, so the brand block's bottom rule lines up
           exactly with the header's across the sidebar seam. */}
       <div className={cn(
@@ -191,111 +203,19 @@ export function Sidebar({ currentView, onNavigate, onAllGames }) {
       )}>
         <BrandMark
           collapsed={isCollapsed}
-          onClick={onAllGames}
+          onClick={onHome}
         />
       </div>
 
+      {servers.length > 0 && (
+        <div className={cn('shrink-0 border-b-2 border-border', isCollapsed ? 'p-1.5' : 'p-2')}>
+          <ServerSwitcher collapsed={isCollapsed} onSwitch={onSwitchServer} onAllServers={onAllServers} />
+        </div>
+      )}
+
       <nav ref={railRef} className="fleet-rail flex-1 overflow-y-auto py-3 px-2">
         <span ref={markerRef} className="fleet-rail-marker" data-instant="true" aria-hidden="true" />
-        {currentGame ? (() => {
-          const gameIdentityBtn = (
-            <button
-              type="button"
-              onClick={onAllGames}
-              title={t('games.switchTitle')}
-              className={cn('mb-3 flex min-h-11 w-full items-center rounded-sm border border-transparent text-muted-foreground hover:border-border hover:bg-primary/15 hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring', isCollapsed ? 'justify-center' : 'gap-3 px-3')}
-            >
-              <GameLogo gameId={currentGame} className="h-4 w-auto max-w-5 shrink-0" />
-              {!isCollapsed && (
-                <>
-                  <span className="truncate">{gameById(currentGame).label}</span>
-                  <ChevronsLeftRight className="ml-auto h-3 w-3 opacity-60" />
-                </>
-              )}
-            </button>
-          );
-          if (!isCollapsed) return gameIdentityBtn;
-          return (
-            <Tooltip>
-              <TooltipTrigger asChild>{gameIdentityBtn}</TooltipTrigger>
-              <TooltipContent side="right" sideOffset={8}>{gameById(currentGame).label}</TooltipContent>
-            </Tooltip>
-          );
-        })() : (
-          <button type="button" onClick={onAllGames} className={cn('mb-3 flex min-h-11 w-full items-center rounded-sm border border-transparent text-muted-foreground hover:border-border hover:bg-primary/15 hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring', isCollapsed ? 'justify-center' : 'gap-3 px-3')}>
-            <Gamepad2 className="h-4 w-4 shrink-0" />
-            {!isCollapsed && <span className="whitespace-nowrap">{t('games.allGames')}</span>}
-          </button>
-        )}
-        {NAV_GROUPS.map((group) => {
-          const items = group.items.filter((it) => (
-            !(it.adminOnly && !isAdmin)
-            && !(it.game && currentGame !== it.game)
-            && !(it.capability && !hasCapability(it.capability, it.requiresServer ? activeServerId : null))
-            && !(it.moduleCapability && currentGame && !supportsAny(it.moduleCapability, supports))
-          ));
-          if (items.length === 0) return null;
-          return (
-          <div key={group.key} className="mb-1">
-            {!isCollapsed && (
-              <button
-                type="button"
-                onClick={() => toggleGroup(group.key)}
-                className="flex w-full items-center justify-between px-3 py-1.5 text-label font-semibold uppercase tracking-widest text-muted-foreground/70 hover:text-muted-foreground transition-colors"
-              >
-                {t(group.key)}
-                <ChevronDown className={cn('h-3 w-3 transition-transform', collapsed.has(group.key) && '-rotate-90')} />
-              </button>
-            )}
-            {(isCollapsed || !collapsed.has(group.key)) && items.map(({ view, labelKey, icon: Icon, requiresServer }) => {
-              const label = t(labelKey);
-              const disabled = requiresServer && !hasServers;
-              const isActive = currentView === view;
-              const itemBtn = (
-                <button
-                  key={view}
-                  type="button"
-                  data-tour={`nav-${view}`}
-                  data-nav-item={view}
-                  data-active={isActive ? 'true' : 'false'}
-                  onClick={() => { if (!disabled) onNavigate(view); }}
-                  disabled={disabled}
-                  className={cn(
-                    'flex min-h-9 w-full items-center border transition-[background-color,color,border-color] duration-100',
-                    isCollapsed ? 'justify-center px-0 py-1.5' : 'gap-3 px-3 py-1.5',
-                    isCollapsed
-                      ? 'rounded-sm'
-                      : 'rounded-sm',
-                    disabled
-                      ? 'border-transparent text-muted-foreground/35 cursor-not-allowed'
-                      : isActive
-                        // The rail marker now carries the amber edge, so the
-                        // item itself does not also outline in amber.
-                        ? 'border-transparent bg-primary/15 text-primary font-bold'
-                        : 'border-transparent text-muted-foreground hover:border-border hover:bg-secondary hover:text-foreground'
-                  )}
-                >
-                  <Icon className="h-4 w-4 shrink-0" />
-                  {!isCollapsed && <span className="truncate">{label}</span>}
-                </button>
-              );
-              if (!isCollapsed && !disabled) return itemBtn;
-              // A natively-disabled button fires no pointer events, so the
-              // tooltip trigger needs a wrapper to stay hoverable - otherwise
-              // the "requires a server" explanation would be unreachable.
-              const trigger = disabled ? <span className="block">{itemBtn}</span> : itemBtn;
-              return (
-                <Tooltip key={view}>
-                  <TooltipTrigger asChild>{trigger}</TooltipTrigger>
-                  <TooltipContent side="right" sideOffset={8}>
-                    {disabled ? t('nav.requiresServerTip') : label}
-                  </TooltipContent>
-                </Tooltip>
-              );
-            })}
-          </div>
-          );
-        })}
+        {serverItems.map(renderItem)}
       </nav>
 
       <div className="border-t-2 border-border p-3 flex flex-col gap-1">
@@ -320,7 +240,7 @@ export function Sidebar({ currentView, onNavigate, onAllGames }) {
         {!isCollapsed && branding.legalFooter && (
           <p className="px-3 text-label text-muted-foreground/60">{branding.legalFooter}</p>
         )}
-        <Button
+        {!narrow && <Button
           variant="ghost"
           size="sm"
           onClick={toggleMode}
@@ -330,9 +250,10 @@ export function Sidebar({ currentView, onNavigate, onAllGames }) {
           {isCollapsed
             ? <ChevronsRight className="h-4 w-4" />
             : <><ChevronsLeft className="h-4 w-4" /> {t('sidebar.collapseLabel')}</>}
-        </Button>
+        </Button>}
       </div>
 
     </aside>
+    </>
   );
 }

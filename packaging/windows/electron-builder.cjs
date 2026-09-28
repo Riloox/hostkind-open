@@ -35,9 +35,25 @@ module.exports = {
     'LICENSE',
     'README.md',
     'THIRD_PARTY_NOTICES.md',
+    // better-sqlite3 ships its C sources and electron-rebuild leaves the whole
+    // MSVC build tree behind (~46 MB). At runtime `bindings` only loads
+    // build/Release/better_sqlite3.node.
+    '!node_modules/better-sqlite3/{deps,src,bin}/**',
+    '!node_modules/better-sqlite3/build/{deps,Release/obj}/**',
+    '!node_modules/better-sqlite3/build/*.{vcxproj,filters,sln,gypi,mk}',
+    '!node_modules/better-sqlite3/build/Release/*.{exp,iobj,ipdb,lib,pdb}',
+    '!node_modules/better-sqlite3/build/Release/test_extension.*',
   ],
 
   asar: true,
+
+  // Chromium's own UI strings (context menus, dialogs). The panel has its
+  // own i18n (i18n.json: en, es); ship only the matching Chromium locales
+  // instead of all 55 (~46 MB).
+  electronLanguages: ['en-US', 'es', 'es-419'],
+
+  // Smaller installer and portable zip at the cost of a slower NSIS build.
+  compression: 'maximum',
 
   // App, installer and window icons come from the Hostkind logo
   // (resources/hostkind.svg). build/ is electron-builder's buildResources.

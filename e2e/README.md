@@ -165,7 +165,7 @@ Three support modules, with a clear division:
 - [`support/pages.cjs`](support/pages.cjs) — **locators only**. A markup or copy
   change is fixed in one place.
 - [`support/actions.cjs`](support/actions.cjs) — **flows**: `signInFast`,
-  `openView`, `enterGame`, `dismissTour`.
+  `openView`, `enterGame`.
 - [`support/api.cjs`](support/api.cjs) — **arranging state** over HTTP.
 
 Arrange over HTTP, act and assert through the browser. Clicking through six
@@ -194,9 +194,9 @@ renders — so reworded copy doesn't break a test that was never about wording.
 
 ### Locator rules
 
-- Prefer, in order: a role plus its accessible name, a `data-tour` or
-  `data-nav-item` attribute the app already carries, then a form control's
-  `autocomplete` token.
+- Prefer, in order: a role plus its accessible name, a `data-*` hook the app
+  already carries (`data-app-header`, `data-nav-item`, ...), then a form
+  control's `autocomplete` token.
 - **Name and title matching are substring matches.** `"Start"` also finds
   `"Restart"`; `"world"` also finds `"world_nether"`; `"Up"` also finds
   `"Updates"`. Pass `exact: true`, or use `tableRow` / `serverRow` / `userRow`,
@@ -249,7 +249,7 @@ panel itself is suspect, `instance.log()` returns everything it has printed.
 | `worlds.spec.cjs` | Minecraft worlds and missing ones, Terraria world headers, Valheim gating. |
 | `backups.spec.cjs` | Creating a real archive, verifying, listing contents, deleting, retention limits. |
 | `admin.spec.cjs` | Accounts and roles, password policy, duplicate usernames, self-deletion, capability grants, the sign-in switch, audit trail, schedules, update centre. |
-| `shell.spec.cjs` | The games hub, sidebar navigation and per-game sections, module gating for every view, language switching, the onboarding tour, server switching and per-game memory. |
+| `shell.spec.cjs` | The games hub, sidebar navigation and per-game sections, module gating for every view, language switching, the profile menu, server switching and per-game memory. |
 | `install.spec.cjs` | **Opt-in.** Real downloads and installs for Minecraft, Terraria, Valheim and Palworld, an interrupted install, and the removal of each afterwards. |
 
 Deliberately not covered by the default run: starting an installed game server

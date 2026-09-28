@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { CalendarClock, CheckCircle2, HardDrive, RefreshCw, ShieldCheck, TriangleAlert } from 'lucide-react';
-import { PageIntro } from '@/components/layout/Page';
+import { CalendarClock, HardDrive, RefreshCw, ShieldCheck, TriangleAlert } from 'lucide-react';
+import { ViewHeader } from '@/components/layout/Page';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -120,9 +120,7 @@ export function PalworldUpdatesView() {
 
   return (
     <div className="space-y-5">
-      <PageIntro
-        title={t('palworldUpdates.title')}
-        description={t('palworldUpdates.subtitle')}
+      <ViewHeader
         actions={<Button variant="outline" size="sm" disabled={busy} onClick={() => load(true)}><RefreshCw className="h-4 w-4" />{t('palworldUpdates.forceCheck')}</Button>}
       />
 

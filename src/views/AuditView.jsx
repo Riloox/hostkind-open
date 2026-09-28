@@ -5,7 +5,7 @@ import { useApi } from '@/hooks/useApi';
 import { useBranding } from '@/context/AuthContext';
 import { useT } from '@/context/I18nContext';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
 import { Badge } from '@/components/ui/badge';
@@ -117,16 +117,15 @@ export function AuditView() {
 
   return <>
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2"><ShieldCheck className="h-4 w-4" />{t('audit.title')}</CardTitle>
-        <div className="flex gap-2">
+      {/* The tab bar names the page; the header keeps only its actions. */}
+      <CardHeader className="justify-end">
+        <div className="flex flex-wrap gap-2">
           <Button variant="glass" size="sm" onClick={() => download('csv')}><Download className="h-3.5 w-3.5" />CSV</Button>
           <Button variant="glass" size="sm" onClick={() => download('json')}><Download className="h-3.5 w-3.5" />JSON</Button>
           <Button variant="glass" size="sm" onClick={() => setRetention({ open: true, cutoff: '', preview: null })}><Clock className="h-3.5 w-3.5" />{t('audit.retention')}</Button>
         </div>
       </CardHeader>
       <CardContent>
-        <p className="mb-4 text-xs text-muted-foreground">{t('audit.hint')}</p>
         <div className="mb-4 grid gap-2 md:grid-cols-3 xl:grid-cols-6">
           <Field label={t('audit.server')} htmlFor="audit-filter-server">
             <Input id="audit-filter-server" value={filters.serverId} onChange={field('serverId')} placeholder={t('audit.server')} />

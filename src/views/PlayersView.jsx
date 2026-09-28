@@ -10,6 +10,7 @@ import {
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { Loading } from '@/components/shared/Loading';
+import { StartServerButton } from '@/components/shared/StartServerButton';
 import { useApi } from '@/hooks/useApi';
 import { useServer } from '@/context/ServerContext';
 import { PalworldPlayersView } from '@/views/PalworldPlayersView';
@@ -22,20 +23,20 @@ import {
 
 // Per-action friendly confirmation.
 const ACTION_MSG = {
-  op: 'players.opped',
-  deop: 'players.deopped',
-  kick: 'players.kicked',
-  ban: 'players.banned',
-  pardon: 'players.pardoned',
+  op: 'minecraft.players.opped',
+  deop: 'minecraft.players.deopped',
+  kick: 'minecraft.players.kicked',
+  ban: 'minecraft.players.banned',
+  pardon: 'minecraft.players.pardoned',
 };
 
 const LIST_ACTION_MSG = {
-  'whitelist:add': 'players.whitelistAdded',
-  'whitelist:remove': 'players.whitelistRemoved',
-  'op:add': 'players.opAdded',
-  'op:remove': 'players.opRemoved',
-  'ban:add': 'players.banAdded',
-  'ban:remove': 'players.banRemoved',
+  'whitelist:add': 'minecraft.players.whitelistAdded',
+  'whitelist:remove': 'minecraft.players.whitelistRemoved',
+  'op:add': 'minecraft.players.opAdded',
+  'op:remove': 'minecraft.players.opRemoved',
+  'ban:add': 'minecraft.players.banAdded',
+  'ban:remove': 'minecraft.players.banRemoved',
 };
 
 const headUrl = (name, px) => `https://minotar.net/helm/${encodeURIComponent(name)}/${px}.png`;
@@ -79,7 +80,7 @@ function PlayerCard({ name, flags, onClick }) {
 }
 
 // A titled card holding a responsive grid of player tiles.
-function PlayerSection({ title, icon: Icon, count, players, getFlags, onSelect, emptyMessage }) {
+function PlayerSection({ title, icon: Icon, count, players, getFlags, onSelect, emptyMessage, emptyAction }) {
   return (
     <Card>
       <CardHeader>
@@ -91,7 +92,12 @@ function PlayerSection({ title, icon: Icon, count, players, getFlags, onSelect, 
       </CardHeader>
       <CardContent>
         {players.length === 0 ? (
-          <EmptyState message={emptyMessage} />
+          emptyAction ? (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <EmptyState message={emptyMessage} className="py-2" />
+              {emptyAction}
+            </div>
+          ) : <EmptyState message={emptyMessage} />
         ) : (
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
             {players.map((name) => (
@@ -289,6 +295,7 @@ function LegacyPlayersView() {
   const { activeServerId, statuses } = useServer();
   const status = activeServerId ? (statuses[activeServerId] || {}) : {};
   const livePlayers = status.players || [];
+  const serverOffline = (status.status || 'offline') === 'offline';
 
   const [lists, setLists] = useState({ online: [], recent: [], whitelist: [], ops: [], banned: [], whitelistEnabled: false });
   const [listLoading, setListLoading] = useState(false);
@@ -341,7 +348,7 @@ function LegacyPlayersView() {
   async function playerAction(action, name) {
     try {
       await api(`/api/players/${action}`, { method: 'POST', body: { name } });
-      toast.success(t(ACTION_MSG[action] || 'players.actionApplied', { action, name }));
+      toast.success(t(ACTION_MSG[action] || 'minecraft.players.actionApplied', { action, name }));
       loadLists();
       setTimeout(loadLists, 1200);
     } catch (e) { toast.error(e.message); }
@@ -352,10 +359,10 @@ function LegacyPlayersView() {
       const r = await api(`/api/playerlists/${kind}/${op}`, { method: 'POST', body: { name, reason } });
       if (r?.error) { toast.error(r.error); return; }
       const noteKey = r?.note === 'Already listed.'
-        ? 'players.alreadyListed'
+        ? 'minecraft.players.alreadyListed'
         : r?.note === 'Updated (server offline).'
-          ? 'players.updatedOffline'
-          : LIST_ACTION_MSG[`${kind}:${op}`] || 'players.listOp';
+          ? 'minecraft.players.updatedOffline'
+          : LIST_ACTION_MSG[`${kind}:${op}`] || 'minecraft.players.listOp';
       toast.success(t(noteKey, { kind, op, name }));
       loadLists();
       setTimeout(loadLists, 1200);
@@ -378,8 +385,8 @@ function LegacyPlayersView() {
     try {
       const r = await api('/api/whitelist/toggle', { method: 'POST', body: { enabled } });
       const key = r?.note === 'Saved. Takes effect on next start.'
-        ? 'players.savedNextStart'
-        : enabled ? 'players.whitelistEnabled' : 'players.whitelistDisabled';
+        ? 'minecraft.players.savedNextStart'
+        : enabled ? 'minecraft.players.whitelistEnabled' : 'minecraft.players.whitelistDisabled';
       toast.success(t(key));
       loadLists();
     } catch (err) { toast.error(err.message); loadLists(); }
@@ -418,7 +425,9 @@ function LegacyPlayersView() {
         <>
           <PlayerSection
             title={t('minecraft.players.onlineTitle')} count={onlineNames.length} players={onlineNames}
-            getFlags={getFlags} onSelect={setSelected} emptyMessage={t('minecraft.players.onlineEmpty')}
+            getFlags={getFlags} onSelect={setSelected}
+            emptyMessage={serverOffline ? t('minecraft.players.onlineEmptyOffline') : t('minecraft.players.onlineEmpty')}
+            emptyAction={serverOffline ? <StartServerButton /> : null}
           />
 
           <PlayerSection

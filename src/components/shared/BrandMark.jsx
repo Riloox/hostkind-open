@@ -4,15 +4,14 @@ import { useBranding } from '@/context/AuthContext';
 
 /**
  * The panel's brand mark: an abstract stacked-deck glyph paired with the
- * wordmark. Used in the sidebar header (also doubles as a "back to all games"
- * shortcut).
+ * wordmark. Used in the sidebar header (also doubles as a "home" shortcut).
  *
  * Both halves are overridable from config.json so a hosting provider can ship
  * the panel under their own name without editing a translation file. The
  * built-in Hostkind mark is what renders when they have not.
  *
  * @param {boolean}  collapsed  When true, only the icon is rendered.
- * @param {function} onClick    Optional click handler (e.g. go to all games).
+ * @param {function} onClick    Optional click handler (e.g. go home).
  */
 export function BrandMark({ collapsed = false, onClick, className }) {
   const t = useT();
@@ -31,7 +30,7 @@ export function BrandMark({ collapsed = false, onClick, className }) {
         collapsed ? 'justify-center px-0 py-1' : 'gap-2.5 px-2 py-1.5',
         className,
       )}
-      aria-label={t('brand.goToGames', { name })}
+      aria-label={t('brand.goHome', { name })}
       title={name}
       tabIndex={onClick ? 0 : -1}
     >
