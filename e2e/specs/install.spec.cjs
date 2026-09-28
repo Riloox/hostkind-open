@@ -53,7 +53,11 @@ async function createServer(page, panel, { game, name, fill }) {
   // The install flow runs without retries on slow CI runners; wait for the
   // view to finish rendering before clicking (the wizard's version select
   // below has the same explicit grace).
-  await expect(page.getByRole('button', { name: en('addServer.button') }).first()).toBeEnabled({ timeout: 60_000 });
+  // A panel with no servers shows the game cards on its home page instead of
+  // an "Add server" button; either one means the page is ready.
+  const addButton = page.getByRole('button', { name: en('addServer.button') }).first();
+  const gameCard = page.locator(`main [data-game-choice="${game}"]`);
+  await expect(addButton.or(gameCard).first()).toBeEnabled({ timeout: 60_000 });
   await startAddServer(page, game);
 
   const wizard = dialog(page, en('servers.createTitle'));
@@ -112,7 +116,8 @@ test.describe('installing a real server', () => {
 
         await fieldByLabel(wizard.root, en('servers.fieldParent')).fill(installs.parentDir);
         // The EULA checkbox is the panel's own gate; without it nothing runs.
-        await wizard.root.getByRole('checkbox').first().check();
+        // By its label: the preset's game-rule checkboxes come first.
+        await wizard.root.getByLabel(en('minecraft.servers.eula')).check();
         // Paper's version list resolves upstream; submitting before it lands
         // posts an empty mcVersion and is refused.
         await expect(minecraftWizard(page).version).toBeEnabled({ timeout: 60_000 });
@@ -245,7 +250,7 @@ test.describe('installing a real server', () => {
     await openMoreOptions(wizard.root);
 
     await fieldByLabel(wizard.root, en('servers.fieldParent')).fill(installs.parentDir);
-    await wizard.root.getByRole('checkbox').first().check();
+    await wizard.root.getByLabel(en('minecraft.servers.eula')).check();
     // Without this the click lands before the version list resolves and the
     // install never starts - which would leave the assertions below passing
     // on a 400 rather than on the cancel path this test is about.
