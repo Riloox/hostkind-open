@@ -79,6 +79,8 @@ test.describe('bug reporter entry', () => {
     let focused = false;
     for (let i = 0; i < 10 && !focused; i += 1) {
       await page.keyboard.press('ArrowDown');
+      // Radix moves focus in a setTimeout after the keydown; let it run first.
+      await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 0)));
       focused = await item.evaluate((el) => el === document.activeElement);
     }
     expect(focused, 'Report a problem should be reachable from the keyboard').toBe(true);
