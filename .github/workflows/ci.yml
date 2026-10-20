@@ -253,13 +253,13 @@ jobs:
         run: npm run package
 
       - name: Download Windows installer artifacts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: installer-windows
           path: dist/
 
       - name: Download Linux installer artifacts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: installer-linux
           path: dist/
