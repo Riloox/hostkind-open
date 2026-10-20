@@ -35,6 +35,7 @@ module.exports = {
     'LICENSE',
     'README.md',
     'THIRD_PARTY_NOTICES.md',
+    'FONT-LICENSES.txt',
     // better-sqlite3 ships its C sources and electron-rebuild leaves the whole
     // MSVC build tree behind (~46 MB). At runtime `bindings` only loads
     // build/Release/better_sqlite3.node.

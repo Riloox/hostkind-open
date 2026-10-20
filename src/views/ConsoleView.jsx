@@ -373,7 +373,7 @@ export function ConsoleView({ lines, onCommand, onNavigate }) {
 
       <div ref={consoleRef} onScroll={handleScroll} className="console-area relative">
         {displayLines.length === 0 && normalizedFilter ? (
-          <div className="flex h-full items-center justify-center text-sm text-muted-foreground/70">
+          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
             {t('console.filterEmpty')}
           </div>
         ) : displayLines.length === 0 && historyLoaded ? (
@@ -410,7 +410,7 @@ export function ConsoleView({ lines, onCommand, onNavigate }) {
               )}
             >
               <span className={cn('console-line__bar h-full w-[3px] self-stretch rounded-full mt-1.5', LEVEL_BAR[level] || 'bg-transparent')} />
-              <span className="text-muted-foreground/40 tabular-nums select-none text-[13px]">{fmtTs(line.ts || Date.now())}</span>
+              <span className="text-muted-foreground tabular-nums select-none text-[13px]">{fmtTs(line.ts || Date.now())}</span>
               <span className={cn('whitespace-pre-wrap break-words', `l-${level || 'plain'}`)}>{stripMcTs(line.text)}</span>
             </div>
           );

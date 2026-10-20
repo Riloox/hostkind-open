@@ -527,6 +527,11 @@ function AppShell({ onLoggedIn }) {
     <TooltipProvider delayDuration={800}>
       <AddServerProvider canAddServer={isAdmin} onAdded={loadServers} onOpenServer={openServer}>
       <div className="app-shell-enter relative flex min-h-screen bg-background">
+        {/* First stop for keyboard users: jumps past the sidebar and header. */}
+        <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[100] focus:rounded-sm focus:bg-primary focus:px-3 focus:py-2 focus:text-sm focus:font-semibold focus:text-primary-foreground">
+          {t('common.skipToContent')}
+        </a>
+
         {/* Connection banner */}
         {connBanner && (
           <div className={cn('fixed top-0 left-0 right-0 z-50 flex items-center gap-3 border-b bg-background px-4 py-2 text-xs', connBanner.classes)}>
@@ -554,7 +559,7 @@ function AppShell({ onLoggedIn }) {
           <ErrorBoundary testId="shell-error-boundary" fallbackText={t('errors.shellCrashed')} reloadText={t('errors.reloadView')} resetKeys={[viewNonce]}>
             <Header currentView={currentView} onOpenNav={() => setNavOpen(true)} onOpenSettings={openPanelSettings} onOpenUpdates={() => openPanelSettings('updates')} whatsNewUnread={whatsNewUnread} onOpenChangelog={openChangelog} onReportProblem={openBugReport} onServerAction={serverAction} onNavigate={navigate} onRefresh={loadServers} />
           </ErrorBoundary>
-          <main className="flex-1 px-4 pb-10 pt-5 sm:px-6 lg:px-8">
+          <main id="main-content" tabIndex={-1} className="flex-1 px-4 pb-10 pt-5 outline-none sm:px-6 lg:px-8">
             <div className="view-enter" key={`${currentView}:${viewNonce}`}>
               {settling ? (
                 <Loading size="lg" className="py-24" />

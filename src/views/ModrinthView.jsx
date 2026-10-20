@@ -196,7 +196,7 @@ function ModrinthResults({ compat, projectType, onInstalled }) {
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold text-sm text-foreground truncate">{h.title}</div>
                   <div className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{(h.description || '').slice(0, 140)}</div>
-                  <div className="text-xs text-muted-foreground/60 mt-1">
+                  <div className="text-xs text-muted-foreground mt-1">
                     ⬇ {Number(h.downloads).toLocaleString()} · ♥ {Number(h.follows || 0).toLocaleString()} · {h.author || ''}
                   </div>
                 </div>
@@ -214,7 +214,7 @@ function ModrinthResults({ compat, projectType, onInstalled }) {
               </div>
             );
           })}
-          <p className="text-label text-muted-foreground/70 pt-1">{compatText}</p>
+          <p className="text-label text-muted-foreground pt-1">{compatText}</p>
         </div>
       )}
     </>
@@ -679,7 +679,7 @@ function ModpacksTab({ compat, onInstalled }) {
               <div className="flex-1 min-w-0">
                 <div className="font-semibold text-sm text-foreground truncate">{h.title}</div>
                 <div className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{(h.description || '').slice(0, 140)}</div>
-                <div className="text-xs text-muted-foreground/60 mt-1">
+                <div className="text-xs text-muted-foreground mt-1">
                   ⬇ {Number(h.downloads).toLocaleString()} · ♥ {Number(h.follows || 0).toLocaleString()} · {h.author || ''}
                 </div>
               </div>

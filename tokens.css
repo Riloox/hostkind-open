@@ -55,8 +55,15 @@
   --coal-4: 16.5% 0.020 40;     /* card */
   --coal-5: 21% 0.024 40;       /* popover, secondary */
   --coal-6: 25% 0.028 42;       /* accent surface, muted */
-  --coal-7: 30% 0.032 42;       /* border, input */
+  --coal-7: 30% 0.032 42;       /* border */
   --coal-8: 39% 0.034 42;       /* strong rule */
+  --coal-9: 52% 0.034 42;       /* input boundary, 3:1 */
+  /* --coal-9 is the edge of an interactive control. WCAG 2.2 SC 1.4.11 wants
+     3:1 for the boundary that identifies an input, and --coal-7 is only 1.47:1
+     on --coal-3 (1.3:1 on a card). 52% is the lowest step that clears 3:1 on
+     the lightest surface a field sits on (--coal-5, 3.2:1; --coal-3 3.6:1). It
+     is a rung of its own because --coal-7 stays the quiet divider: cards and
+     rules are decorative and must not get louder. */
 
   /* Ink. Warm enough to belong to the room, neutral enough to read as text. */
   --ink-1: 95% 0.014 70;        /* primary text */

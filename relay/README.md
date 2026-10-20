@@ -83,6 +83,22 @@ sensitive details.
 - One bad report cannot stop the queue; the worker never throws out of a
   sync pass.
 
+### Retention
+
+Reports are not kept forever. `store.pruneExpired()` deletes a row 30 days
+(`RELAY_RETENTION_DAYS`) after it is done:
+
+- **Synced** rows: 30 days after the sync time (`updated_at` set by
+  `markSynced`).
+- **Never synced** rows: 30 days after the relay stopped retrying — when the
+  attempt budget was exhausted, or when the row passed the 30-day pending age
+  cutoff, whichever applies. Rows still being retried are never deleted.
+
+The prune runs at startup and then hourly, and logs only the number of rows
+deleted. Once a row is pruned its marker is no longer remembered, so a client
+that re-sends the same `clientKey` after the window is queued as a new report
+and can produce a duplicate issue. This is accepted.
+
 ### Abuse controls
 
 - Per-IP limit: 10 submissions/hour (in-memory; reset on restart).
@@ -119,6 +135,7 @@ Environment:
 | `RELAY_GITHUB_BASE_URL` | `https://api.github.com` | API base (tests / enterprise) |
 | `RELAY_GITHUB_TIMEOUT_MS` | `15000` | GitHub request timeout |
 | `RELAY_DATA_DIR` | `relay/data` | SQLite data directory |
+| `RELAY_RETENTION_DAYS` | `30` | days a report copy is kept after it is synced or abandoned |
 | `RELAY_HOST` / `RELAY_PORT` | `127.0.0.1` / `8787` | bind address — do NOT bind `0.0.0.0` |
 
 The token is never placed in React code, config files, request bodies, issue

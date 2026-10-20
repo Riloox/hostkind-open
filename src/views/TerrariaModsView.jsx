@@ -726,7 +726,7 @@ export function TerrariaModsView() {
                               <Badge variant="default">{t(`terraria.mods.source.${mod.source}`)}</Badge>
                               {modIssues.length > 0 && <Badge variant="destructive">{t('terraria.mods.issueCount', { count: modIssues.length })}</Badge>}
                             </div>
-                            <div className="text-xs text-muted-foreground/60 mt-1 truncate">
+                            <div className="text-xs text-muted-foreground mt-1 truncate">
                               {mod.internalName} · v{mod.version} · tML {mod.tmlVersion} · {fmtBytes(mod.sizeBytes)}{mod.author ? ` · ${t('terraria.mods.by', { author: mod.author })}` : ''}
                             </div>
                           </div>
@@ -769,7 +769,7 @@ export function TerrariaModsView() {
                     </div>
                   ))}
                 </div>
-              <p className="text-label text-muted-foreground/70 pt-2 break-all">{data.modsDir}</p>
+              <p className="text-label text-muted-foreground pt-2 break-all">{data.modsDir}</p>
             </>
             )}
             </TabsContent>
@@ -829,7 +829,7 @@ export function TerrariaModsView() {
                           <span className="font-semibold text-sm text-foreground truncate">{pack.name}</span>
                           {pack.active && <Badge variant="online">{t('terraria.mods.activePack')}</Badge>}
                         </div>
-                        <div className="text-xs text-muted-foreground/60 mt-1">{t('terraria.mods.packCount', { count: pack.modCount })}</div>
+                        <div className="text-xs text-muted-foreground mt-1">{t('terraria.mods.packCount', { count: pack.modCount })}</div>
                       </div>
                       <div className="flex shrink-0 gap-2">
                         <Button size="sm" variant="default" onClick={() => reviewPack(pack)} disabled={!canManage || !offline || Boolean(busy)}>
@@ -857,7 +857,7 @@ export function TerrariaModsView() {
                     <div key={entry.id} className="flex items-center gap-3 rounded-lg border border-border/60 bg-secondary/20 p-3 hover:bg-secondary/40 transition-colors">
                       <div className="flex-1 min-w-0">
                         <div className="break-all font-semibold text-sm text-foreground">{entry.label}</div>
-                        <div className="text-xs text-muted-foreground/60 mt-1">{fmtBytes(entry.sizeBytes)} · {new Date(entry.trashedAt).toLocaleString()}</div>
+                        <div className="text-xs text-muted-foreground mt-1">{fmtBytes(entry.sizeBytes)} · {new Date(entry.trashedAt).toLocaleString()}</div>
                       </div>
                       <Button variant="glass" size="sm" disabled={!canManage || !offline || !entry.restorable || Boolean(busy)} onClick={() => restore(entry)}>
                         <ArchiveRestore className="h-3.5 w-3.5" />

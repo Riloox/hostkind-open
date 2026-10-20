@@ -444,13 +444,25 @@ export function PalworldMapView() {
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto">
             {filtered.map((player) => (
-              <button key={player.userId} className={`flex w-full items-center gap-3 border-b border-border px-3 py-3 text-left hover:bg-secondary/40 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-ring ${selected?.userId === player.userId ? 'bg-secondary' : ''}`} onClick={() => setSelected(player)}>
-                <span onClick={(event) => { event.stopPropagation(); toggle(player.userId); }} className="text-muted-foreground">{hidden.has(player.userId) ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-semibold">{player.name}</span>
-                  <span className="block text-xs text-muted-foreground">{ageLabel(t, player.observedAt)}</span>
-                </span>
-              </button>
+              <div key={player.userId} className={`flex w-full items-center border-b border-border hover:bg-secondary/40 ${selected?.userId === player.userId ? 'bg-secondary' : ''}`}>
+                {/* Sibling of the select button, not nested in it: a button inside a
+                    button is unreachable from the keyboard. */}
+                <button
+                  type="button"
+                  className="self-stretch py-3 pl-3 pr-1.5 text-muted-foreground hover:text-foreground focus:outline-none focus:ring-2 focus:ring-inset focus:ring-ring"
+                  onClick={() => toggle(player.userId)}
+                  aria-pressed={!hidden.has(player.userId)}
+                  aria-label={t('palworld.map.showPlayer', { name: player.name })}
+                >
+                  {hidden.has(player.userId) ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
+                </button>
+                <button type="button" className="flex min-w-0 flex-1 items-center py-3 pl-1.5 pr-3 text-left focus:outline-none focus:ring-2 focus:ring-inset focus:ring-ring" onClick={() => setSelected(player)}>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold">{player.name}</span>
+                    <span className="block text-xs text-muted-foreground">{ageLabel(t, player.observedAt)}</span>
+                  </span>
+                </button>
+              </div>
             ))}
           </div>
           {selected && (

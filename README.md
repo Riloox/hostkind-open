@@ -130,7 +130,7 @@ This repository is the open edition of Hostkind. Every feature is included, with
 
 Hostkind is licensed under AGPL-3.0: you are free to use, modify, and distribute it, and if you distribute a modified version you must share those modifications under the same license. The full text is in [`LICENSE`](LICENSE). A commercial license is available for deployments that run ads or offer Hostkind as a managed service; contact the author via <https://github.com/Riloox>.
 
-Using Hostkind also means accepting its [Terms of Use](TERMS.md): you are responsible for what you run with it, and it comes with no warranty. The panel asks each user to accept them on first sign-in.
+Using Hostkind also means accepting its [Terms of Use](TERMS.md): you are responsible for what you run with it, and it comes with no warranty. The panel asks each user to accept them on first sign-in. What Hostkind stores and what it sends off your machine is described in the [Privacy Policy](PRIVACY.md).
 
 ## Documentation
 

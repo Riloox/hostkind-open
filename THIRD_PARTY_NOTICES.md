@@ -48,7 +48,7 @@ licensee and must be cleared by replacing them with licensed or original art.
 | --- | --- | --- | --- |
 | `src/assets/games/minecraft-logo.webp` | Minecraft slide, `src/lib/games.js`. | Official Minecraft logotype (Mojang/Microsoft). | **Third-party (official)** - needs replacement or licence. |
 | `src/assets/games/minecraft-hero-v2.jpg` | Minecraft slide artwork. | Fan-made 3D render in the Minecraft voxel aesthetic; author unknown, no licence recorded. | **Third-party (unverified)** - needs replacement. |
-| `src/assets/games/minecraft-hero.png` | **Unused** (not imported by `src/lib/games.js`). | Official Minecraft promotional banner (Mojang). | **Third-party (official)** - delete or replace. |
+| `src/assets/games/minecraft-hero.png` | Was unused (not imported by `src/lib/games.js`). | Official Minecraft promotional banner (Mojang). | **Removed** (2026-10-20). |
 | `src/assets/games/terraria-logo.webp` | Terraria slide. | Official Terraria logo (Re-Logic). | **Third-party (official)** - needs replacement or licence. |
 | `src/assets/games/terraria-hero.jpg` | Terraria slide artwork. | Official Terraria promotional artwork (Re-Logic). | **Third-party (official)** - needs replacement or licence. |
 | `src/assets/games/valheim-logo.webp` | Valheim slide. | **Not** the official Valheim logo; a fan/mod variant ("The Bog Witch" subtitle), author unknown. | **Third-party (unverified)** - needs replacement. |
@@ -67,13 +67,15 @@ new unlicensed art.
 
 | File(s) | Provenance | Status |
 | --- | --- | --- |
-| `saira-400/600/700.woff2`, `saira-condensed-800.woff2`, `saira-italic-400.woff2`, `saira-stencil-one-400.woff2` | Saira family, the Saira Project (Omnibus-Type); SIL Open Font License 1.1. | **Third-party (inferred OFL)** - the shipped binaries do not embed the licence text, so the OFL copyright/licence notices must be added to the distribution (recommended: ship an `OFL.txt` alongside). |
-| `ibm-plex-mono-400/600.woff2` | IBM Plex Mono (IBM); SIL Open Font License 1.1. | Same as above. |
-| `press-start-2p-400.woff2` | Press Start 2P (CodeMan38); SIL Open Font License 1.1. | Same as above. |
+| `saira-400/600/700.woff2`, `saira-condensed-800.woff2`, `saira-italic-400.woff2`, `saira-stencil-one-400.woff2` | Saira, Saira Condensed and Saira Stencil One, the Saira Project (Omnibus-Type); SIL Open Font License 1.1. | **Third-party (OFL)** - notices shipped in `FONT-LICENSES.txt`. |
+| `ibm-plex-mono-400/600.woff2` | IBM Plex Mono (IBM); SIL Open Font License 1.1. | **Third-party (OFL)** - notices shipped in `FONT-LICENSES.txt`. |
+| `press-start-2p-400.woff2` | Press Start 2P (CodeMan38); SIL Open Font License 1.1. | **Third-party (OFL)** - notices shipped in `FONT-LICENSES.txt`. |
 
 The SIL OFL permits bundling and modification, but requires the licence text and
-copyright notice to accompany the fonts. Add the notices (and any modified-font
-attribution) before commercial distribution.
+copyright notice to accompany the fonts. `FONT-LICENSES.txt` at the repo root holds
+each family's notice and licence verbatim from upstream (github.com/google/fonts,
+`ofl/<family>/OFL.txt`) and is on the allow-list of both `scripts/package.cjs` and
+`packaging/windows/electron-builder.cjs`. A new font means a new entry there.
 
 ## 4. Runtime downloads and caches (not shipped)
 

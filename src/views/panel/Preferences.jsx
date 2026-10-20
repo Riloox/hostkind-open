@@ -32,7 +32,7 @@ function Kbd({ children }) {
 function Combo({ keys }) {
   return keys.map((k, i) => (
     <span key={i} className="flex items-center gap-1">
-      {i > 0 && <span className="text-muted-foreground/60 text-label">+</span>}
+      {i > 0 && <span className="text-muted-foreground text-label">+</span>}
       <Kbd>{k}</Kbd>
     </span>
   ));
@@ -44,7 +44,7 @@ function ComboRow({ combo, altCombo }) {
       <Combo keys={combo} />
       {altCombo && (
         <>
-          <span className="text-muted-foreground/60 text-label mx-1">/</span>
+          <span className="text-muted-foreground text-label mx-1">/</span>
           <Combo keys={altCombo} />
         </>
       )}

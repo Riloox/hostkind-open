@@ -214,7 +214,7 @@ function ConnectivityTab({ server }) {
                 {report.addresses.length === 0 && <div>{t('portability.noAddresses')}</div>}
                 {report.addresses.map((item) => (
                   <div key={`${item.interface}-${item.address}`} className="break-all">
-                    {item.address}<span className="text-muted-foreground/60"> · {item.interface}</span>
+                    {item.address}<span className="text-muted-foreground"> · {item.interface}</span>
                   </div>
                 ))}
               </div>
@@ -225,7 +225,7 @@ function ConnectivityTab({ server }) {
                 <div key={key} className="rounded border border-border p-2">
                   <div className="text-label font-semibold uppercase tracking-wider text-muted-foreground">{t(`portability.port.${key}`)}</div>
                   <div className="text-sm text-foreground">{report.ports[key].value || t('common.dashPlaceholder')}</div>
-                  <div className="text-label uppercase text-muted-foreground/70">
+                  <div className="text-label uppercase text-muted-foreground">
                     {report.ports[key].protocol} · {t(`portability.portSource.${report.ports[key].source}`)}
                   </div>
                 </div>

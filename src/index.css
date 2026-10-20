@@ -93,7 +93,8 @@
     --accent: var(--coal-6);
     --accent-foreground: var(--ink-1);
     --border: var(--coal-7);
-    --input: var(--coal-7);
+    /* Not --coal-7: a field's edge needs 3:1 (SC 1.4.11), see --coal-9. */
+    --input: var(--coal-9);
 
     /* Action. --primary is the single accent; --primary-strong is its hover and
        pressed partner, one rung down the ramp so a press reads as heat being

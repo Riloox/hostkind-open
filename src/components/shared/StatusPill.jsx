@@ -19,7 +19,7 @@ export function StatusPill({ status = 'offline', className }) {
     return (
       <span className={cn(
         'status-pill inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-label font-semibold uppercase tracking-wide',
-        'text-muted-foreground/60',
+        'text-muted-foreground',
         className
       )}>
         {t('header.noServer')}
@@ -80,7 +80,7 @@ export function StatusDot({ status = 'offline', className, decorative = false })
   const tone =
     isOnline ? 'text-status-online' :
     isWorking ? 'text-status-warn' :
-    'text-muted-foreground/50';
+    'text-status-offline';
 
   return (
     <span

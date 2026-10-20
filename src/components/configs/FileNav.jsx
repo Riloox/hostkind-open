@@ -33,7 +33,7 @@ export function FileNav({ files = [], selected, onSelect, minecraft = false }) {
               {b.label}
             </div>
             {b.items.length === 0 ? (
-              <div className="px-2.5 py-1.5 text-sm text-muted-foreground/70 italic">
+              <div className="px-2.5 py-1.5 text-sm text-muted-foreground italic">
                 {t('configs.groupAdvancedEmpty')}
               </div>
             ) : (

@@ -496,7 +496,7 @@ export function PalworldModsView() {
                           <Badge variant={pkg.updateState === 'ready' ? 'softWarn' : 'default'}>{t(`palworldMods.official.update.${pkg.updateState}`)}</Badge>
                           <Badge variant={pkg.integrity === 'verified' ? 'softSuccess' : 'softWarn'}>{t(`palworldMods.official.integrity.${pkg.integrity}`)}</Badge>
                         </div>
-                        <div className="text-xs text-muted-foreground/60 mt-1">{pkg.version} · {pkg.workshopId}</div>
+                        <div className="text-xs text-muted-foreground mt-1">{pkg.version} · {pkg.workshopId}</div>
                         <div className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
                           {pkg.workshop?.description || t('palworldMods.official.noDescription')}
                         </div>
@@ -548,7 +548,7 @@ export function PalworldModsView() {
                       <div key={item.trashId} className="flex items-center gap-3 rounded-lg border border-border/60 bg-secondary/20 p-3 hover:bg-secondary/40 transition-colors">
                         <div className="flex-1 min-w-0">
                           <div className="font-semibold text-sm text-foreground truncate">{item.package.packageName}</div>
-                          <div className="text-xs text-muted-foreground/60 mt-1">{item.package.version}</div>
+                          <div className="text-xs text-muted-foreground mt-1">{item.package.version}</div>
                         </div>
                         <Button variant="glass" size="sm" disabled={!canManage || busy} onClick={() => lifecycle(`/api/palworld/mods/trash/${item.trashId}/restore`, { method: 'POST' }, t('palworldMods.restored'))}>
                           {t('palworldMods.restore')}

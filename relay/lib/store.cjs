@@ -14,6 +14,9 @@
  * update. markFailed() stores a REDACTED, truncated error so a secret can
  * never reach the database.
  *
+ * Retention: pruneExpired() deletes a row once it is no longer needed, a
+ * retention window after it was synced or after the worker gave up on it.
+ *
  * All functions are synchronous (better-sqlite3). createStore() returns an
  * isolated instance so tests can point each instance at its own temp file;
  * production uses RELAY_DATA_DIR (see relay/README.md).
@@ -29,6 +32,7 @@ const DAY_MS = 86_400_000;
 const DEFAULT_MAX_ATTEMPTS = 5;
 const DEFAULT_BACKOFF_BASE_MS = 60_000;
 const DEFAULT_MAX_AGE_MS = 30 * DAY_MS;
+const DEFAULT_RETENTION_MS = 30 * DAY_MS;
 const MAX_ERROR_LENGTH = 500;
 
 const SELECT_COLUMNS = `
@@ -204,6 +208,40 @@ function createStore(opts = {}) {
     return getRow(id);
   }
 
+  /*
+   * Delete rows past the retention window; returns the number deleted.
+   * opts: { now, retentionMs (30 days), maxAttempts (5), maxAgeMs (30 days) }
+   *
+   * A row becomes "done" at:
+   *   - synced:  updated_at (the sync time, set by markSynced)
+   *   - failed/pending that listPending() will never pick again: the moment
+   *     it stopped being eligible — updated_at once attempts >= maxAttempts,
+   *     else updated_at + maxAgeMs (the listPending age cutoff)
+   * and is deleted retentionMs after that. Rows still being retried are
+   * never touched.
+   *
+   * Idempotency tradeoff: the marker (the client's clientKey) is only
+   * deduplicated while its row exists. A client that retries the same
+   * clientKey after the row was pruned is enqueued as a new report and can
+   * produce a duplicate GitHub issue. After the retention window (30 days
+   * by default) that is accepted in exchange for not keeping reports forever.
+   */
+  function pruneExpired(opts6 = {}) {
+    const t = opts6.now !== undefined ? opts6.now : now();
+    const retentionMs = opts6.retentionMs !== undefined ? opts6.retentionMs : DEFAULT_RETENTION_MS;
+    const maxAttempts = opts6.maxAttempts !== undefined ? opts6.maxAttempts : DEFAULT_MAX_ATTEMPTS;
+    const maxAgeMs = opts6.maxAgeMs !== undefined ? opts6.maxAgeMs : DEFAULT_MAX_AGE_MS;
+
+    const info = db.prepare(`
+      DELETE FROM relay_reports
+       WHERE (sync_state = 'synced' AND updated_at < @t - @retentionMs)
+          OR (sync_state IN ('pending', 'failed')
+              AND (CASE WHEN attempts >= @maxAttempts THEN updated_at
+                        ELSE updated_at + @maxAgeMs END) < @t - @retentionMs)
+    `).run({ t, retentionMs, maxAttempts, maxAgeMs });
+    return info.changes;
+  }
+
   function counts() {
     const rows = db.prepare(`
       SELECT sync_state, COUNT(*) AS n FROM relay_reports GROUP BY sync_state
@@ -228,6 +266,7 @@ function createStore(opts = {}) {
     listPending,
     markSynced,
     markFailed,
+    pruneExpired,
     counts,
     close,
     dbPath: () => dbPath,
@@ -239,5 +278,6 @@ module.exports = {
   DEFAULT_MAX_ATTEMPTS,
   DEFAULT_BACKOFF_BASE_MS,
   DEFAULT_MAX_AGE_MS,
+  DEFAULT_RETENTION_MS,
   DAY_MS,
 };

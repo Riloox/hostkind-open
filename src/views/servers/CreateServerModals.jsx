@@ -192,7 +192,7 @@ export function CreateFromModpackModal({ open, onOpenChange, onCreated }) {
                       <div className="flex-1 min-w-0">
                         <div className="font-semibold text-sm text-foreground truncate">{h.title}</div>
                         <div className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{(h.description || '').slice(0, 140)}</div>
-                        <div className="text-xs text-muted-foreground/60 mt-1">
+                        <div className="text-xs text-muted-foreground mt-1">
                           ⬇ {Number(h.downloads).toLocaleString()} · ♥ {Number(h.follows || 0).toLocaleString()} · {h.author || ''}
                         </div>
                       </div>

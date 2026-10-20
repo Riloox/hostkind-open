@@ -30,7 +30,7 @@ const crypto = require('crypto');
 const express = require('express');
 const { validateReport } = require('./lib/validate-report.cjs');
 const { redactReport } = require('./lib/redact-report.cjs');
-const { createStore } = require('./lib/store.cjs');
+const { createStore, DEFAULT_RETENTION_MS, DAY_MS } = require('./lib/store.cjs');
 const { createQueueWorker } = require('./lib/queue-worker.cjs');
 const { createRateLimiter } = require('./lib/rate-limit.cjs');
 const { githubClientFromEnv } = require('./lib/github-client.cjs');
@@ -218,6 +218,7 @@ function createRelayApp(deps = {}) {
  *   - GitHub client from env (fails closed when RELAY_GITHUB_TOKEN is
  *     missing — the relay refuses to start without a credential)
  *   - queue worker polling on an unref'd interval
+ *   - retention prune at start and hourly (RELAY_RETENTION_DAYS, default 30)
  * Binds 127.0.0.1 only; public exposure is provided by a separately managed
  * edge layer.
  */
@@ -228,13 +229,37 @@ function createRelayServer(opts = {}) {
   const worker = opts.worker || createQueueWorker({ store, client });
   const app = createRelayApp({ store, worker, logger: opts.logger || noopLogger });
 
+  const logger = opts.logger || noopLogger;
+  const retentionDays = Number(process.env.RELAY_RETENTION_DAYS);
+  const retentionMs = opts.retentionMs !== undefined
+    ? opts.retentionMs
+    : (retentionDays > 0 ? retentionDays * DAY_MS : DEFAULT_RETENTION_MS);
+
   let timer = null;
+  let pruneTimer = null;
   let httpServer = null;
 
-  function start({ port = 8787, host = '127.0.0.1', pollIntervalMs = 30_000 } = {}) {
+  // Delete reports past the retention window. Logs only the count.
+  function prune() {
+    try {
+      const deleted = store.pruneExpired({ retentionMs });
+      if (deleted > 0) logger.info(`relay-server: retention pruned ${deleted} report(s)`);
+      return deleted;
+    } catch (err) {
+      logger.error(`relay-server: retention prune failed: ${err && err.message ? err.message : err}`);
+      return 0;
+    }
+  }
+
+  function start({ port = 8787, host = '127.0.0.1', pollIntervalMs = 30_000, pruneIntervalMs = 3_600_000 } = {}) {
     return new Promise((resolve, reject) => {
       httpServer = app.listen(port, host, () => resolve(httpServer));
       httpServer.on('error', reject);
+      prune();
+      if (pruneIntervalMs > 0) {
+        pruneTimer = setInterval(prune, pruneIntervalMs);
+        if (pruneTimer.unref) pruneTimer.unref();
+      }
       if (pollIntervalMs > 0) {
         timer = setInterval(() => {
           worker.runOnce().catch(() => {});
@@ -247,6 +272,7 @@ function createRelayServer(opts = {}) {
   function close() {
     return new Promise((resolve) => {
       if (timer) clearInterval(timer);
+      if (pruneTimer) clearInterval(pruneTimer);
       if (httpServer) {
         httpServer.close(() => { store.close(); resolve(); });
       } else {
@@ -256,11 +282,17 @@ function createRelayServer(opts = {}) {
     });
   }
 
-  return { app, store, worker, start, close };
+  return { app, store, worker, start, close, prune };
 }
 
 if (require.main === module) {
-  const server = createRelayServer();
+  const server = createRelayServer({
+    logger: {
+      info: (m) => console.log(m),
+      warn: (m) => console.warn(m),
+      error: (m) => console.error(m),
+    },
+  });
   const port = Number(process.env.RELAY_PORT) || 8787;
   const host = process.env.RELAY_HOST || '127.0.0.1';
   server.start({ port, host })

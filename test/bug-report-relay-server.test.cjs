@@ -16,7 +16,7 @@ const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { createRelayApp, clientKeyFor } = require('../relay/server.cjs');
+const { createRelayApp, createRelayServer, clientKeyFor } = require('../relay/server.cjs');
 const { createStore } = require('../relay/lib/store.cjs');
 const { createQueueWorker } = require('../relay/lib/queue-worker.cjs');
 const { createRateLimiter } = require('../relay/lib/rate-limit.cjs');
@@ -445,6 +445,29 @@ tests.push(async () => {
     t.cleanup();
   }
   console.log('ok  relay-server errors: generic 500, no stacks, redacted logs');
+});
+
+tests.push(async () => {
+  // Retention: the server prunes expired rows and logs only the count.
+  const t = tmpDb();
+  try {
+    const store = createStore({ dbPath: t.dbPath });
+    const row = store.enqueue({ marker: 'old', title: 't', payload: PAYLOAD }, { now: 1_000 });
+    store.markSynced(row.id, { issueNumber: 1, issueUrl: 'u' }, { now: 1_000 });
+    const lines = [];
+    const logger = { info: (m) => lines.push(m), warn() {}, error() {} };
+    const client = { createIssue: async () => ({}) };
+    const server = createRelayServer({ store, client, logger });
+    assert.strictEqual(server.prune(), 1);
+    assert.strictEqual(store.counts().total, 0);
+    assert.strictEqual(lines.length, 1);
+    assert.ok(/pruned 1 report/.test(lines[0]));
+    assert.ok(!lines[0].includes(PAYLOAD.description), 'log must not contain report content');
+    await server.close();
+  } finally {
+    t.cleanup();
+  }
+  console.log('ok  relay-server retention: prune logs count only');
 });
 
 /* ── run ─────────────────────────────────────────────────────────── */

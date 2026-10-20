@@ -19,7 +19,7 @@ const INITIAL = { serverId: '', actorId: '', action: '', outcome: '', from: '', 
 function Field({ label, htmlFor, children }) {
   return (
     <div className="space-y-1">
-      <label htmlFor={htmlFor} className="block text-label font-semibold uppercase tracking-wider text-muted-foreground/70">
+      <label htmlFor={htmlFor} className="block text-label font-semibold uppercase tracking-wider text-muted-foreground">
         {label}
       </label>
       {children}
@@ -156,7 +156,7 @@ export function AuditView() {
             return <TableRow key={event.id} className="cursor-pointer" onClick={() => setDetail(event)}>
               <TableCell className="whitespace-nowrap text-xs">
                 {new Date(event.ts).toLocaleString()}
-                {rel && <span className="ml-1 text-muted-foreground/70">({rel})</span>}
+                {rel && <span className="ml-1 text-muted-foreground">({rel})</span>}
               </TableCell>
               <TableCell>{event.actorUsername || event.actorId || t('audit.system')}</TableCell>
               <TableCell>{event.serverId || '—'}</TableCell><TableCell className="text-xs">{event.action}</TableCell>

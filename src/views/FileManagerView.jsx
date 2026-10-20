@@ -194,12 +194,19 @@ export function FileManagerView() {
                               {e.dir
                                 ? <Folder className="h-4 w-4 shrink-0 text-primary" />
                                 : <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />}
-                              <span
-                                className={cn('truncate font-medium text-foreground', e.editable && !e.dir && 'cursor-pointer hover:text-primary')}
-                                onClick={e.editable && !e.dir ? (ev) => { ev.stopPropagation(); fileAction('edit', e); } : undefined}
-                              >
-                                {e.name}
-                              </span>
+                              {/* A real button so folders open and files edit from the keyboard,
+                                  not only by clicking the row. */}
+                              {e.dir || e.editable ? (
+                                <button
+                                  type="button"
+                                  className="truncate rounded-sm text-left font-medium text-foreground hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                  onClick={(ev) => { ev.stopPropagation(); if (e.dir) load(rel); else fileAction('edit', e); }}
+                                >
+                                  {e.name}
+                                </button>
+                              ) : (
+                                <span className="truncate font-medium text-foreground">{e.name}</span>
+                              )}
                             </span>
                           </TableCell>
                           <TableCell className="whitespace-nowrap text-right text-xs tabular-nums text-muted-foreground">

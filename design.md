@@ -28,7 +28,7 @@ Ramp (`--ember-1` … `--ember-7`):
 - `--ember-6`: `oklch(82% 0.135 68)` — hot amber
 - `--ember-7`: `oklch(93% 0.062 88)` — white-hot (focus, commands)
 
-Coal neutrals (`--coal-1` … `--coal-8`), hue 40:
+Coal neutrals (`--coal-1` … `--coal-9`), hue 40:
 
 - `--coal-1`: `oklch(8.5% 0.014 40)` — console bed
 - `--coal-2`: `oklch(10% 0.016 40)` — sidebar
@@ -36,8 +36,9 @@ Coal neutrals (`--coal-1` … `--coal-8`), hue 40:
 - `--coal-4`: `oklch(16.5% 0.020 40)` — card
 - `--coal-5`: `oklch(21% 0.024 40)` — popover / secondary
 - `--coal-6`: `oklch(25% 0.028 42)` — accent surface / muted
-- `--coal-7`: `oklch(30% 0.032 42)` — border / input
+- `--coal-7`: `oklch(30% 0.032 42)` — border
 - `--coal-8`: `oklch(39% 0.034 42)` — strong rule
+- `--coal-9`: `oklch(52% 0.034 42)` — input boundary (3:1, WCAG 1.4.11)
 
 Ink `--ink-1` `oklch(95% 0.014 70)` → `--ink-4` `oklch(50% 0.018 50)`.
 
@@ -198,7 +199,7 @@ The canonical implementation is [`tokens.css`](tokens.css).
   --muted: 25% 0.028 42;
   --muted-foreground: 69% 0.018 60;
   --border: 30% 0.032 42;
-  --input: 30% 0.032 42;
+  --input: 52% 0.034 42;
   --ring: 93% 0.062 88;
   --radius: 0.25rem;
 }

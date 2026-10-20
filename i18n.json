@@ -65,7 +65,8 @@
         "retry": "Retry",
         "failed": "Failed",
         "loadFailed": "Failed to load data",
-        "apply": "Apply"
+        "apply": "Apply",
+        "skipToContent": "Skip to main content"
       },
       "brand": {
         "name": "Hostkind",
@@ -1405,6 +1406,7 @@
           "search": "Search players…",
           "showAll": "Show all players",
           "hideAll": "Hide all players",
+          "showPlayer": "Show {name} on the map",
           "now": "Observed now",
           "secondsAgo": "Observed {seconds}s ago",
           "gridCoords": "X {x} · Y {y}",
@@ -3063,7 +3065,8 @@
         "retry": "Reintentar",
         "failed": "Falló",
         "loadFailed": "No se pudieron cargar los datos",
-        "apply": "Aplicar"
+        "apply": "Aplicar",
+        "skipToContent": "Saltar al contenido principal"
       },
       "brand": {
         "name": "Hostkind",
@@ -4403,6 +4406,7 @@
           "search": "Buscar jugadores…",
           "showAll": "Mostrar todos los jugadores",
           "hideAll": "Ocultar todos los jugadores",
+          "showPlayer": "Mostrar a {name} en el mapa",
           "now": "Observado ahora",
           "secondsAgo": "Observado hace {seconds}s",
           "gridCoords": "X {x} · Y {y}",

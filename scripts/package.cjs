@@ -51,6 +51,7 @@ const SHIPPED_ROOTS = [
   'resources',
   'public',
   'LICENSE',  'THIRD_PARTY_NOTICES.md',
+  'FONT-LICENSES.txt',
   'config.example.json',
   'README.md',
   'CHANGELOG.md',

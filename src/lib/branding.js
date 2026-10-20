@@ -57,14 +57,23 @@ const RAMP_TOKENS = [
   '--ember-1', '--ember-2', '--ember-3', '--ember-4', '--ember-5',
   '--ember-6', '--ember-7',
   '--coal-1', '--coal-2', '--coal-3', '--coal-4', '--coal-5',
-  '--coal-6', '--coal-7', '--coal-8',
+  '--coal-6', '--coal-7', '--coal-8', '--coal-9',
   '--ink-1', '--ink-2', '--ink-3', '--ink-4', '--ink-on-ember',
 ];
+
+// A generated theme carries eight coal rungs; the ninth (the input boundary,
+// which has to clear 3:1 on every surface) is --coal-8's hue and chroma at the
+// lightness tokens.css uses for it.
+function inputEdge(coal8) {
+  const m = /^\s*[\d.]+%\s+([\d.]+)\s+([\d.]+)\s*$/.exec(coal8 || '');
+  return m ? `52% ${m[1]} ${m[2]}` : '52% 0.034 42';
+}
 
 function themeRungs(theme) {
   return [
     ...theme.ember.map((value, i) => [`--ember-${i + 1}`, value]),
     ...theme.coal.map((value, i) => [`--coal-${i + 1}`, value]),
+    ['--coal-9', inputEdge(theme.coal[7])],
     ...theme.ink.map((value, i) => [`--ink-${i + 1}`, value]),
     ['--ink-on-ember', theme.inkOnEmber],
   ];

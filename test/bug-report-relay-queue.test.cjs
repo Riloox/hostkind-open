@@ -480,6 +480,53 @@ tests.push(async () => {
   console.log('ok  relay-queue ordering: report queued before any GitHub call');
 });
 
+tests.push(async () => {
+  const t = tmpDb();
+  try {
+    const { now, advance } = makeClock();
+    const store = createStore({ dbPath: t.dbPath, now });
+    const DAY = 86_400_000;
+    const retentionMs = 30 * DAY;
+    const mk = (marker) => store.enqueue({ marker, title: 't', payload: PAYLOAD });
+
+    const synced = mk('m-synced');
+    const exhausted = mk('m-exhausted');
+    const stale = mk('m-stale');
+    const live = mk('m-live');
+    store.markSynced(synced.id, { issueNumber: 1, issueUrl: 'u' });
+    store.markFailed(exhausted.id, { error: 'boom', attempts: DEFAULT_MAX_ATTEMPTS });
+    store.markFailed(live.id, { error: 'boom', attempts: 1 });
+
+    // Inside the window nothing is deleted.
+    advance(retentionMs - 1);
+    assert.strictEqual(store.pruneExpired({ retentionMs }), 0);
+    assert.strictEqual(store.counts().total, 4);
+
+    // Past the window: synced + exhausted go. The retryable failed row and
+    // the never-attempted pending row are still inside their 30-day age cap.
+    advance(2);
+    assert.strictEqual(store.pruneExpired({ retentionMs }), 2);
+    assert.strictEqual(store.getByMarker('m-synced'), null);
+    assert.strictEqual(store.getByMarker('m-exhausted'), null);
+    assert.ok(store.getByMarker('m-stale'));
+    assert.ok(store.getByMarker('m-live'));
+
+    // Rows past the pending age cutoff (30d) + retention (30d) are deleted.
+    advance(30 * DAY);
+    assert.strictEqual(store.pruneExpired({ retentionMs }), 2);
+    assert.strictEqual(store.counts().total, 0);
+
+    // A pruned marker is forgotten: the same clientKey enqueues a new row.
+    const again = store.enqueue({ marker: 'm-synced', title: 't', payload: PAYLOAD });
+    assert.notStrictEqual(again.id, synced.id);
+    assert.strictEqual(again.sync_state, 'pending');
+    store.close();
+  } finally {
+    t.cleanup();
+  }
+  console.log('ok  relay-queue retention: pruneExpired honours the window');
+});
+
 /* ── run ─────────────────────────────────────────────────────────── */
 
 (async function main() {

@@ -7,6 +7,28 @@ All notable changes to Hostkind are documented here. This project follows
 
 No entries yet.
 
+## [0.2.1] - 2026-10-20
+
+### Added
+
+- A [Privacy Policy](PRIVACY.md): what Hostkind keeps on your machine, which outside services each feature contacts, what a bug report sends and where it goes, and what the panel stores in your browser.
+- The licence notices for the bundled fonts now ship with Hostkind in `FONT-LICENSES.txt`.
+
+### Changed
+
+- The bug-report relay deletes its copy of a report 30 days after publishing it, or 30 days after giving up on it. The public issue is not affected.
+- An unused official Minecraft banner image was removed.
+
+### Accessibility
+
+- Secondary text that was drawn faded is now easier to read, and text boxes, dropdowns and checkboxes have a clearly visible border in every theme.
+- A "Skip to main content" link is the first thing the keyboard reaches.
+- In the file manager, folders open from the keyboard. On the Palworld map, showing or hiding a single player is its own labelled button.
+
+### Security
+
+- Updated multer to 2.4.0 and Electron to 43.8.1, and pinned postcss-selector-parser to 7.1.6.
+
 ## [0.2.0] - 2026-09-28
 
 A simpler Hostkind. The panel now opens on your servers instead of a games carousel, every server has the same short menu, and the question "are my servers OK, and does anything need me?" is answered on the first screen. Nothing you had is gone; most of it moved. Your servers, worlds, backups, schedules and settings are untouched, and old bookmarks and links still open the right page.

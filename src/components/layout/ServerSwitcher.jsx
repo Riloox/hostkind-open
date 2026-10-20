@@ -137,7 +137,7 @@ export function ServerSwitcher({ collapsed = false, onSwitch, onAllServers }) {
                   value={query}
                   onChange={e => setQuery(e.target.value)}
                   placeholder={t('serverSelector.searchPlaceholder')}
-                  className="h-8 w-full rounded-md border border-input bg-background/60 pl-8 pr-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:border-ring/50 focus:outline-none focus:ring-2 focus:ring-ring/50"
+                  className="h-8 w-full rounded-md border border-input bg-background/60 pl-8 pr-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-ring/50 focus:outline-none focus:ring-2 focus:ring-ring/50"
                 />
               </div>
             </div>

@@ -176,9 +176,9 @@ export function NotificationBell() {
                   </div>
                   <div className="flex items-center gap-1.5 mt-1">
                     {sname && (
-                      <span className="text-label text-muted-foreground/60">{sname}</span>
+                      <span className="text-label text-muted-foreground">{sname}</span>
                     )}
-                    <span className="text-label text-muted-foreground/40">
+                    <span className="text-label text-muted-foreground">
                       {timeAgo(n.timestamp, t)}
                     </span>
                   </div>

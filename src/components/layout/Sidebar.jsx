@@ -238,7 +238,7 @@ export function Sidebar({ currentView, onNavigate, onHome, onSwitchServer, onAll
         {/* A provider's legal line, when they configured one. Plain text only:
             the value is free-form config and is rendered verbatim. */}
         {!isCollapsed && branding.legalFooter && (
-          <p className="px-3 text-label text-muted-foreground/60">{branding.legalFooter}</p>
+          <p className="px-3 text-label text-muted-foreground">{branding.legalFooter}</p>
         )}
         {!narrow && <Button
           variant="ghost"

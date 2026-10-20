@@ -106,7 +106,16 @@ a second issue.
 - The relay does not bind a public interface itself: `127.0.0.1` only, and
   only the tunnel publishes it. There is no admin endpoint.
 
-### 8. Credential misconfiguration
+### 8. Data at rest
+- Report copies in SQLite are redacted before the write and are deleted
+  automatically 30 days (`RELAY_RETENTION_DAYS`) after they are synced, or
+  after the relay gives up on them (attempt budget exhausted or 30-day age
+  cutoff). The prune runs at startup and hourly and logs only a count.
+- Residual: replaying a `clientKey` after its row is pruned creates a new
+  report (and possibly a duplicate public issue). Accepted; the rate limits
+  still apply.
+
+### 9. Credential misconfiguration
 - The relay **fails closed** at startup when `RELAY_GITHUB_TOKEN` is missing
   (`githubClientFromEnv` throws; `server.cjs` exits non-zero).
 - Non-retryable GitHub authorization failures (401/403/404/422) exhaust the

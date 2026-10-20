@@ -10,13 +10,13 @@ export function EmptyState({ icon: Icon, title, message, action, compact = false
           </div>
         )}
         {title && <p className="text-sm font-medium text-foreground">{title}</p>}
-        {message && <p className="text-xs text-muted-foreground/70 max-w-xs">{message}</p>}
+        {message && <p className="text-xs text-muted-foreground max-w-xs">{message}</p>}
         {action && <div className="mt-2">{action}</div>}
       </div>
     );
   }
   return (
-    <div className={cn('flex items-center gap-2 py-6 text-sm text-muted-foreground/70 italic', className)}>
+    <div className={cn('flex items-center gap-2 py-6 text-sm text-muted-foreground italic', className)}>
       <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/30 shrink-0" />
       {message}
     </div>
