@@ -6,3 +6,6 @@ contact_links:
   - name: Ideas and show-and-tell
     url: https://github.com/Riloox/hostkind-open/discussions
     about: Share your setup or talk through an idea before filing a feature request.
+  - name: Discord community
+    url: https://discord.gg/227RHSTVAP
+    about: Chat with other Hostkind users and get quick help in real time.

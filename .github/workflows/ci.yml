@@ -309,6 +309,11 @@ jobs:
             --signing-key-file "$key_file"
           rm -f "$key_file"
 
+      # The release body is the version's CHANGELOG.md section, not GitHub's
+      # generated compare link; the Discord post below reuses the same text.
+      - name: Extract release notes from CHANGELOG.md
+        run: node scripts/release-notes.cjs --version "${GITHUB_REF_NAME#v}" --output "$RUNNER_TEMP/release-notes.md"
+
       - name: Publish GitHub release
         run: >-
           gh release create "$GITHUB_REF_NAME"
@@ -323,7 +328,7 @@ jobs:
           dist/Hostkind-*.AppImage.sha256
           dist/*.deb
           dist/*.deb.sha256
-          --generate-notes
+          --notes-file "$RUNNER_TEMP/release-notes.md"
         env:
           GH_TOKEN: ${{ github.token }}
 
@@ -332,3 +337,13 @@ jobs:
         run: gh release upload "$GITHUB_REF_NAME" dist/hostkind-update.json --clobber
         env:
           GH_TOKEN: ${{ github.token }}
+
+      # Announce on Discord #changelog. A step's own env is not visible to its
+      # `if:`, so the script skips itself when the secret is unset, and
+      # continue-on-error keeps a Discord outage from failing a published
+      # release.
+      - name: Post release notes to Discord
+        continue-on-error: true
+        env:
+          DISCORD_CHANGELOG_WEBHOOK: ${{ secrets.DISCORD_CHANGELOG_WEBHOOK }}
+        run: node scripts/release-notes.cjs --version "${GITHUB_REF_NAME#v}" --discord

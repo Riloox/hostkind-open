@@ -9,6 +9,7 @@ Start, stop, monitor, update, and back up your servers without handing your data
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-ff6b35?style=flat-square&logo=github&logoColor=white)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-22%2B-339933?style=flat-square&logo=nodedotjs&logoColor=white)](package.json)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-23140e?style=flat-square&logo=terminal&logoColor=white)](#download-and-run)
+[![Discord](https://img.shields.io/badge/Discord-Join%20the%20community-5865F2?style=flat-square&logo=discord&logoColor=white)](https://discord.gg/227RHSTVAP)
 
 </div>
 
@@ -135,6 +136,10 @@ Each installer ships its own `.sha256` sidecar, verified the same way.
 ## Open edition
 
 This repository is the open edition of Hostkind. Every feature is included, with no activation or keys. Code lands here as release snapshots rather than as a continuously synced history.
+
+## Community
+
+Join the [Hostkind Discord](https://discord.gg/227RHSTVAP) to get help, share your setup, follow new releases in #changelog, and talk with other server hosts. Bugs and feature requests still go to [Issues](https://github.com/Riloox/hostkind-open/issues/new/choose).
 
 ## License
 
