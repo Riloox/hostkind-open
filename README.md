@@ -12,9 +12,19 @@ Start, stop, monitor, update, and back up your servers without handing your data
 
 </div>
 
-![Hostkind](resources/hero.webp)
+![A Minecraft server created, installed and started in Hostkind](docs/media/first-server.webp)
 
 Hostkind is a free, self-hosted app for dedicated game servers and other long-running processes. It runs on your own computer, keeps your files local, and does not require a cloud account, external database, or API key.
+
+## Your first server in 2 minutes
+
+1. [Download Hostkind](#download-and-run) for Windows or Linux, install it, and open it.
+2. Sign in as `admin` with the one-time password in `initial-admin-password.txt`, in Hostkind's data folder (`%APPDATA%\Hostkind` on Windows, `~/.config/Hostkind` on Linux).
+3. Pick **Minecraft**, then **Install a new server**. The **Survival** preset is already filled in.
+4. Tick **I accept the Minecraft EULA** and click **Download & create**.
+5. Click **Start**. Hostkind downloads the right Java the first time, and the server is online about a minute later.
+
+The recording above is that flow on a fresh install, in about a minute of real time; the download and boot waits are sped up. Players on your network can join at your computer's address on port `25565`.
 
 ---
 
