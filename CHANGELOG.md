@@ -7,6 +7,16 @@ All notable changes to Hostkind are documented here. This project follows
 
 No entries yet.
 
+## [0.2.1.1] - 2026-10-21
+
+### Security
+
+- The desktop app now runs on Electron 45.0.0 (Chromium 156), up from Electron 43.8.1 (Chromium 150). This picks up the latest upstream security fixes for Chromium, V8, ANGLE, Skia and PDFium. Updating is recommended for everyone using the desktop app.
+
+### Changed
+
+- Hostkind's database library, better-sqlite3, moved to 13.0.3, which is needed to run on Electron 45. Your existing data is unchanged.
+
 ## [0.2.1] - 2026-10-20
 
 ### Added

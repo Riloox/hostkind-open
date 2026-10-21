@@ -1,6 +1,6 @@
 {
   "name": "hostkind-open",
-  "version": "0.2.1",
+  "version": "0.2.1.1",
   "description": "Self-hosted web panel for managing servers and long-running processes",
   "license": "AGPL-3.0-only",
   "author": "Federico Prunell Alza",
@@ -57,7 +57,7 @@
   },
   "dependencies": {
     "archiver": "^7.0.1",
-    "better-sqlite3": "^12.11.1",
+    "better-sqlite3": "^13.0.3",
     "compression": "^1.8.2",
     "express": "^4.21.2",
     "express-rate-limit": "^8.6.2",
@@ -86,7 +86,7 @@
     "autoprefixer": "^10.4.20",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
-    "electron": "43.8.1",
+    "electron": "45.0.0",
     "electron-builder": "26.15.3",
     "lucide-react": "^0.468.0",
     "oxlint": "^1.78.0",
@@ -101,7 +101,7 @@
     "vite": "^6.0.5"
   },
   "allowScripts": {
-    "better-sqlite3@12.11.1": true,
+    "better-sqlite3@13.0.3": true,
     "esbuild@0.25.12": true
   },
   "overrides": {
