@@ -66,7 +66,7 @@ jobs:
         # remove `-I` or use `-m 1` if you want the scan itself to fail.
       - name: Upload ZAP report
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: zap-report
           path: zap-out/
