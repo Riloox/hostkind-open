@@ -117,6 +117,25 @@ The default reset removes local credentials, configuration, application data, ru
 
 Both modes require two exact confirmations, and server deletion uses a separate confirmation token. Add `--no-start` to reset without launching a fresh panel.
 
+## Command line
+
+`hostkind` is a command-line client for the same authenticated API the panel
+uses. It covers servers, the live console, players, worlds, backups, files,
+configs, scheduled tasks, mods, every game module, users, API keys, the audit
+log and Hostkind's own updates. At a terminal it prints tables and asks before
+destructive actions; piped, it prints JSON and exits with documented codes, so
+scripts and agents can use it. `hostkind api` calls any endpoint directly.
+
+```sh
+npm run cli -- login
+npm run cli -- servers list
+npm run cli -- console tail --server survival
+npm run cli -- backups create --server survival --wait
+```
+
+See [cli/README.md](cli/README.md) for the full command reference, profiles,
+previews, uploads and downloads, and shell completion.
+
 ## Releases
 
 A version tag (`vX.Y.Z[.W]`) runs the release pipeline in this repository and publishes a GitHub Release with:

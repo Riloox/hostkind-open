@@ -7,6 +7,18 @@ All notable changes to Hostkind are documented here. This project follows
 
 No entries yet.
 
+## [0.2.2] - 2026-11-12
+
+### Added
+
+- A command-line client, `hostkind`, for everything the panel can do: servers, the live console, players, worlds, backups, files, configs, scheduled tasks, mods, every game module, users, API keys, the audit log and Hostkind updates. It signs in with your panel account or an API key and can save several panels as profiles. At a terminal it prints tables, shows a preview and asks before destructive actions, and suggests the right command when you mistype one. When its output is piped it prints JSON and exits with documented codes, so scripts and AI agents can drive Hostkind. Run `npm run cli -- --help`, or see [cli/README.md](cli/README.md). Shell completion is available for bash, zsh and fish.
+
+### Security
+
+- Updated multer to 2.5.0, Express to 4.22.3 and body-parser to 1.20.9. Each fixes a way to tie up the panel with a crafted upload or request body. qs is pinned to 6.16.2.
+- Updated Vite, used to build and develop the panel, to 6.4.6.
+- Downloading a Terraria or Valheim world no longer slows down when the server or world name contains a very long run of dashes.
+
 ## [0.2.1.1] - 2026-10-21
 
 ### Security

@@ -23,6 +23,8 @@ module.exports = {
     'electron/**',
     'config/**',
     'lib/**',
+    'bin/**',
+    'cli/**',
     'public/**',
     'resources/**',
     'scripts/apply-application-update.cjs',
